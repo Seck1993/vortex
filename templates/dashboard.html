@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Guilda Vortex - Command Center</title>
+    <!-- Fonte tecnológica do Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-panel: rgba(15, 15, 25, 0.75);
+            --neon-cyan: #00f3ff;
+            --neon-purple: #bc13fe;
+            --neon-green: #00ff66;
+            --neon-orange: #ffaa00;
+            --neon-red: #ff003c;
+            --text-light: #e0e6ed;
+            --text-muted: #6b7a90;
+            --glass-border: rgba(0, 243, 255, 0.2);
+            --purple-primary: var(--neon-cyan); 
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-attachment: fixed;
+            color: var(--text-light);
+            font-family: 'Rajdhani', sans-serif;
+            margin: 0; 
+            padding: 15px; /* Reduzido para aproveitar mais a tela */
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3 { text-transform: uppercase; letter-spacing: 2px; margin-top: 0; }
+
+        .header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 20px; border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 10px; box-shadow: 0 10px 20px -10px rgba(0, 243, 255, 0.1);
+        }
+        .header h1 {
+            font-size: 26px; font-weight: 700; color: #fff;
+            text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+            margin: 0; display: flex; align-items: center; gap: 10px;
+        }
+        .header h1::before { content: "⚡"; font-size: 20px; filter: hue-rotate(180deg); }
+
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .card { 
+            background: var(--bg-panel); padding: 15px; 
+            border: 1px solid var(--glass-border); border-top: 3px solid var(--neon-cyan);
+            backdrop-filter: blur(10px); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            position: relative; overflow: hidden; transition: 0.3s;
+        }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0, 243, 255, 0.2); border-top-color: var(--neon-purple); }
+        .card::after { 
+            content: ''; position: absolute; bottom: 0; right: 0; width: 15px; height: 15px;
+            background: var(--neon-cyan); clip-path: polygon(100% 0, 100% 100%, 0 100%); opacity: 0.5;
+        }
+        .card-title { font-size: 11px; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .card-value { font-size: 32px; font-weight: 700; color: #fff; margin-top: 5px; text-shadow: 0 0 15px rgba(255,255,255,0.5); }
+
+        .table-container { 
+            background: var(--bg-panel); padding: 15px; 
+            border: 1px solid var(--glass-border); border-left: 4px solid var(--neon-purple);
+            backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            margin-bottom: 20px; overflow-x: auto; 
+        }
+        .table-container h2 { color: #fff; text-shadow: 0 0 8px var(--neon-purple); display: flex; align-items: center; gap: 10px; font-size: 18px; margin-bottom: 15px;}
+        
+        table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: center; }
+        
+        /* Ajuste Visual da Tabela / Linhas de Grade e Redução de Fontes */
+        th { 
+            padding: 8px 4px; 
+            border-bottom: 1px solid rgba(0, 243, 255, 0.3); 
+            border-right: 1px solid rgba(0, 243, 255, 0.15); 
+            color: var(--neon-cyan); font-size: 11px; text-transform: uppercase; 
+            letter-spacing: 0.5px; background: rgba(0, 243, 255, 0.05); 
+            white-space: normal; line-height: 1.1; vertical-align: middle;
+        }
+        td { 
+            padding: 8px 4px; 
+            border-bottom: 1px solid rgba(0, 243, 255, 0.15); 
+            border-right: 1px solid rgba(0, 243, 255, 0.15);
+            font-size: 13px; transition: 0.2s; white-space: normal; vertical-align: middle;
+        }
+        th:last-child, td:last-child { border-right: none; }
+        td:nth-child(2), td:nth-child(3) { text-align: left; } /* Alinhamento do Rank e Jogador */
+        tbody tr { transition: 0.2s; }
+        tbody tr:hover { background: rgba(0, 243, 255, 0.08); }
+        tbody tr:hover td { border-bottom-color: var(--neon-cyan); }
+
+        .th-evento { color: var(--text-light); }
+        .td-evento { color: rgba(255,255,255,0.9); font-family: monospace; font-size: 14px; font-weight: bold;}
+
+        .btn { 
+            background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); 
+            padding: 8px 18px; border: 1px solid var(--neon-cyan); 
+            cursor: pointer; transition: all 0.3s ease; font-weight: 600;
+            font-family: 'Rajdhani', sans-serif; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;
+            clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+        }
+        .btn:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); }
+        
+        .btn-success { border-color: var(--neon-green); color: var(--neon-green); background: rgba(0, 255, 102, 0.1); }
+        .btn-success:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 15px var(--neon-green); }
+        
+        .btn-warning { border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 170, 0, 0.1); }
+        .btn-warning:hover { background: var(--neon-orange); color: #000; box-shadow: 0 0 15px var(--neon-orange); }
+        
+        .btn-outline { border-color: var(--neon-purple); color: var(--neon-purple); background: rgba(188, 19, 254, 0.1); }
+        .btn-outline:hover { background: var(--neon-purple); color: #fff; box-shadow: 0 0 15px var(--neon-purple); }
+
+        .btn-danger { background: transparent; border: none; font-size: 16px; cursor: pointer; transition: 0.2s; filter: drop-shadow(0 0 5px var(--neon-red));}
+        .btn-danger:hover { transform: scale(1.3); }
+        
+        /* Inputs Menores */
+        .input-edit {
+            background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); color: var(--neon-cyan);
+            padding: 4px 6px; border-radius: 2px; font-size: 12px; outline: none; transition: all 0.3s ease;
+            font-family: 'Rajdhani', sans-serif; font-weight: 600; text-align: center;
+        }
+        .input-edit:focus { border-color: var(--neon-green); box-shadow: 0 0 10px rgba(0, 255, 102, 0.4); background: rgba(0, 255, 102, 0.05); }
+        .edit-pontos { color: var(--neon-green); font-size: 15px; font-weight: 700; text-align: center; border-color: rgba(0, 255, 102, 0.3);}
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0px;}
+        .tab-btn { 
+            background: transparent; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; 
+            padding: 10px 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+            font-family: 'Rajdhani', sans-serif; transition: 0.3s; position: relative;
+        }
+        .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 2px; background: var(--neon-cyan); transition: 0.3s;}
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.active { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+        .tab-btn.active::after { width: 100%; box-shadow: 0 0 10px var(--neon-cyan); }
+        .tab-content { display: none; animation: fadeIn 0.4s ease-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .roleta-box { 
+            font-size: 36px; font-weight: 700; color: #fff; text-align: center; padding: 30px; 
+            border: 2px solid var(--neon-orange); border-radius: 4px; background: rgba(255, 170, 0, 0.05); 
+            margin: 20px 0; overflow: hidden; box-shadow: 0 0 30px rgba(255, 170, 0, 0.2), inset 0 0 20px rgba(255, 170, 0, 0.1);
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+
+        .guia-pontos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .guia-card { 
+            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(20,20,30,0.9) 100%); 
+            padding: 12px; border: 1px solid var(--glass-border); border-left: 3px solid var(--neon-cyan); 
+            display: flex; flex-direction: column; gap: 4px; position: relative;
+        }
+        .guia-card::before { content: ''; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan);}
+        .guia-card.semanal { border-left-color: var(--neon-purple); border-color: rgba(188, 19, 254, 0.3); }
+        .guia-card.semanal::before { background: var(--neon-purple); box-shadow: 0 0 8px var(--neon-purple); }
+        .guia-tipo { font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;}
+        .guia-nome { font-size: 13px; color: white; font-weight: 600;}
+        .guia-valor { font-size: 18px; color: var(--neon-green); font-weight: 700; margin-top: 2px; text-shadow: 0 0 10px rgba(0, 255, 102, 0.4);}
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 100; justify-content: center; align-items: center;}
+        .modal-content {
+            background: var(--bg-panel); border: 1px solid var(--neon-cyan); width: 600px; padding: 25px; 
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.15); max-height: 90vh; overflow-y: auto; position: relative;
+            clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+        }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--neon-cyan); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Vortex Command Center</h1>
+        <div style="display: flex; gap: 10px;">
+            {% if session.get('logged_in') %}
+                <button class="btn btn-outline" onclick="abrirModal('modalImportacao')">⇪ Inicializar Uploads</button>
+                <button class="btn btn-danger" style="font-size: 14px; border: 1px solid var(--neon-red); color: var(--neon-red); padding: 8px 15px;" onclick="fazerLogout()">⏻ Sair</button>
+            {% else %}
+                <button class="btn btn-outline" onclick="abrirModal('modalLogin')">🔒 Acesso Root</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="trocarAba('abaRanking', this)">Módulo de Jogadores</button>
+        <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
+        
+        {% if session.get('logged_in') %}
+            <button class="tab-btn" onclick="trocarAba('abaConfig', this)">Matriz de Pontos</button>
+            <button class="tab-btn" onclick="trocarAba('abaLogs', this)">Logs do Sistema</button>
+        {% endif %}
+    </div>
+
+    <!-- ABA 1: RANKING E GUIA DE PONTOS -->
+    <div id="abaRanking" class="tab-content active">
+        
+        <h3 style="margin-bottom: 10px; font-size: 16px; color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0,243,255,0.4);">
+            <span style="margin-right: 5px;">◈</span> Células de Energia por Evento
+        </h3>
+        <div class="guia-pontos">
+            {% for config in configuracoes %}
+            <div class="guia-card {% if config.tipo_evento == 'semanal' %}semanal{% endif %}">
+                <div class="guia-tipo">
+                    {% if config.tipo_evento == 'diario' %}Diário (Soma Múltipla){% else %}<span style="color: var(--neon-purple);">Semanal (Soma Única)</span>{% endif %}
+                </div>
+                <div class="guia-nome">{{ config.nome_xml }}</div>
+                <div class="guia-valor">+{{ config.pontos_padrao }} PTS</div>
+            </div>
+            {% endfor %}
+            <div class="guia-card semanal">
+                <div class="guia-tipo"><span style="color: var(--neon-purple);">Filtro BlackSkull</span></div>
+                <div class="guia-nome">Raid & Expedição</div>
+                <div class="guia-valor">Auto</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>🏆 Classificação Global Ativa</h2>
+                {% if session.get('logged_in') %}
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-warning" onclick="abrirRoleta()">🎲 Módulo de Sorteio</button>
+                    <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
+                </div>
+                {% endif %}
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        {% if session.get('logged_in') %}
+                            <th style="width: 25px;"><input type="checkbox" id="selectAll" onclick="toggleTodosSorteio(this)" style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--neon-cyan);"></th>
+                        {% endif %}
+                        <th style="width: 30px;">Rank</th>
+                        <th style="text-align: left;">Jogador</th>
+                        <th style="text-align: left;">Alts</th>
+                        <th style="width: 40px;">LVL</th>
+                        <th style="width: 60px;">CP</th>
+                        
+                        <!-- Colunas Horizontais de Eventos -->
+                        {% for c in configuracoes %}
+                            <th class="th-evento">{{ c.nome_xml }}</th>
+                        {% endfor %}
+                        
+                        <th class="th-evento" style="color: var(--neon-purple); text-shadow: 0 0 5px var(--neon-purple);">BlackSkull</th>
+                        <th class="th-evento" style="color: var(--neon-orange); text-shadow: 0 0 5px var(--neon-orange);">Ajustes Manuais</th>
+                        <th style="font-size: 14px; color: var(--neon-green);">TOTAL PTS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ranking %}
+                    <tr data-jogador-id="{{ item.jogador.id }}">
+                        {% if session.get('logged_in') %}
+                            <td><input type="checkbox" class="check-sorteio" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--neon-cyan);"></td>
+                        {% endif %}
+                        
+                        <td style="color: var(--text-muted); font-weight: bold; font-size: 16px;">{{ loop.index }}</td>
+                        <td style="font-weight: 700; font-size: 16px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.2){% else %}none{% endif %}; text-align: left;">
+                            {{ item.jogador.nome }}
+                        </td>
+                        
+                        {% if session.get('logged_in') %}
+                            <td style="text-align: left;"><input type="text" class="input-edit edit-alts" value="{{ item.alts_str }}" placeholder="Alts..." style="width: 100px; text-align: left;"></td>
+                            <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 45px;"></td>
+                            <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 70px;"></td>
+                            
+                            {% for c in configuracoes %}
+                                <td class="td-evento">{{ item.atividades.get(c.nome_xml, 0) }}</td>
+                            {% endfor %}
+                            <td class="td-evento" style="color: var(--neon-purple); font-weight: bold;">{{ item.blackskull }}</td>
+                            <td class="td-evento" style="color: var(--neon-orange); font-weight: bold;">{{ item.ajustes }}</td>
+                            
+                            <td><input type="number" class="input-edit edit-pontos" value="{{ item.pontos }}" style="width: 60px;"></td>
+                        {% else %}
+                            <td style="color: var(--text-muted); font-size: 12px; text-align: left;">{{ item.alts_str or '-' }}</td>
+                            <td style="color: #fff;">{{ item.jogador.level }}</td>
+                            <td style="color: var(--neon-cyan); font-family: monospace; font-size: 14px;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</td>
+                            
+                            {% for c in configuracoes %}
+                                <td class="td-evento">{{ item.atividades.get(c.nome_xml, 0) }}</td>
+                            {% endfor %}
+                            <td class="td-evento" style="color: var(--neon-purple); font-weight: bold;">{{ item.blackskull }}</td>
+                            <td class="td-evento" style="color: var(--neon-orange); font-weight: bold;">{{ item.ajustes }}</td>
+                            
+                            <td style="color: var(--neon-green); font-weight: 700; font-size: 18px; text-shadow: 0 0 10px rgba(0,255,102,0.3);">{{ item.pontos }}</td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="100" style="text-align: center; color: var(--text-muted); padding: 30px; border-right: none;">[ BANCO DE DADOS VAZIO ]</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ABA 2: HISTÓRICO DE VENCEDORES -->
+    <div id="abaSorteio" class="tab-content">
+        <div class="table-container" style="border-left-color: var(--neon-orange);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="color: var(--neon-orange); text-shadow: 0 0 8px rgba(255, 170, 0, 0.4);">📜 Registro de Espólios Concedidos</h2>
+                {% if session.get('logged_in') %}
+                    <button class="btn btn-success" onclick="salvarHistorico()">💾 Gravar Registros</button>
+                {% endif %}
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Ciclo Temporal</th>
+                        <th style="text-align: left;">Receptor</th>
+                        <th>Espólio (Item)</th>
+                        <th>Dedução de Pontos</th>
+                        {% if session.get('logged_in') %}<th style="border-right: none;">Comandos</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sorteio in historico_sorteios %}
+                    <tr data-historico-id="{{ sorteio.id }}">
+                        <td style="color: var(--text-muted); font-family: monospace; font-size: 13px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
+                        <td style="font-weight: bold; color: var(--neon-orange); font-size: 16px; text-align: left;">{{ sorteio.jogador.nome }}</td>
+                        
+                        {% if session.get('logged_in') %}
+                            <td><input type="text" class="input-edit hist-obs" value="{{ sorteio.observacao }}" placeholder="Item concedido" style="width: 90%; text-align: left;"></td>
+                            <td><input type="number" class="input-edit hist-penalidade" value="{{ sorteio.penalidade }}" style="width: 80px; color: var(--neon-red); font-weight: bold;"></td>
+                            <td style="border-right: none;"><button class="btn-danger" title="Purgar registro" onclick="deletarHistorico({{ sorteio.id }})">✖</button></td>
+                        {% else %}
+                            <td style="color: #fff;">{{ sorteio.observacao or '[ NENHUM DADO ]' }}</td>
+                            <td style="color: var(--neon-red); font-weight: bold; font-size: 16px; border-right: none;">-{{ sorteio.penalidade }} PTS</td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px; border-right: none;">[ NENHUM REGISTRO ENCONTRADO ]</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ABAS RESTRITAS AO ADMIN -->
+    {% if session.get('logged_in') %}
+    
+    <!-- ABA 3: CONFIGURAÇÃO DE PONTOS -->
+    <div id="abaConfig" class="tab-content">
+        <div style="background: rgba(0,0,0,0.6); padding: 20px; border: 1px solid var(--neon-purple); border-radius: 4px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 20px rgba(188, 19, 254, 0.1);">
+            <div>
+                <label style="font-size: 12px; color: var(--neon-purple); font-weight: 600; display: block; margin-bottom: 5px;">ID do Novo Evento (XML)</label>
+                <input type="text" id="novoEventoNome" class="input-edit" placeholder="Nome Exato" style="width: 200px; border-color: rgba(188, 19, 254, 0.5); text-align: left;">
+            </div>
+            <div>
+                <label style="font-size: 12px; color: var(--neon-purple); font-weight: 600; display: block; margin-bottom: 5px;">Frequência</label>
+                <select id="novoEventoTipo" class="input-edit" style="border-color: rgba(188, 19, 254, 0.5);">
+                    <option value="diario">Diário (Infinito)</option>
+                    <option value="semanal">Semanal (Único)</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: var(--neon-purple); font-weight: 600; display: block; margin-bottom: 5px;">Recompensa</label>
+                <input type="number" id="novoEventoPontos" class="input-edit" value="1" style="width: 60px; border-color: rgba(188, 19, 254, 0.5);">
+            </div>
+            <button class="btn btn-outline" onclick="criarEvento()">⚡ Injetar Evento</button>
+        </div>
+
+        <div class="table-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>⚙️ Matriz de Recompensas</h2>
+                <button class="btn btn-success" onclick="salvarConfiguracoes()">💾 Salvar Matriz</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Evento / Atividade</th>
+                        <th>Ciclo de Acúmulo</th>
+                        <th style="border-right: none;">Valor (PTS)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for config in configuracoes %}
+                    <tr data-config-id="{{ config.id }}">
+                        <td style="font-weight: bold; color: #fff; text-align: left;">{{ config.nome_xml }}</td>
+                        <td style="color: var(--text-muted);">{% if config.tipo_evento == 'diario' %}Diário{% else %}<span style="color: var(--neon-purple);">Semanal</span>{% endif %}</td>
+                        <td style="border-right: none;"><input type="number" class="input-edit conf-pontos" value="{{ config.pontos_padrao }}" style="width: 70px; font-weight: bold; color: var(--neon-cyan);"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ABA 4: LOG DE UPLOADS -->
+    <div id="abaLogs" class="tab-content">
+        <div class="table-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>📁 Logs de Importação de Sistema</h2>
+                <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Timestamp (Servidor)</th>
+                        <th>Módulo</th>
+                        <th>Rótulo de Identificação</th>
+                        <th>Hash de Segurança</th>
+                        <th style="border-right: none;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for imp in importacoes %}
+                    <tr data-import-id="{{ imp.id }}">
+                        <td style="color: var(--text-muted); font-family: monospace; text-align: left; font-size: 12px;">{{ imp.data_importacao.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                        <td style="font-weight: bold; font-size: 12px; color: {% if imp.tipo_arquivo == 'xml' %}var(--neon-cyan){% else %}var(--neon-green){% endif %};">
+                            {% if imp.tipo_arquivo == 'xml' %}[ XML ]{% else %}[ EXCEL ]{% endif %}
+                        </td>
+                        <td><input type="text" class="input-edit imp-nome" value="{{ imp.nome_personalizado }}" placeholder="Identificação manual" style="width: 200px; text-align: left;"></td>
+                        <td style="font-size: 11px; color: #4b5563; font-family: monospace;">{{ imp.hash_arquivo[:15] }}...</td>
+                        <td style="border-right: none;">
+                            <button class="btn-danger" title="Desfazer e remover pontos deste upload" onclick="deletarImportacao({{ imp.id }})">✖</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px; border-right: none;">[ SISTEMA DE LOGS VAZIO ]</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p style="font-size: 12px; color: var(--neon-orange); margin-top: 10px;">Atenção: Ao excluir um log de arquivo XML, os pontos inseridos na data serão revertidos. Para Excel (Status), o log será removido mas você deverá corrigir Level e CP manualmente na tabela.</p>
+        </div>
+    </div>
+    {% endif %} <!-- FIM ÁREA ADMIN -->
+
+
+    <!-- ================= MODAIS OVERLAYS ================= -->
+
+    <!-- Modal Login -->
+    <div id="modalLogin" class="modal-overlay">
+        <div class="modal-content" style="width: 400px; text-align: center; border-color: var(--neon-red); padding: 25px;">
+            <h2 style="margin-top: 0; color: var(--neon-red); text-shadow: 0 0 10px rgba(255,0,60,0.5);">Acesso Restrito</h2>
+            <p style="color: var(--text-muted); font-size: 13px;">Insira a credencial root para modificar parâmetros.</p>
+            <input type="password" id="senhaAdmin" class="input-edit" placeholder="********" style="width: 80%; margin: 20px 0; text-align: center; font-size: 20px; letter-spacing: 5px; border-color: rgba(255,0,60,0.5);">
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="btn" style="background: transparent; border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalLogin')">Abortar</button>
+                <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="fazerLogin()">Autenticar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Importação -->
+    {% if session.get('logged_in') %}
+    <div id="modalImportacao" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+                <h2 style="margin: 0; font-size: 20px; color: var(--neon-cyan);"><span style="margin-right:8px;">⇪</span> Central de Uploads</h2>
+                <button onclick="fecharModal('modalImportacao')" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; font-size: 24px; transition: 0.2s;">&times;</button>
+            </div>
+
+            <!-- OPÇÃO 1: XML DE PONTOS -->
+            <div style="border: 1px solid rgba(0, 243, 255, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 20px; background: rgba(0, 243, 255, 0.02);">
+                <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 15px;">1. Injetar Matriz de Pontos (XML)</h3>
+                
+                <form id="formImportacao" onsubmit="enviarXML(event)">
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px; color: var(--neon-cyan); font-weight: bold; margin-bottom: 5px; display: block;">Guilda Alvo do XML:</label>
+                        <select name="guilda_alvo" id="guildaAlvoSelect" class="input-edit" style="width: 100%; text-align: left;">
+                            <option value="vortex">Guilda Principal (Vortex)</option>
+                            <option value="blackskull">Guilda Secundária (BlackSkull - Pontua apenas Alts)</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 10px; border: 1px dashed var(--neon-cyan); padding: 15px; text-align: center; background: rgba(0,0,0,0.5);">
+                        <input type="file" id="arquivoXML" name="xml_file" accept=".xml" required style="color: var(--neon-cyan); width: 100%; font-family: monospace; font-size: 12px;">
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="submit" id="btnEnviar" class="btn">Processar XML</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- OPÇÃO 2: EXCEL DE STATUS -->
+            <div style="border: 1px solid rgba(0, 255, 102, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 15px; background: rgba(0, 255, 102, 0.02);">
+                <h3 style="margin-top: 0; color: var(--neon-green); font-size: 15px;">2. Sincronizar Atributos (.XLSX)</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Módulo de leitura: Nomes, Level e CP (Apenas Guilda Principal).</p>
+                <form id="formExcel" onsubmit="enviarExcel(event)">
+                    <div style="margin-bottom: 10px; border: 1px dashed var(--neon-green); padding: 15px; text-align: center; background: rgba(0,0,0,0.5);">
+                        <input type="file" id="arquivoExcel" name="excel_file" accept=".xlsx, .xls" required style="color: var(--neon-green); width: 100%; font-family: monospace; font-size: 12px;">
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="submit" id="btnEnviarExcel" class="btn btn-success">Sincronizar Atributos</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Área de Preview do XML -->
+            <div id="areaPreview" style="display: none; border-top: 1px solid var(--neon-cyan); padding-top: 20px;">
+                <h3 style="margin-top: 0; font-size: 15px; color: var(--neon-cyan);">Resultado do Escaneamento</h3>
+                <div id="resultadoPreview" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.8); border: 1px solid var(--glass-border); padding: 10px; margin-bottom: 15px; font-size: 13px; font-family: monospace;"></div>
+                
+                <form id="formConfirmar" onsubmit="confirmarImportacao(event)">
+                    <input type="hidden" id="hashArquivo" name="hash">
+                    <div style="margin-bottom: 15px; display: none; background: rgba(255, 170, 0, 0.1); padding: 8px; border-left: 3px solid var(--neon-orange);" id="areaAlertaNovos">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--neon-orange); font-weight: bold; cursor: pointer;">
+                            <input type="checkbox" id="checkCadastrarNovos" checked style="accent-color: var(--neon-orange); width: 16px; height: 16px;">
+                            Sinalizador de novos recrutas ativo (Auto-cadastro p/ Principal)
+                        </label>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button type="button" class="btn btn-outline" onclick="abrirModal('modalImportacao')">Descartar</button>
+                        <button type="submit" class="btn btn-success">Confirmar Injeção de Dados</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Roleta -->
+    <div id="modalRoleta" class="modal-overlay" style="z-index: 110;">
+        <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 450px;">
+            <h2 style="color: var(--neon-orange); font-size: 24px; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,170,0,0.5);">GERADOR QUÂNTICO</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px; font-family: monospace; font-size: 13px;">Processando algoritmos de aleatoriedade...</p>
+            
+            <div class="roleta-box" style="font-size: 32px; padding: 30px;"><span id="roletaNome">---</span></div>
+            
+            <button id="btnFecharRoleta" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 16px;">Concluir e Registrar</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================= SCRIPTS ================= -->
+    <script>
+        function trocarAba(abaId, elementoBtn) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(abaId).classList.add('active');
+            elementoBtn.classList.add('active');
+        }
+
+        function abrirModal(id) {
+            document.getElementById(id).style.display = 'flex';
+            if(id === 'modalImportacao'){
+                document.getElementById('formImportacao').parentElement.style.display = 'block';
+                document.getElementById('formExcel').parentElement.style.display = 'block';
+                document.getElementById('areaPreview').style.display = 'none';
+                document.getElementById('formImportacao').reset();
+                document.getElementById('formExcel').reset();
+            }
+        }
+        function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+        function fecharModalEAtualizar() { window.location.reload(); }
+
+        async function fazerLogin() {
+            const senha = document.getElementById('senhaAdmin').value;
+            const btn = document.querySelector('#modalLogin .btn:nth-child(2)');
+            btn.innerText = 'Processando...';
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: senha })
+                });
+                if (response.ok) { window.location.reload(); } 
+                else { alert('Acesso Negado: Credencial Inválida'); btn.innerText = 'Autenticar'; }
+            } catch (e) { alert('Falha de conexão com o servidor matriz.'); btn.innerText = 'Autenticar'; }
+        }
+
+        async function fazerLogout() {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST' });
+                if (response.ok) { window.location.reload(); }
+            } catch (e) { alert('Erro de conexão'); }
+        }
+
+        {% if session.get('logged_in') %}
+        
+        let dadosImportacaoAtual = []; 
+
+        async function enviarXML(e) {
+            e.preventDefault();
+            const btnEnviar = document.getElementById('btnEnviar');
+            btnEnviar.innerText = 'Analisando...'; btnEnviar.disabled = true;
+
+            const formData = new FormData(document.getElementById('formImportacao'));
+            try {
+                const response = await fetch('/api/importar', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (response.ok) { mostrarPreview(data.preview, data.hash); } 
+                else { alert('Falha: ' + data.erro); }
+            } catch (error) { alert('Falha de conexão com o servidor matriz.'); } 
+            finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
+        }
+
+        async function enviarExcel(e) {
+            e.preventDefault();
+            const btnEnviarEx = document.getElementById('btnEnviarExcel');
+            btnEnviarEx.innerText = 'Extraindo...'; btnEnviarEx.disabled = true;
+
+            const formData = new FormData(document.getElementById('formExcel'));
+            try {
+                const response = await fetch('/api/importar-excel', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (response.ok) { alert(data.mensagem); window.location.reload(); } 
+                else { alert('Falha: ' + data.erro); }
+            } catch (error) { alert('Falha de conexão com o servidor matriz.'); } 
+            finally { btnEnviarEx.innerText = 'Sincronizar Atributos'; btnEnviarEx.disabled = false; }
+        }
+
+        function mostrarPreview(jogadores, hash) {
+            document.getElementById('formImportacao').parentElement.style.display = 'none';
+            document.getElementById('formExcel').parentElement.style.display = 'none';
+            document.getElementById('areaPreview').style.display = 'block';
+            document.getElementById('hashArquivo').value = hash;
+            
+            const isBlackSkull = document.getElementById('guildaAlvoSelect').value === 'blackskull';
+            
+            dadosImportacaoAtual = jogadores;
+            let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
+            let temDesconhecido = false;
+
+            jogadores.forEach(j => {
+                let cor = j.encontrado_no_bd ? '#10b981' : '#ff003c'; 
+                if (!j.encontrado_no_bd) temDesconhecido = true;
+                
+                let labelStatus = j.encontrado_no_bd ? '[OK]' : '[NÃO VINCULADO]';
+                
+                html += `<li style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 6px 0;">
+                            <span style="color: ${cor}">${labelStatus} ${j.nome_xml}</span>
+                            <span style="color: var(--neon-cyan);">+${j.pontos_totais} pts (tentativa)</span>
+                        </li>`;
+            });
+            html += '</ul>';
+            document.getElementById('resultadoPreview').innerHTML = html;
+            
+            if(temDesconhecido && !isBlackSkull) {
+                document.getElementById('areaAlertaNovos').style.display = 'flex';
+            } else {
+                document.getElementById('areaAlertaNovos').style.display = 'none';
+                if(isBlackSkull && temDesconhecido) {
+                    document.getElementById('resultadoPreview').innerHTML += '<p style="color: var(--neon-orange); margin-top: 10px; font-size: 11px;">⚠️ Alts "NÃO VINCULADOS" serão ignorados na injeção.</p>';
+                }
+            }
+        }
+
+        async function confirmarImportacao(e) {
+            e.preventDefault();
+            const btnConfirmar = e.target.querySelector('button[type="submit"]');
+            btnConfirmar.innerText = 'Injetando no DB...'; btnConfirmar.disabled = true;
+
+            const payload = {
+                hash: document.getElementById('hashArquivo').value,
+                jogadores: dadosImportacaoAtual,
+                guilda_alvo: document.getElementById('guildaAlvoSelect').value,
+                cadastrar_novos: document.getElementById('checkCadastrarNovos') ? document.getElementById('checkCadastrarNovos').checked : false
+            };
+
+            try {
+                const response = await fetch('/api/confirmar', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (response.ok) { alert('Operação bem sucedida: ' + data.mensagem); window.location.reload(); } 
+                else { alert('Falha na operação: ' + data.erro); btnConfirmar.innerText = 'Confirmar Injeção de Dados'; btnConfirmar.disabled = false; }
+            } catch (error) { alert('Falha no servidor.'); btnConfirmar.disabled = false; }
+        }
+
+        async function deletarImportacao(id) {
+            if (!confirm("Aviso Crítico: Purgar este upload irá DESFAZER TODOS OS PONTOS adicionados por ele. Confirma?")) return;
+            try {
+                const response = await fetch(`/api/deletar-importacao/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (response.ok) { alert(data.mensagem); window.location.reload(); } 
+                else { alert('Falha: ' + data.erro); }
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        async function salvarEdicoes() {
+            const linhasTabela = document.querySelectorAll('tr[data-jogador-id]');
+            let jogadoresData = [];
+            linhasTabela.forEach(linha => {
+                jogadoresData.push({
+                    id: linha.getAttribute('data-jogador-id'),
+                    alts: linha.querySelector('.edit-alts').value,
+                    level: linha.querySelector('.edit-level').value,
+                    poder_combate: linha.querySelector('.edit-poder').value,
+                    pontos: linha.querySelector('.edit-pontos').value 
+                });
+            });
+
+            try {
+                const response = await fetch('/api/editar-jogadores', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: jogadoresData })
+                });
+                if (response.ok) { alert("Sincronização concluída."); window.location.reload(); } 
+                else { alert('Falha ao gravar.'); }
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        function toggleTodosSorteio(source) {
+            document.querySelectorAll('.check-sorteio').forEach(cb => cb.checked = source.checked);
+        }
+
+        async function abrirRoleta() {
+            const checkboxes = document.querySelectorAll('.check-sorteio:checked');
+            if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio.'); return; }
+
+            const idsSelecionados = Array.from(checkboxes).map(cb => cb.value);
+            const nomesSelecionados = Array.from(checkboxes).map(cb => cb.dataset.nome);
+            
+            const roletaNome = document.getElementById('roletaNome');
+            const btnFecharRoleta = document.getElementById('btnFecharRoleta');
+            roletaNome.style.color = "white"; btnFecharRoleta.style.display = 'none';
+            document.getElementById('modalRoleta').style.display = 'flex';
+
+            let i = 0;
+            const intervaloAnimacao = setInterval(() => { roletaNome.innerText = nomesSelecionados[i % nomesSelecionados.length]; i++; }, 50);
+
+            try {
+                const response = await fetch('/api/realizar-sorteio', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores_ids: idsSelecionados })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    setTimeout(() => {
+                        clearInterval(intervaloAnimacao);
+                        roletaNome.innerText = "► " + data.vencedor_nome + " ◄";
+                        roletaNome.style.color = "var(--neon-green)"; 
+                        roletaNome.style.textShadow = "0 0 20px rgba(0,255,102,0.8)";
+                        btnFecharRoleta.style.display = 'block';
+                    }, 2500); 
+                } else { clearInterval(intervaloAnimacao); alert("Falha: " + data.erro); document.getElementById('modalRoleta').style.display = 'none'; }
+            } catch (error) { clearInterval(intervaloAnimacao); alert('Falha de rede.'); document.getElementById('modalRoleta').style.display = 'none'; }
+        }
+
+        async function salvarHistorico() {
+            let historicoData = [];
+            document.querySelectorAll('tr[data-historico-id]').forEach(linha => {
+                historicoData.push({
+                    id: linha.getAttribute('data-historico-id'),
+                    observacao: linha.querySelector('.hist-obs').value,
+                    penalidade: linha.querySelector('.hist-penalidade').value
+                });
+            });
+
+            try {
+                const response = await fetch('/api/editar-historico', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData })
+                });
+                if (response.ok) { alert("Registros atualizados."); window.location.reload(); } 
+                else { alert('Falha ao gravar.'); }
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        async function deletarHistorico(id) {
+            if (!confirm("Aviso: Purgar este registro restaurará os pontos deduzidos do jogador. Confirmar?")) return;
+            try {
+                const response = await fetch(`/api/deletar-historico/${id}`, { method: 'DELETE' });
+                if (response.ok) { window.location.reload(); } 
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        async function criarEvento() {
+            const payload = {
+                nome: document.getElementById('novoEventoNome').value.trim(),
+                tipo: document.getElementById('novoEventoTipo').value,
+                pontos: document.getElementById('novoEventoPontos').value
+            };
+            if(!payload.nome) return alert("Parâmetro 'Nome' é obrigatório.");
+            try {
+                const response = await fetch('/api/criar-evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (response.ok) { window.location.reload(); } else { alert('Falha ao criar módulo.'); }
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        async function salvarConfiguracoes() {
+            let configsData = [];
+            document.querySelectorAll('tr[data-config-id]').forEach(linha => {
+                configsData.push({ id: linha.getAttribute('data-config-id'), pontos: linha.querySelector('.conf-pontos').value });
+            });
+            try {
+                const response = await fetch('/api/salvar-configuracoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs: configsData }) });
+                if (response.ok) { alert("Matriz atualizada. Cálculo refeito."); window.location.reload(); } 
+                else { alert('Falha ao atualizar matriz.'); }
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        async function salvarEdicaoImports() {
+            let importsData = [];
+            document.querySelectorAll('tr[data-import-id]').forEach(linha => {
+                importsData.push({ id: linha.getAttribute('data-import-id'), nome: linha.querySelector('.imp-nome').value });
+            });
+            try {
+                const response = await fetch('/api/editar-importacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ importacoes: importsData }) });
+                if (response.ok) { alert("Logs gravados."); window.location.reload(); } 
+                else { alert('Falha ao gravar logs.'); }
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        {% endif %}
+    </script>
+</body>
+</html>

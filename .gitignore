@@ -1,0 +1,14 @@
+# Ambientes Virtuais
+venv/
+.venv/
+env/
+
+# Banco de dados e arquivos temporários
+instance/
+*.db
+tmp/
+__pycache__/
+*.pyc
+
+# Configurações do VS Code
+.vscode/
