@@ -7,7 +7,8 @@ from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, Perso
 from xml_engine import analisar_xml_guilda
 
 app = Flask(__name__)
-# Configuração atualizada para aceitar o PostgreSQL do Render ou o SQLite local
+
+# Configuração que aceita o PostgreSQL do Render ou o SQLite local
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///vortex.db')
 if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
     app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
@@ -28,7 +29,6 @@ class SorteioHistorico(db.Model):
     
     jogador = db.relationship('Jogador', backref=db.backref('sorteios', lazy=True))
 
-# --- NOVO MODELO: Sorteio Meme ---
 class SorteioMemeHistorico(db.Model):
     __tablename__ = 'sorteios_meme'
     id = db.Column(db.Integer, primary_key=True)
@@ -38,7 +38,6 @@ class SorteioMemeHistorico(db.Model):
     observacao = db.Column(db.String(255), default="")
     
     jogador = db.relationship('Jogador', backref=db.backref('sorteios_meme', lazy=True))
-# ---------------------------------
 
 @app.route('/')
 def index():
@@ -88,10 +87,7 @@ def index():
     ranking.sort(key=lambda x: (x['pontos'], x['jogador'].level, x['jogador'].poder_combate), reverse=True)
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
-    
-    # Busca do novo histórico
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
-    
     configuracoes = ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()
     importacoes = ImportacaoXML.query.order_by(ImportacaoXML.data_importacao.desc()).all()
     
@@ -140,7 +136,6 @@ def admin_required():
 def login_required():
     return session.get('logged_in')
 
-# --- UPLOAD DE XML (PONTOS) ---
 @app.route('/api/importar', methods=['POST'])
 def importar_xml():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -262,7 +257,6 @@ def confirmar_importacao():
                 nome_xml = j_data['nome_xml'].lower()
                 if nome_xml in alts_map:
                     jogador_id = alts_map[nome_xml]
-                    # IGNORA TUDO QUE NÃO SEJA RAID OU EXPEDIÇÃO
                     total_pts = sum(a['pontos'] for a in j_data['detalhes'] if a['atividade'] in eventos_permitidos_bs)
                     
                     if total_pts > 0:
@@ -331,7 +325,6 @@ def importar_excel():
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
 
-
 @app.route('/api/editar-importacao', methods=['POST'])
 def editar_importacao():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -374,13 +367,11 @@ def editar_jogadores():
         for item in jogadores_data:
             jogador = db.session.get(Jogador, item['id'])
             if jogador:
-                # Todos os logados (Admin e Membro) podem atualizar Level e CP
                 if 'level' in item:
                     jogador.level = int(item['level'])
                 if 'poder_combate' in item:
                     jogador.poder_combate = int(item['poder_combate'])
                 
-                # Apenas Admin pode atualizar Alts e Pontuações Manuais
                 if user_role == 'admin':
                     if 'alts' in item:
                         alts_string = item.get('alts', '')
@@ -450,7 +441,6 @@ def salvar_configuracoes():
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
 
-# Rota mantida original
 @app.route('/api/realizar-sorteio', methods=['POST'])
 def realizar_sorteio():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -468,7 +458,6 @@ def realizar_sorteio():
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
 
-# --- NOVAS ROTAS: Sorteio Meme ---
 @app.route('/api/realizar-sorteio-meme', methods=['POST'])
 def realizar_sorteio_meme():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -519,7 +508,6 @@ def deletar_historico_meme(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
-# ---------------------------------
 
 @app.route('/api/editar-historico', methods=['POST'])
 def editar_historico():
@@ -553,15 +541,12 @@ def deletar_historico(id):
         return jsonify({"erro": str(e)}), 500
 
 with app.app_context():
-    # 1. A CORREÇÃO ESTÁ AQUI: Criamos as tabelas primeiro!
     db.create_all()
 
-    # 2. Agora sim, fazemos as verificações de auto-migração com segurança
     try:
         db.session.execute(text('SELECT tipo_evento FROM config_atividades LIMIT 1'))
     except Exception:
         db.session.rollback()
-        # Colocamos um try extra só por segurança estrutural
         try:
             db.session.execute(text('ALTER TABLE config_atividades ADD COLUMN tipo_evento VARCHAR(20) DEFAULT "diario"'))
             db.session.commit()
@@ -591,7 +576,6 @@ with app.app_context():
         except Exception:
             db.session.rollback()
 
-    # 3. Popula a tabela inicial se estiver vazia
     if not ConfigAtividade.query.first():
         atividades_iniciais = [
             ('Verificado', 'diario'), ('Doar', 'diario'), ('Atividade da Guilda', 'diario'), 
