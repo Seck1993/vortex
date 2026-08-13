@@ -113,7 +113,7 @@ def login():
     dados = request.get_json()
     senha_enviada = dados.get('senha')
     
-    if senha_enviada == 'vortex2026':  
+    if senha_enviada == 'vortex2026@@':  
         session['logged_in'] = True
         session['role'] = 'admin'
         return jsonify({"mensagem": "Autenticado como Administrador"}), 200
