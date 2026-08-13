@@ -191,6 +191,7 @@
     <div class="tabs">
         <button class="tab-btn active" onclick="trocarAba('abaRanking', this)">Módulo de Jogadores</button>
         <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
+        <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
         
         {% if session.get('logged_in') %}
             <button class="tab-btn" onclick="trocarAba('abaConfig', this)">Matriz de Pontos</button>
@@ -338,6 +339,78 @@
                     {% else %}
                     <tr>
                         <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px; border-right: none;">[ NENHUM REGISTRO ENCONTRADO ]</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- NOVA ABA: SORTEIO ITEMS "MEME" -->
+    <div id="abaMeme" class="tab-content">
+        {% if session.get('logged_in') %}
+        <div style="background: rgba(0,0,0,0.4); padding: 20px; border: 1px solid var(--neon-cyan); margin-bottom: 20px; border-radius: 4px; box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.05);">
+            <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px;">
+                <div style="flex: 1;">
+                    <label style="color: var(--neon-cyan); font-size: 16px; font-weight: bold; display: block; margin-bottom: 5px;">Item a ser Sorteado ("Meme"):</label>
+                    <input type="text" id="inputItemMeme" class="input-edit" placeholder="Ex: Capa do Batman, Espada de Borracha..." style="width: 100%; font-size: 16px; padding: 10px; text-align: left;">
+                </div>
+                <button class="btn btn-outline" style="font-size: 16px; padding: 12px 25px; height: 42px;" onclick="abrirRoletaMeme()">🎲 Iniciar Sorteio Meme</button>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 4px; border: 1px dashed var(--glass-border);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <label style="color: var(--text-light); font-size: 14px; font-weight: bold;">Selecione os Participantes:</label>
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--neon-cyan); font-weight: bold; font-size: 13px;">
+                        <input type="checkbox" id="selectAllMeme" onclick="toggleTodosMeme(this)" style="accent-color: var(--neon-cyan); width: 15px; height: 15px;">
+                        Selecionar Todos
+                    </label>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 5px;">
+                    {% for item in ranking %}
+                    <label style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.5); padding: 8px 10px; border-radius: 3px; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); transition: 0.2s;">
+                        <input type="checkbox" class="check-meme" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="accent-color: var(--neon-cyan); width: 14px; height: 14px;">
+                        <span style="color: #fff; font-size: 13px;">{{ item.jogador.nome }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="table-container" style="border-left-color: var(--neon-cyan);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);">📜 Histórico de Sorteios Meme</h2>
+                {% if session.get('logged_in') %}
+                    <button class="btn btn-success" onclick="salvarHistoricoMeme()">💾 Gravar Registros</button>
+                {% endif %}
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Data</th>
+                        <th style="text-align: left;">Vencedor</th>
+                        <th>Item Sorteado</th>
+                        <th>Observações</th>
+                        {% if session.get('logged_in') %}<th style="border-right: none;">Comandos</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sorteio in historico_meme %}
+                    <tr data-historico-meme-id="{{ sorteio.id }}">
+                        <td style="color: var(--text-muted); font-family: monospace; font-size: 13px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
+                        <td style="font-weight: bold; color: var(--neon-cyan); font-size: 16px; text-align: left;">{{ sorteio.jogador.nome }}</td>
+                        <td style="color: #fff; font-weight: bold;">{{ sorteio.item_sorteado }}</td>
+                        {% if session.get('logged_in') %}
+                            <td><input type="text" class="input-edit hist-meme-obs" value="{{ sorteio.observacao }}" placeholder="Anotações..." style="width: 90%; text-align: left;"></td>
+                            <td style="border-right: none;"><button class="btn-danger" title="Purgar registro" onclick="deletarHistoricoMeme({{ sorteio.id }})">✖</button></td>
+                        {% else %}
+                            <td style="color: #fff;">{{ sorteio.observacao or '-' }}</td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px; border-right: none;">[ NENHUM SORTEIO MEME REALIZADO ]</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -522,6 +595,8 @@
     <div id="modalRoleta" class="modal-overlay" style="z-index: 110;">
         <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 450px;">
             <h2 style="color: var(--neon-orange); font-size: 24px; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,170,0,0.5);">GERADOR QUÂNTICO</h2>
+            <!-- Título adicionado para exibir o item (Meme) se necessário -->
+            <p id="tituloRoleta" style="color: var(--text-light); font-weight: bold; margin-bottom: 5px; font-size: 16px;"></p>
             <p style="color: var(--text-muted); margin-bottom: 20px; font-family: monospace; font-size: 13px;">Processando algoritmos de aleatoriedade...</p>
             
             <div class="roleta-box" style="font-size: 32px; padding: 30px;"><span id="roletaNome">---</span></div>
@@ -701,6 +776,7 @@
             document.querySelectorAll('.check-sorteio').forEach(cb => cb.checked = source.checked);
         }
 
+        // ---------- SORTEIO OFICIAL ----------
         async function abrirRoleta() {
             const checkboxes = document.querySelectorAll('.check-sorteio:checked');
             if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio.'); return; }
@@ -710,6 +786,7 @@
             
             const roletaNome = document.getElementById('roletaNome');
             const btnFecharRoleta = document.getElementById('btnFecharRoleta');
+            document.getElementById('tituloRoleta').innerText = ""; // Limpa o titulo caso tenha vindo do meme
             roletaNome.style.color = "white"; btnFecharRoleta.style.display = 'none';
             document.getElementById('modalRoleta').style.display = 'flex';
 
@@ -760,6 +837,79 @@
             } catch (error) { alert('Erro de rede.'); }
         }
 
+        // ---------- SORTEIO MEME ----------
+        function toggleTodosMeme(source) {
+            document.querySelectorAll('.check-meme').forEach(cb => cb.checked = source.checked);
+        }
+
+        async function abrirRoletaMeme() {
+            const checkboxes = document.querySelectorAll('.check-meme:checked');
+            const itemInput = document.getElementById('inputItemMeme').value.trim();
+
+            if (!itemInput) { alert('Parâmetro ausente: Por favor, digite o nome do item a ser sorteado.'); return; }
+            if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio meme.'); return; }
+
+            const idsSelecionados = Array.from(checkboxes).map(cb => cb.value);
+            const nomesSelecionados = Array.from(checkboxes).map(cb => cb.dataset.nome);
+            
+            const roletaNome = document.getElementById('roletaNome');
+            const btnFecharRoleta = document.getElementById('btnFecharRoleta');
+            const tituloRoleta = document.getElementById('tituloRoleta');
+            
+            tituloRoleta.innerText = `Sorteando (Meme): ${itemInput.toUpperCase()}`;
+            roletaNome.style.color = "white"; 
+            btnFecharRoleta.style.display = 'none';
+            document.getElementById('modalRoleta').style.display = 'flex';
+
+            let i = 0;
+            const intervaloAnimacao = setInterval(() => { roletaNome.innerText = nomesSelecionados[i % nomesSelecionados.length]; i++; }, 50);
+
+            try {
+                const response = await fetch('/api/realizar-sorteio-meme', {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ jogadores_ids: idsSelecionados, item: itemInput })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    setTimeout(() => {
+                        clearInterval(intervaloAnimacao);
+                        roletaNome.innerText = "🏆 " + data.vencedor_nome + " 🏆";
+                        roletaNome.style.color = "var(--neon-cyan)"; 
+                        roletaNome.style.textShadow = "0 0 20px rgba(0,243,255,0.8)";
+                        btnFecharRoleta.style.display = 'block';
+                    }, 2500); 
+                } else { clearInterval(intervaloAnimacao); alert("Falha: " + data.erro); document.getElementById('modalRoleta').style.display = 'none'; }
+            } catch (error) { clearInterval(intervaloAnimacao); alert('Falha de rede.'); document.getElementById('modalRoleta').style.display = 'none'; }
+        }
+
+        async function salvarHistoricoMeme() {
+            let historicoData = [];
+            document.querySelectorAll('tr[data-historico-meme-id]').forEach(linha => {
+                historicoData.push({
+                    id: linha.getAttribute('data-historico-meme-id'),
+                    observacao: linha.querySelector('.hist-meme-obs').value
+                });
+            });
+
+            try {
+                const response = await fetch('/api/editar-historico-meme', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData })
+                });
+                if (response.ok) { alert("Registros Meme atualizados."); window.location.reload(); } 
+                else { alert('Falha ao gravar.'); }
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        async function deletarHistoricoMeme(id) {
+            if (!confirm("Aviso: Purgar este registro de sorteio meme. Confirmar?")) return;
+            try {
+                const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
+                if (response.ok) { window.location.reload(); } 
+            } catch (error) { alert('Erro de rede.'); }
+        }
+
+        // ---------- CONFIGURAÇÕES / IMPORTAÇÕES ----------
         async function criarEvento() {
             const payload = {
                 nome: document.getElementById('novoEventoNome').value.trim(),

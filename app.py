@@ -24,6 +24,18 @@ class SorteioHistorico(db.Model):
     
     jogador = db.relationship('Jogador', backref=db.backref('sorteios', lazy=True))
 
+# --- NOVO MODELO: Sorteio Meme ---
+class SorteioMemeHistorico(db.Model):
+    __tablename__ = 'sorteios_meme'
+    id = db.Column(db.Integer, primary_key=True)
+    jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'), nullable=False)
+    item_sorteado = db.Column(db.String(100), default="")
+    data_sorteio = db.Column(db.DateTime, default=datetime.utcnow)
+    observacao = db.Column(db.String(255), default="")
+    
+    jogador = db.relationship('Jogador', backref=db.backref('sorteios_meme', lazy=True))
+# ---------------------------------
+
 @app.route('/')
 def index():
     pontos_brutos = db.session.query(
@@ -72,6 +84,10 @@ def index():
     ranking.sort(key=lambda x: (x['pontos'], x['jogador'].level, x['jogador'].poder_combate), reverse=True)
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
+    
+    # Busca do novo histórico
+    historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
+    
     configuracoes = ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()
     importacoes = ImportacaoXML.query.order_by(ImportacaoXML.data_importacao.desc()).all()
     
@@ -82,6 +98,7 @@ def index():
         'dashboard.html', 
         ranking=ranking, 
         historico_sorteios=historico_sorteios,
+        historico_meme=historico_meme, # Enviando para o template
         configuracoes=configuracoes,
         importacoes=importacoes,
         total_jogadores=total_jogadores,
@@ -317,7 +334,6 @@ def deletar_importacao(id):
     try:
         imp = db.session.get(ImportacaoXML, id)
         if imp:
-            # Deleta todas as pontuações vinculadas a este upload
             Pontuacao.query.filter_by(importacao_id=imp.id).delete()
             db.session.delete(imp)
             db.session.commit()
@@ -406,6 +422,7 @@ def salvar_configuracoes():
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
 
+# Rota mantida original
 @app.route('/api/realizar-sorteio', methods=['POST'])
 def realizar_sorteio():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -422,6 +439,59 @@ def realizar_sorteio():
     except Exception as e:
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
+
+# --- NOVAS ROTAS: Sorteio Meme ---
+@app.route('/api/realizar-sorteio-meme', methods=['POST'])
+def realizar_sorteio_meme():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    jogadores_ids = dados.get('jogadores_ids', [])
+    item_sorteado = dados.get('item', 'Item Misterioso')
+    
+    if not jogadores_ids: return jsonify({"erro": "Nenhum jogador selecionado."}), 400
+    try:
+        vencedor_id = random.choice(jogadores_ids)
+        vencedor = db.session.get(Jogador, vencedor_id)
+        
+        novo_sorteio_meme = SorteioMemeHistorico(jogador_id=vencedor.id, item_sorteado=item_sorteado)
+        db.session.add(novo_sorteio_meme)
+        db.session.commit()
+        
+        return jsonify({"vencedor_nome": vencedor.nome, "vencedor_id": vencedor.id, "item": item_sorteado}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/editar-historico-meme', methods=['POST'])
+def editar_historico_meme():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    historico_data = dados.get('historico', [])
+    try:
+        for item in historico_data:
+            reg = db.session.get(SorteioMemeHistorico, item['id'])
+            if reg:
+                reg.observacao = item['observacao']
+        db.session.commit()
+        return jsonify({"mensagem": "Registros gravados!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/deletar-historico-meme/<int:id>', methods=['DELETE'])
+def deletar_historico_meme(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    try:
+        reg = db.session.get(SorteioMemeHistorico, id)
+        if reg:
+            db.session.delete(reg)
+            db.session.commit()
+            return jsonify({"mensagem": "Registro purgado!"}), 200
+        return jsonify({"erro": "Não encontrado."}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+# ---------------------------------
 
 @app.route('/api/editar-historico', methods=['POST'])
 def editar_historico():
