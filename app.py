@@ -7,7 +7,11 @@ from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, Perso
 from xml_engine import analisar_xml_guilda
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vortex.db'
+# Configuração atualizada para aceitar o PostgreSQL do Render ou o SQLite local
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///vortex.db')
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'tmp/' 
 app.config['SECRET_KEY'] = 'chave_super_secreta_vortex' 
@@ -94,31 +98,46 @@ def index():
     total_jogadores = len(jogadores)
     soma_total_pontos = db.session.query(func.sum(Pontuacao.pontos)).scalar() or 0
 
+    user_role = session.get('role', 'guest')
+
     return render_template(
         'dashboard.html', 
         ranking=ranking, 
         historico_sorteios=historico_sorteios,
-        historico_meme=historico_meme, # Enviando para o template
+        historico_meme=historico_meme, 
         configuracoes=configuracoes,
         importacoes=importacoes,
         total_jogadores=total_jogadores,
-        soma_total_pontos=soma_total_pontos
+        soma_total_pontos=soma_total_pontos,
+        user_role=user_role
     )
 
 @app.route('/api/login', methods=['POST'])
 def login():
     dados = request.get_json()
-    if dados.get('senha') == 'vortex2026':  
+    senha_enviada = dados.get('senha')
+    
+    if senha_enviada == 'vortex2026':  
         session['logged_in'] = True
-        return jsonify({"mensagem": "Autenticado com sucesso"}), 200
+        session['role'] = 'admin'
+        return jsonify({"mensagem": "Autenticado como Administrador"}), 200
+    elif senha_enviada == 'membro2026':
+        session['logged_in'] = True
+        session['role'] = 'membro'
+        return jsonify({"mensagem": "Autenticado como Membro"}), 200
+        
     return jsonify({"erro": "Senha incorreta"}), 401
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
     session.pop('logged_in', None)
+    session.pop('role', None)
     return jsonify({"mensagem": "Logout efetuado"}), 200
 
 def admin_required():
+    return session.get('logged_in') and session.get('role') == 'admin'
+
+def login_required():
     return session.get('logged_in')
 
 # --- UPLOAD DE XML (PONTOS) ---
@@ -345,44 +364,53 @@ def deletar_importacao(id):
 
 @app.route('/api/editar-jogadores', methods=['POST'])
 def editar_jogadores():
-    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    if not login_required(): return jsonify({"erro": "Acesso negado"}), 401
+    
     dados = request.get_json()
     jogadores_data = dados.get('jogadores', [])
+    user_role = session.get('role')
     
     try:
         for item in jogadores_data:
             jogador = db.session.get(Jogador, item['id'])
             if jogador:
-                jogador.level = int(item['level'])
-                jogador.poder_combate = int(item['poder_combate'])
+                # Todos os logados (Admin e Membro) podem atualizar Level e CP
+                if 'level' in item:
+                    jogador.level = int(item['level'])
+                if 'poder_combate' in item:
+                    jogador.poder_combate = int(item['poder_combate'])
                 
-                alts_string = item.get('alts', '')
-                PersonagemSecundario.query.filter_by(jogador_id=jogador.id).delete()
-                if alts_string:
-                    novos_alts = [n.strip() for n in alts_string.split(',') if n.strip()]
-                    for n_alt in novos_alts:
-                        existente = PersonagemSecundario.query.filter_by(nome_alt=n_alt).first()
-                        if not existente:
-                            db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
+                # Apenas Admin pode atualizar Alts e Pontuações Manuais
+                if user_role == 'admin':
+                    if 'alts' in item:
+                        alts_string = item.get('alts', '')
+                        PersonagemSecundario.query.filter_by(jogador_id=jogador.id).delete()
+                        if alts_string:
+                            novos_alts = [n.strip() for n in alts_string.split(',') if n.strip()]
+                            for n_alt in novos_alts:
+                                existente = PersonagemSecundario.query.filter_by(nome_alt=n_alt).first()
+                                if not existente:
+                                    db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
 
-                novo_total_desejado = int(item['pontos'])
-                pts = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador.id).scalar() or 0
-                pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador.id).scalar() or 0
-                pontos_atuais = pts - pens
-                
-                diferenca = novo_total_desejado - pontos_atuais
-                if diferenca != 0:
-                    ajuste = Pontuacao(
-                        jogador_id=jogador.id,
-                        semana="Ajuste Manual",
-                        atividade="Ajuste Manual",
-                        pontos=diferenca,
-                        motivo_ajuste="Ajuste direto na tabela"
-                    )
-                    db.session.add(ajuste)
+                    if 'pontos' in item:
+                        novo_total_desejado = int(item['pontos'])
+                        pts = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador.id).scalar() or 0
+                        pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador.id).scalar() or 0
+                        pontos_atuais = pts - pens
+                        
+                        diferenca = novo_total_desejado - pontos_atuais
+                        if diferenca != 0:
+                            ajuste = Pontuacao(
+                                jogador_id=jogador.id,
+                                semana="Ajuste Manual",
+                                atividade="Ajuste Manual",
+                                pontos=diferenca,
+                                motivo_ajuste="Ajuste direto na tabela"
+                            )
+                            db.session.add(ajuste)
         
         db.session.commit()
-        return jsonify({"mensagem": "Modificações e Alts salvos com sucesso!"}), 200
+        return jsonify({"mensagem": "Modificações salvas com sucesso!"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
