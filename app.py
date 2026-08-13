@@ -525,31 +525,45 @@ def deletar_historico(id):
         return jsonify({"erro": str(e)}), 500
 
 with app.app_context():
+    # 1. A CORREÇÃO ESTÁ AQUI: Criamos as tabelas primeiro!
+    db.create_all()
+
+    # 2. Agora sim, fazemos as verificações de auto-migração com segurança
     try:
         db.session.execute(text('SELECT tipo_evento FROM config_atividades LIMIT 1'))
     except Exception:
         db.session.rollback()
-        db.session.execute(text('ALTER TABLE config_atividades ADD COLUMN tipo_evento VARCHAR(20) DEFAULT "diario"'))
-        db.session.commit()
-        eventos_semanais = "'Raid de Guilda', 'Expedição da Guilda', 'Confronto pelo Paraíso', 'Campo de Batalha de Aço', 'Escaramuça', 'Guerra de Mineração', 'Fortaleza Albern'"
-        db.session.execute(text(f"UPDATE config_atividades SET tipo_evento = 'semanal' WHERE nome_xml IN ({eventos_semanais})"))
-        db.session.commit()
+        # Colocamos um try extra só por segurança estrutural
+        try:
+            db.session.execute(text('ALTER TABLE config_atividades ADD COLUMN tipo_evento VARCHAR(20) DEFAULT "diario"'))
+            db.session.commit()
+            eventos_semanais = "'Raid de Guilda', 'Expedição da Guilda', 'Confronto pelo Paraíso', 'Campo de Batalha de Aço', 'Escaramuça', 'Guerra de Mineração', 'Fortaleza Albern'"
+            db.session.execute(text(f"UPDATE config_atividades SET tipo_evento = 'semanal' WHERE nome_xml IN ({eventos_semanais})"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     try:
         db.session.execute(text('SELECT nome_personalizado FROM importacoes LIMIT 1'))
     except Exception:
         db.session.rollback()
-        db.session.execute(text('ALTER TABLE importacoes ADD COLUMN nome_personalizado VARCHAR(100) DEFAULT ""'))
-        db.session.commit()
+        try:
+            db.session.execute(text('ALTER TABLE importacoes ADD COLUMN nome_personalizado VARCHAR(100) DEFAULT ""'))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         
     try:
         db.session.execute(text('SELECT tipo_arquivo FROM importacoes LIMIT 1'))
     except Exception:
         db.session.rollback()
-        db.session.execute(text('ALTER TABLE importacoes ADD COLUMN tipo_arquivo VARCHAR(20) DEFAULT "xml"'))
-        db.session.commit()
+        try:
+            db.session.execute(text('ALTER TABLE importacoes ADD COLUMN tipo_arquivo VARCHAR(20) DEFAULT "xml"'))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
-    db.create_all()
+    # 3. Popula a tabela inicial se estiver vazia
     if not ConfigAtividade.query.first():
         atividades_iniciais = [
             ('Verificado', 'diario'), ('Doar', 'diario'), ('Atividade da Guilda', 'diario'), 
