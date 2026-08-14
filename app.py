@@ -41,7 +41,9 @@ class SorteioMemeHistorico(db.Model):
 
 @app.route('/')
 def index():
-    # Cálculo revertido para SOMA SIMPLES de tudo que estiver no banco
+    configuracoes = ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()
+    tipos_eventos = {c.nome_xml: c.tipo_evento for c in configuracoes}
+
     pontos_brutos = db.session.query(
         Pontuacao.jogador_id, 
         Pontuacao.atividade, 
@@ -92,7 +94,6 @@ def index():
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
-    configuracoes = ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()
     importacoes = ImportacaoXML.query.order_by(ImportacaoXML.data_importacao.desc()).all()
     
     total_jogadores = len(jogadores)
@@ -155,6 +156,9 @@ def importar_xml():
     arquivo.save(caminho)
 
     try:
+        # Busca TODOS os eventos do banco para exibir no frontend
+        todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()]
+        
         configs = ConfigAtividade.query.filter_by(is_ativa=True).all()
         mapa_configs = {c.nome_xml: c.pontos_padrao for c in configs}
 
@@ -170,26 +174,14 @@ def importar_xml():
             jogadores_validos = {a.nome_alt.lower(): True for a in PersonagemSecundario.query.all()}
 
         preview_dados = []
-        eventos_permitidos_bs = ['Raid de Guilda', 'Expedição da Guilda']
-        atividades_unicas = set()
 
         for d in dados_extraidos:
             nome_lower = d['nome'].lower()
             encontrado = nome_lower in jogadores_validos
             
-            # Coleta todos os eventos presentes no XML para enviar ao Frontend
-            for atv in d['atividades']:
-                atividades_unicas.add(atv['atividade'])
-
-            if guilda_alvo == 'blackskull':
-                total_pts_jogador = sum(a['pontos'] for a in d['atividades'] if a['atividade'] in eventos_permitidos_bs)
-            else:
-                total_pts_jogador = sum(a['pontos'] for a in d['atividades'])
-            
             preview_dados.append({
                 "nome_xml": d['nome'],
                 "encontrado_no_bd": encontrado,
-                "pontos_totais": total_pts_jogador,
                 "detalhes": d['atividades']
             })
 
@@ -198,7 +190,7 @@ def importar_xml():
             "mensagem": "Pré-visualização gerada",
             "hash": hash_arquivo,
             "preview": preview_dados,
-            "atividades_encontradas": list(atividades_unicas) # Enviado para o filtro do painel
+            "atividades_encontradas": todas_atividades_db # Envia a lista fixa e completa
         }), 200
 
     except Exception as e:
@@ -215,7 +207,7 @@ def confirmar_importacao():
     jogadores_data = dados.get('jogadores')
     cadastrar_novos = dados.get('cadastrar_novos', False)
     guilda_alvo = dados.get('guilda_alvo', 'vortex')
-    eventos_selecionados = dados.get('eventos_selecionados', []) # Nova lista de autorização
+    eventos_selecionados = dados.get('eventos_selecionados', []) 
     semana_fixa = "Acumulativo"
 
     if ImportacaoXML.query.filter_by(semana=semana_fixa, hash_arquivo=hash_arquivo).first():
@@ -243,7 +235,6 @@ def confirmar_importacao():
                 for atv in j_data['detalhes']:
                     nome_atividade = atv['atividade']
                     
-                    # FILTRO RÍGIDO: Se não marcou a caixa no painel, ignora o ponto
                     if nome_atividade not in eventos_selecionados:
                         continue
 
@@ -265,7 +256,6 @@ def confirmar_importacao():
                 if nome_xml in alts_map:
                     jogador_id = alts_map[nome_xml]
                     
-                    # FILTRO RÍGIDO PARA BLACKSKULL TAMBÉM
                     total_pts = sum(
                         a['pontos'] for a in j_data['detalhes'] 
                         if a['atividade'] in eventos_permitidos_bs and a['atividade'] in eventos_selecionados
