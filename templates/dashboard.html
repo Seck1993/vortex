@@ -591,7 +591,19 @@
 
             <!-- Área de Preview do XML -->
             <div id="areaPreview" style="display: none; border-top: 1px solid var(--neon-cyan); padding-top: 20px;">
-                <h3 style="margin-top: 0; font-size: 15px; color: var(--neon-cyan);">Resultado do Escaneamento</h3>
+                
+                <!-- NOVO: Filtro de Eventos -->
+                <div id="areaFiltroEventos" style="margin-bottom: 15px; background: rgba(0, 243, 255, 0.05); padding: 15px; border: 1px solid var(--glass-border); border-radius: 4px;">
+                    <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">☑</span> Autorização de Pontuação
+                    </h3>
+                    <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Selecione abaixo quais eventos identificados no arquivo XML devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
+                    <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <!-- Preenchido via JS -->
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 0; font-size: 15px; color: var(--neon-cyan);">Resultado do Escaneamento (Jogadores)</h3>
                 <div id="resultadoPreview" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.8); border: 1px solid var(--glass-border); padding: 10px; margin-bottom: 15px; font-size: 13px; font-family: monospace;"></div>
                 
                 <form id="formConfirmar" onsubmit="confirmarImportacao(event)">
@@ -680,7 +692,7 @@
             try {
                 const response = await fetch('/api/importar', { method: 'POST', body: formData });
                 const data = await response.json();
-                if (response.ok) { mostrarPreview(data.preview, data.hash); } 
+                if (response.ok) { mostrarPreview(data.preview, data.hash, data.atividades_encontradas); } 
                 else { alert('Falha: ' + data.erro); }
             } catch (error) { alert('Falha de conexão com o servidor matriz.'); } 
             finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
@@ -701,7 +713,7 @@
             finally { btnEnviarEx.innerText = 'Sincronizar Atributos'; btnEnviarEx.disabled = false; }
         }
 
-        function mostrarPreview(jogadores, hash) {
+        function mostrarPreview(jogadores, hash, atividades_encontradas) {
             document.getElementById('formImportacao').parentElement.style.display = 'none';
             document.getElementById('formExcel').parentElement.style.display = 'none';
             document.getElementById('areaPreview').style.display = 'block';
@@ -709,6 +721,26 @@
             
             const isBlackSkull = document.getElementById('guildaAlvoSelect').value === 'blackskull';
             
+            // Renderizar checkboxes de autorização de eventos
+            const containerEventos = document.getElementById('listaEventosEncontrados');
+            containerEventos.innerHTML = '';
+            const eventosDiariosPadrao = ['Verificado', 'Doar', 'Atividade da Guilda'];
+            
+            if (atividades_encontradas && atividades_encontradas.length > 0) {
+                atividades_encontradas.forEach(atv => {
+                    const isChecked = eventosDiariosPadrao.includes(atv) ? 'checked' : '';
+                    const corDestaque = isChecked ? 'var(--neon-cyan)' : 'var(--text-muted)';
+                    containerEventos.innerHTML += `
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #fff; cursor: pointer; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 4px; border: 1px solid ${corDestaque}; transition: 0.2s;">
+                            <input type="checkbox" class="check-evento-import" value="${atv}" ${isChecked} style="accent-color: var(--neon-cyan); width: 16px; height: 16px;">
+                            ${atv}
+                        </label>
+                    `;
+                });
+            } else {
+                containerEventos.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">Nenhum evento detectado no arquivo.</span>';
+            }
+
             dadosImportacaoAtual = jogadores;
             let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
             let temDesconhecido = false;
@@ -742,11 +774,16 @@
             const btnConfirmar = e.target.querySelector('button[type="submit"]');
             btnConfirmar.innerText = 'Injetando no DB...'; btnConfirmar.disabled = true;
 
+            // Capturar os eventos que o admin marcou para pontuar
+            const checkboxesEventos = document.querySelectorAll('.check-evento-import:checked');
+            const eventosSelecionados = Array.from(checkboxesEventos).map(cb => cb.value);
+
             const payload = {
                 hash: document.getElementById('hashArquivo').value,
                 jogadores: dadosImportacaoAtual,
                 guilda_alvo: document.getElementById('guildaAlvoSelect').value,
-                cadastrar_novos: document.getElementById('checkCadastrarNovos') ? document.getElementById('checkCadastrarNovos').checked : false
+                cadastrar_novos: document.getElementById('checkCadastrarNovos') ? document.getElementById('checkCadastrarNovos').checked : false,
+                eventos_selecionados: eventosSelecionados
             };
 
             try {
@@ -805,7 +842,7 @@
             
             const roletaNome = document.getElementById('roletaNome');
             const btnFecharRoleta = document.getElementById('btnFecharRoleta');
-            document.getElementById('tituloRoleta').innerText = ""; // Limpa o titulo caso tenha vindo do meme
+            document.getElementById('tituloRoleta').innerText = ""; 
             roletaNome.style.color = "white"; btnFecharRoleta.style.display = 'none';
             document.getElementById('modalRoleta').style.display = 'flex';
 
