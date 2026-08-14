@@ -597,7 +597,7 @@
                     <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 15px; display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 18px;">☑</span> Autorização de Pontuação
                     </h3>
-                    <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Selecione abaixo quais eventos identificados no arquivo XML devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
+                    <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Selecione abaixo quais eventos identificados no banco de dados devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
                     <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 10px;">
                         <!-- Preenchido via JS -->
                     </div>
@@ -713,49 +713,78 @@
             finally { btnEnviarEx.innerText = 'Sincronizar Atributos'; btnEnviarEx.disabled = false; }
         }
 
-        function mostrarPreview(jogadores, hash, atividades_encontradas) {
+        function mostrarPreview(jogadores, hash, todas_atividades) {
             document.getElementById('formImportacao').parentElement.style.display = 'none';
             document.getElementById('formExcel').parentElement.style.display = 'none';
             document.getElementById('areaPreview').style.display = 'block';
             document.getElementById('hashArquivo').value = hash;
             
-            const isBlackSkull = document.getElementById('guildaAlvoSelect').value === 'blackskull';
+            dadosImportacaoAtual = jogadores;
             
-            // Renderizar checkboxes de autorização de eventos
             const containerEventos = document.getElementById('listaEventosEncontrados');
             containerEventos.innerHTML = '';
             const eventosDiariosPadrao = ['Verificado', 'Doar', 'Atividade da Guilda'];
             
-            if (atividades_encontradas && atividades_encontradas.length > 0) {
-                atividades_encontradas.forEach(atv => {
+            // Renderiza checkboxes para todos os eventos recebidos do banco
+            if (todas_atividades && todas_atividades.length > 0) {
+                todas_atividades.forEach(atv => {
                     const isChecked = eventosDiariosPadrao.includes(atv) ? 'checked' : '';
-                    const corDestaque = isChecked ? 'var(--neon-cyan)' : 'var(--text-muted)';
+                    const borderColor = isChecked ? 'var(--neon-cyan)' : 'var(--text-muted)';
+                    
                     containerEventos.innerHTML += `
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #fff; cursor: pointer; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 4px; border: 1px solid ${corDestaque}; transition: 0.2s;">
-                            <input type="checkbox" class="check-evento-import" value="${atv}" ${isChecked} style="accent-color: var(--neon-cyan); width: 16px; height: 16px;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #fff; cursor: pointer; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 4px; border: 1px solid ${borderColor}; transition: 0.2s;">
+                            <input type="checkbox" class="check-evento-import" value="${atv}" ${isChecked} onchange="atualizarPreviewPontos(this)" style="accent-color: var(--neon-cyan); width: 16px; height: 16px;">
                             ${atv}
                         </label>
                     `;
                 });
             } else {
-                containerEventos.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">Nenhum evento detectado no arquivo.</span>';
+                containerEventos.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">Nenhum evento detectado.</span>';
             }
 
-            dadosImportacaoAtual = jogadores;
+            // Calcula os pontos baseados nos eventos que vieram marcados
+            atualizarPreviewPontos();
+        }
+
+        function atualizarPreviewPontos(checkboxElement = null) {
+            // Atualiza a borda da caixa selecionada para dar um efeito visual legal
+            if (checkboxElement) {
+                const label = checkboxElement.parentElement;
+                label.style.borderColor = checkboxElement.checked ? 'var(--neon-cyan)' : 'var(--text-muted)';
+            }
+
+            // Lê as caixas marcadas e refaz a soma para cada jogador
+            const checkboxes = document.querySelectorAll('.check-evento-import:checked');
+            const eventosMarcados = Array.from(checkboxes).map(cb => cb.value);
+            
+            const isBlackSkull = document.getElementById('guildaAlvoSelect').value === 'blackskull';
+            const eventosPermitidosBS = ['Raid de Guilda', 'Expedição da Guilda'];
+
             let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
             let temDesconhecido = false;
 
-            jogadores.forEach(j => {
+            dadosImportacaoAtual.forEach(j => {
                 let cor = j.encontrado_no_bd ? '#10b981' : '#ff003c'; 
                 if (!j.encontrado_no_bd) temDesconhecido = true;
                 
                 let labelStatus = j.encontrado_no_bd ? '[OK]' : '[NÃO VINCULADO]';
                 
+                let pontosCalculados = 0;
+                j.detalhes.forEach(det => {
+                    // Se o evento do XML está na lista das caixinhas marcadas, soma o ponto
+                    if (eventosMarcados.includes(det.atividade)) {
+                        if (!isBlackSkull || eventosPermitidosBS.includes(det.atividade)) {
+                            pontosCalculados += det.pontos;
+                        }
+                    }
+                });
+
                 html += `<li style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 6px 0;">
                             <span style="color: ${cor}">${labelStatus} ${j.nome_xml}</span>
-                            <span style="color: var(--neon-cyan);">+${j.pontos_totais} pts (tentativa)</span>
+                            <span style="color: var(--neon-cyan);">+${pontosCalculados} pts (tentativa)</span>
                         </li>`;
             });
+            
             html += '</ul>';
             document.getElementById('resultadoPreview').innerHTML = html;
             
@@ -774,7 +803,7 @@
             const btnConfirmar = e.target.querySelector('button[type="submit"]');
             btnConfirmar.innerText = 'Injetando no DB...'; btnConfirmar.disabled = true;
 
-            // Capturar os eventos que o admin marcou para pontuar
+            // Extrair quais eventos foram confirmados para o backend
             const checkboxesEventos = document.querySelectorAll('.check-evento-import:checked');
             const eventosSelecionados = Array.from(checkboxesEventos).map(cb => cb.value);
 
