@@ -41,6 +41,7 @@ class SorteioMemeHistorico(db.Model):
 
 @app.route('/')
 def index():
+    # Cálculo revertido para SOMA SIMPLES de tudo que estiver no banco
     pontos_brutos = db.session.query(
         Pontuacao.jogador_id, 
         Pontuacao.atividade, 
@@ -71,6 +72,8 @@ def index():
 
     jogadores = Jogador.query.all()
     ranking = []
+    soma_total_pontos = 0
+    
     for j in jogadores:
         p_data = mapa_pontos.get(j.id, {'total': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0})
         alts_list = [a.nome_alt for a in j.alts]
@@ -82,6 +85,7 @@ def index():
             'blackskull': p_data['blackskull'],
             'ajustes': p_data['ajustes']
         })
+        soma_total_pontos += p_data['total']
 
     ranking.sort(key=lambda x: x['jogador'].nome.lower())
     ranking.sort(key=lambda x: (x['pontos'], x['jogador'].level, x['jogador'].poder_combate), reverse=True)
@@ -92,8 +96,6 @@ def index():
     importacoes = ImportacaoXML.query.order_by(ImportacaoXML.data_importacao.desc()).all()
     
     total_jogadores = len(jogadores)
-    soma_total_pontos = db.session.query(func.sum(Pontuacao.pontos)).scalar() or 0
-
     user_role = session.get('role', 'guest')
 
     return render_template(
@@ -113,7 +115,7 @@ def login():
     dados = request.get_json()
     senha_enviada = dados.get('senha')
     
-    if senha_enviada == 'vortex2026@@':  
+    if senha_enviada == 'vortex2026':  
         session['logged_in'] = True
         session['role'] = 'admin'
         return jsonify({"mensagem": "Autenticado como Administrador"}), 200
@@ -169,11 +171,16 @@ def importar_xml():
 
         preview_dados = []
         eventos_permitidos_bs = ['Raid de Guilda', 'Expedição da Guilda']
+        atividades_unicas = set()
 
         for d in dados_extraidos:
             nome_lower = d['nome'].lower()
             encontrado = nome_lower in jogadores_validos
             
+            # Coleta todos os eventos presentes no XML para enviar ao Frontend
+            for atv in d['atividades']:
+                atividades_unicas.add(atv['atividade'])
+
             if guilda_alvo == 'blackskull':
                 total_pts_jogador = sum(a['pontos'] for a in d['atividades'] if a['atividade'] in eventos_permitidos_bs)
             else:
@@ -190,7 +197,8 @@ def importar_xml():
         return jsonify({
             "mensagem": "Pré-visualização gerada",
             "hash": hash_arquivo,
-            "preview": preview_dados
+            "preview": preview_dados,
+            "atividades_encontradas": list(atividades_unicas) # Enviado para o filtro do painel
         }), 200
 
     except Exception as e:
@@ -207,13 +215,11 @@ def confirmar_importacao():
     jogadores_data = dados.get('jogadores')
     cadastrar_novos = dados.get('cadastrar_novos', False)
     guilda_alvo = dados.get('guilda_alvo', 'vortex')
+    eventos_selecionados = dados.get('eventos_selecionados', []) # Nova lista de autorização
     semana_fixa = "Acumulativo"
 
     if ImportacaoXML.query.filter_by(semana=semana_fixa, hash_arquivo=hash_arquivo).first():
         return jsonify({"erro": "Esta importação já foi confirmada."}), 409
-
-    configs_semanais = ConfigAtividade.query.filter_by(tipo_evento='semanal').all()
-    atividades_semanais_unicas = [c.nome_xml for c in configs_semanais]
 
     try:
         label_import = "Upload Diário (Vortex)" if guilda_alvo == 'vortex' else "Upload Semanal (BlackSkull)"
@@ -237,8 +243,9 @@ def confirmar_importacao():
                 for atv in j_data['detalhes']:
                     nome_atividade = atv['atividade']
                     
-                    if nome_atividade in atividades_semanais_unicas:
-                        pass
+                    # FILTRO RÍGIDO: Se não marcou a caixa no painel, ignora o ponto
+                    if nome_atividade not in eventos_selecionados:
+                        continue
 
                     novo_ponto = Pontuacao(
                         jogador_id=jogador.id,
@@ -249,7 +256,7 @@ def confirmar_importacao():
                     )
                     db.session.add(novo_ponto)
                     
-        else: # LÓGICA BLACKSKULL COM FILTRO
+        else:
             alts_map = {a.nome_alt.lower(): a.jogador_id for a in PersonagemSecundario.query.all()}
             eventos_permitidos_bs = ['Raid de Guilda', 'Expedição da Guilda']
             
@@ -257,7 +264,12 @@ def confirmar_importacao():
                 nome_xml = j_data['nome_xml'].lower()
                 if nome_xml in alts_map:
                     jogador_id = alts_map[nome_xml]
-                    total_pts = sum(a['pontos'] for a in j_data['detalhes'] if a['atividade'] in eventos_permitidos_bs)
+                    
+                    # FILTRO RÍGIDO PARA BLACKSKULL TAMBÉM
+                    total_pts = sum(
+                        a['pontos'] for a in j_data['detalhes'] 
+                        if a['atividade'] in eventos_permitidos_bs and a['atividade'] in eventos_selecionados
+                    )
                     
                     if total_pts > 0:
                         novo_ponto = Pontuacao(
