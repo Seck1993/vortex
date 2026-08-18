@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Guilda Vortex - Command Center</title>
-    <!-- Fonte tecnológica do Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -92,6 +91,9 @@
         tbody tr { transition: 0.2s; }
         tbody tr:hover { background: rgba(0, 243, 255, 0.08); }
         tbody tr:hover td { border-bottom-color: var(--neon-cyan); }
+        
+        /* Destaque visual para linhas alteradas antes de salvar */
+        tr.linha-modificada td { background-color: rgba(0, 255, 102, 0.05); }
 
         .th-evento { color: var(--text-light); }
         .td-evento { color: rgba(255,255,255,0.9); font-family: monospace; font-size: 14px; font-weight: bold;}
@@ -199,7 +201,6 @@
         {% endif %}
     </div>
 
-    <!-- ABA 1: RANKING E GUIA DE PONTOS -->
     <div id="abaRanking" class="tab-content active">
         
         <h3 style="margin-bottom: 10px; font-size: 16px; color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0,243,255,0.4);">
@@ -246,7 +247,6 @@
                         <th style="width: 40px;">LVL</th>
                         <th style="width: 60px;">CP</th>
                         
-                        <!-- Colunas Horizontais de Eventos -->
                         {% for c in configuracoes %}
                             <th class="th-evento">{{ c.nome_xml }}</th>
                         {% endfor %}
@@ -271,7 +271,7 @@
                         {% if session.get('logged_in') %}
                             
                             {% if user_role == 'admin' %}
-                                <td style="text-align: left;"><input type="text" class="input-edit edit-alts" value="{{ item.alts_str }}" placeholder="Alts..." style="width: 100px; text-align: left;"></td>
+                                <td style="text-align: left;"><input type="text" class="input-edit edit-alts" value="{{ item.alts_str }}" placeholder="Alts..." style="width: 100px; text-align: left;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             {% else %}
                                 <td style="color: var(--text-muted); font-size: 12px; text-align: left;">
                                     {{ item.alts_str or '-' }}
@@ -279,18 +279,22 @@
                                 </td>
                             {% endif %}
                             
-                            <!-- Membro e Admin podem editar Level e Poder -->
-                            <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 45px;"></td>
-                            <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 70px;"></td>
+                            <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 45px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
+                            <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 70px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             
                             {% for c in configuracoes %}
-                                <td class="td-evento">{{ item.atividades.get(c.nome_xml, 0) }}</td>
+                                {% if user_role == 'admin' %}
+                                    <td><input type="number" class="input-edit edit-evento" data-evento="{{ c.nome_xml }}" value="{{ item.atividades.get(c.nome_xml, 0) }}" style="width: 40px; text-align: center;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
+                                {% else %}
+                                    <td class="td-evento">{{ item.atividades.get(c.nome_xml, 0) }}</td>
+                                {% endif %}
                             {% endfor %}
+
                             <td class="td-evento" style="color: var(--neon-purple); font-weight: bold;">{{ item.blackskull }}</td>
                             <td class="td-evento" style="color: var(--neon-orange); font-weight: bold;">{{ item.ajustes }}</td>
                             
                             {% if user_role == 'admin' %}
-                                <td><input type="number" class="input-edit edit-pontos" value="{{ item.pontos }}" style="width: 60px;"></td>
+                                <td><input type="number" class="input-edit edit-pontos" value="{{ item.pontos }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             {% else %}
                                 <td style="color: var(--neon-green); font-weight: 700; font-size: 18px; text-shadow: 0 0 10px rgba(0,255,102,0.3);">
                                     {{ item.pontos }}
@@ -322,7 +326,6 @@
         </div>
     </div>
 
-    <!-- ABA 2: HISTÓRICO DE VENCEDORES -->
     <div id="abaSorteio" class="tab-content">
         <div class="table-container" style="border-left-color: var(--neon-orange);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -366,7 +369,6 @@
         </div>
     </div>
 
-    <!-- NOVA ABA: SORTEIO ITEMS "MEME" -->
     <div id="abaMeme" class="tab-content">
         {% if user_role == 'admin' %}
         <div style="background: rgba(0,0,0,0.4); padding: 20px; border: 1px solid var(--neon-cyan); margin-bottom: 20px; border-radius: 4px; box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.05);">
@@ -438,10 +440,8 @@
         </div>
     </div>
 
-    <!-- ABAS RESTRITAS AO ADMIN -->
     {% if user_role == 'admin' %}
     
-    <!-- ABA 3: CONFIGURAÇÃO DE PONTOS -->
     <div id="abaConfig" class="tab-content">
         <div style="background: rgba(0,0,0,0.6); padding: 20px; border: 1px solid var(--neon-purple); border-radius: 4px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 20px rgba(188, 19, 254, 0.1);">
             <div>
@@ -488,7 +488,6 @@
         </div>
     </div>
 
-    <!-- ABA 4: LOG DE UPLOADS -->
     <div id="abaLogs" class="tab-content">
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -526,13 +525,7 @@
             <p style="font-size: 12px; color: var(--neon-orange); margin-top: 10px;">Atenção: Ao excluir um log de arquivo XML, os pontos inseridos na data serão revertidos. Para Excel (Status), o log será removido mas você deverá corrigir Level e CP manualmente na tabela.</p>
         </div>
     </div>
-    {% endif %} <!-- FIM ÁREA ADMIN -->
-
-
-    <!-- ================= MODAIS OVERLAYS ================= -->
-
-    <!-- Modal Login -->
-    <div id="modalLogin" class="modal-overlay">
+    {% endif %} <div id="modalLogin" class="modal-overlay">
         <div class="modal-content" style="width: 400px; text-align: center; border-color: var(--neon-red); padding: 25px;">
             <h2 style="margin-top: 0; color: var(--neon-red); text-shadow: 0 0 10px rgba(255,0,60,0.5);">Acesso Restrito</h2>
             <p style="color: var(--text-muted); font-size: 13px;">Insira a credencial root ou de membro para modificar parâmetros.</p>
@@ -544,7 +537,6 @@
         </div>
     </div>
 
-    <!-- Modal Importação -->
     {% if user_role == 'admin' %}
     <div id="modalImportacao" class="modal-overlay">
         <div class="modal-content">
@@ -553,7 +545,6 @@
                 <button onclick="fecharModal('modalImportacao')" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; font-size: 24px; transition: 0.2s;">&times;</button>
             </div>
 
-            <!-- OPÇÃO 1: XML DE PONTOS -->
             <div style="border: 1px solid rgba(0, 243, 255, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 20px; background: rgba(0, 243, 255, 0.02);">
                 <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 15px;">1. Injetar Matriz de Pontos (XML)</h3>
                 
@@ -575,7 +566,6 @@
                 </form>
             </div>
 
-            <!-- OPÇÃO 2: EXCEL DE STATUS -->
             <div style="border: 1px solid rgba(0, 255, 102, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 15px; background: rgba(0, 255, 102, 0.02);">
                 <h3 style="margin-top: 0; color: var(--neon-green); font-size: 15px;">2. Sincronizar Atributos (.XLSX)</h3>
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Módulo de leitura: Nomes, Level e CP (Apenas Guilda Principal).</p>
@@ -589,18 +579,15 @@
                 </form>
             </div>
 
-            <!-- Área de Preview do XML -->
             <div id="areaPreview" style="display: none; border-top: 1px solid var(--neon-cyan); padding-top: 20px;">
                 
-                <!-- NOVO: Filtro de Eventos -->
                 <div id="areaFiltroEventos" style="margin-bottom: 15px; background: rgba(0, 243, 255, 0.05); padding: 15px; border: 1px solid var(--glass-border); border-radius: 4px;">
                     <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 15px; display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 18px;">☑</span> Autorização de Pontuação
                     </h3>
                     <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Selecione abaixo quais eventos identificados no banco de dados devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
                     <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        <!-- Preenchido via JS -->
-                    </div>
+                        </div>
                 </div>
 
                 <h3 style="margin-top: 0; font-size: 15px; color: var(--neon-cyan);">Resultado do Escaneamento (Jogadores)</h3>
@@ -623,7 +610,6 @@
         </div>
     </div>
 
-    <!-- Modal Roleta -->
     <div id="modalRoleta" class="modal-overlay" style="z-index: 110;">
         <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 450px;">
             <h2 style="color: var(--neon-orange); font-size: 24px; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,170,0,0.5);">GERADOR QUÂNTICO</h2>
@@ -637,7 +623,6 @@
     </div>
     {% endif %}
 
-    <!-- ================= SCRIPTS ================= -->
     <script>
         function trocarAba(abaId, elementoBtn) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -836,15 +821,30 @@
         }
 
         async function salvarEdicoes() {
-            const linhasTabela = document.querySelectorAll('tr[data-jogador-id]');
+            // Busca APENAS as linhas que o usuário atual modificou na tela
+            const linhasModificadas = document.querySelectorAll('tr.linha-modificada');
+            
+            if (linhasModificadas.length === 0) {
+                alert("Nenhuma alteração detectada para ser salva.");
+                return;
+            }
+
             let jogadoresData = [];
-            linhasTabela.forEach(linha => {
+            linhasModificadas.forEach(linha => {
+                let eventos = {};
+                
+                // Coleta os valores de cada evento editado
+                linha.querySelectorAll('.edit-evento').forEach(input => {
+                    eventos[input.getAttribute('data-evento')] = input.value;
+                });
+
                 jogadoresData.push({
                     id: linha.getAttribute('data-jogador-id'),
-                    alts: linha.querySelector('.edit-alts').value,
+                    alts: linha.querySelector('.edit-alts') ? linha.querySelector('.edit-alts').value : null,
                     level: linha.querySelector('.edit-level').value,
                     poder_combate: linha.querySelector('.edit-poder').value,
-                    pontos: linha.querySelector('.edit-pontos').value 
+                    pontos: linha.querySelector('.edit-pontos') ? linha.querySelector('.edit-pontos').value : null,
+                    eventos: eventos
                 });
             });
 
@@ -852,9 +852,15 @@
                 const response = await fetch('/api/editar-jogadores', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: jogadoresData })
                 });
-                if (response.ok) { alert("Sincronização concluída."); window.location.reload(); } 
-                else { alert('Falha ao gravar.'); }
-            } catch (error) { alert('Erro de rede.'); }
+                if (response.ok) { 
+                    alert("Sincronização concluída apenas para as modificações feitas!"); 
+                    window.location.reload(); 
+                } else { 
+                    alert('Falha ao gravar alterações.'); 
+                }
+            } catch (error) { 
+                alert('Erro de rede.'); 
+            }
         }
 
         function toggleTodosSorteio(source) {
