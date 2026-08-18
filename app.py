@@ -156,7 +156,6 @@ def importar_xml():
     arquivo.save(caminho)
 
     try:
-        # Busca TODOS os eventos do banco para exibir no frontend
         todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()]
         
         configs = ConfigAtividade.query.filter_by(is_ativa=True).all()
@@ -190,7 +189,7 @@ def importar_xml():
             "mensagem": "Pré-visualização gerada",
             "hash": hash_arquivo,
             "preview": preview_dados,
-            "atividades_encontradas": todas_atividades_db # Envia a lista fixa e completa
+            "atividades_encontradas": todas_atividades_db 
         }), 200
 
     except Exception as e:
@@ -288,7 +287,7 @@ def importar_excel():
     arquivo.save(caminho)
 
     try: import openpyxl
-    except ImportError: return jsonify({"erro": "A biblioteca 'openpyxl' não está instalada. Execute 'pip install openpyxl'."}), 500
+    except ImportError: return jsonify({"erro": "A biblioteca 'openpyxl' não está instalada."}), 500
 
     try:
         wb = openpyxl.load_workbook(caminho)
@@ -375,7 +374,8 @@ def editar_jogadores():
                     jogador.poder_combate = int(item['poder_combate'])
                 
                 if user_role == 'admin':
-                    if 'alts' in item:
+                    # Salva Alts
+                    if 'alts' in item and item['alts'] is not None:
                         alts_string = item.get('alts', '')
                         PersonagemSecundario.query.filter_by(jogador_id=jogador.id).delete()
                         if alts_string:
@@ -385,20 +385,40 @@ def editar_jogadores():
                                 if not existente:
                                     db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
 
-                    if 'pontos' in item:
+                    # Salva edição nos pontos dos Eventos Específicos
+                    if 'eventos' in item:
+                        for atv_nome, novo_valor in item['eventos'].items():
+                            novo_valor = int(novo_valor)
+                            pts_atuais = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador.id, atividade=atv_nome).scalar() or 0
+                            
+                            diferenca = novo_valor - pts_atuais
+                            if diferenca != 0:
+                                ajuste = Pontuacao(
+                                    jogador_id=jogador.id,
+                                    semana="Ajuste Manual",
+                                    atividade=atv_nome,
+                                    pontos=diferenca,
+                                    motivo_ajuste="Edição direta do evento na tabela"
+                                )
+                                db.session.add(ajuste)
+
+                    # Salva edição nos Pontos Totais (Ajuste Manual Geral)
+                    if 'pontos' in item and item['pontos'] is not None:
                         novo_total_desejado = int(item['pontos'])
+                        
+                        # Recalcula pontos após possíveis edições nos eventos acima para evitar sobreposição
                         pts = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador.id).scalar() or 0
                         pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador.id).scalar() or 0
                         pontos_atuais = pts - pens
                         
-                        diferenca = novo_total_desejado - pontos_atuais
-                        if diferenca != 0:
+                        diferenca_total = novo_total_desejado - pontos_atuais
+                        if diferenca_total != 0:
                             ajuste = Pontuacao(
                                 jogador_id=jogador.id,
                                 semana="Ajuste Manual",
                                 atividade="Ajuste Manual",
-                                pontos=diferenca,
-                                motivo_ajuste="Ajuste direto na tabela"
+                                pontos=diferenca_total,
+                                motivo_ajuste="Ajuste direto do total na tabela"
                             )
                             db.session.add(ajuste)
         
