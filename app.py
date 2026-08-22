@@ -584,7 +584,7 @@ with app.app_context():
 
     # MIGRATION: Garante que as colunas Classe e Milestones existem
     colunas_jogadores = {
-        'classe': 'VARCHAR(50) DEFAULT ""',
+        'classe': "VARCHAR(50) DEFAULT ''",
         'skill_4': 'BOOLEAN DEFAULT FALSE',
         'skill_5': 'BOOLEAN DEFAULT FALSE',
         'skill_6': 'BOOLEAN DEFAULT FALSE',
@@ -603,7 +603,8 @@ with app.app_context():
             try:
                 db.session.execute(text(f'ALTER TABLE jogadores ADD COLUMN {col} {tipo}'))
                 db.session.commit()
-            except Exception:
+            except Exception as e:
+                print(f"Erro ao criar a coluna {col}: {e}")
                 db.session.rollback()
 
     try:
@@ -611,7 +612,7 @@ with app.app_context():
     except Exception:
         db.session.rollback()
         try:
-            db.session.execute(text('ALTER TABLE config_atividades ADD COLUMN tipo_evento VARCHAR(20) DEFAULT "diario"'))
+            db.session.execute(text("ALTER TABLE config_atividades ADD COLUMN tipo_evento VARCHAR(20) DEFAULT 'diario'"))
             db.session.commit()
             eventos_semanais = "'Raid de Guilda', 'Expedição da Guilda', 'Confronto pelo Paraíso', 'Campo de Batalha de Aço', 'Escaramuça', 'Guerra de Mineração', 'Fortaleza Albern'"
             db.session.execute(text(f"UPDATE config_atividades SET tipo_evento = 'semanal' WHERE nome_xml IN ({eventos_semanais})"))
@@ -624,7 +625,7 @@ with app.app_context():
     except Exception:
         db.session.rollback()
         try:
-            db.session.execute(text('ALTER TABLE importacoes ADD COLUMN nome_personalizado VARCHAR(100) DEFAULT ""'))
+            db.session.execute(text("ALTER TABLE importacoes ADD COLUMN nome_personalizado VARCHAR(100) DEFAULT ''"))
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -634,7 +635,7 @@ with app.app_context():
     except Exception:
         db.session.rollback()
         try:
-            db.session.execute(text('ALTER TABLE importacoes ADD COLUMN tipo_arquivo VARCHAR(20) DEFAULT "xml"'))
+            db.session.execute(text("ALTER TABLE importacoes ADD COLUMN tipo_arquivo VARCHAR(20) DEFAULT 'xml'"))
             db.session.commit()
         except Exception:
             db.session.rollback()
