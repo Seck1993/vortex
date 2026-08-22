@@ -84,7 +84,7 @@ def index():
 
     jogadores = Jogador.query.all()
     
-    # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA CORRIGIDA ---
+    # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA ---
     # A base do SECK também é calculada através do seu rendimento bruto
     pontuacao_seck = 0
     for j in jogadores:
@@ -119,17 +119,17 @@ def index():
             pontos_diamante = 0
 
         alts_list = [a.nome_alt for a in j.alts]
-      ranking.append({
+        ranking.append({
             'jogador': j,
             'alts_str': ', '.join(alts_list),
-            'pontos': total_final,
+            'pontos': total_final,             # O saldo final para o ranking continuar correto
             'pontos_base': pontos_base,
             'pontos_diamante': pontos_diamante,
-            'participacao': participacao,
+            'participacao': participacao,      # Porcentagem 100% real de assiduidade
             'atividades': p_data['atividades'],
             'blackskull': p_data['blackskull'],
             'ajustes': p_data['ajustes'],
-            'penalidades': p_data['penalidades'] # <--- ADICIONE ESTA LINHA
+            'penalidades': p_data['penalidades']
         })
         soma_total_pontos += total_final
 
