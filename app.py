@@ -41,8 +41,13 @@ class SorteioMemeHistorico(db.Model):
 
 @app.route('/')
 def index():
-    configuracoes = ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()
+    # Oculta a REGUA_MEGA da lista de configurações visíveis
+    configuracoes = ConfigAtividade.query.filter(ConfigAtividade.nome_xml != 'REGUA_MEGA').order_by(ConfigAtividade.id.asc()).all()
     tipos_eventos = {c.nome_xml: c.tipo_evento for c in configuracoes}
+
+    # Busca a Régua Mega global no banco de dados
+    config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
+    cp_mega = config_mega.pontos_padrao if config_mega else 100000
 
     pontos_brutos = db.session.query(
         Pontuacao.jogador_id, 
@@ -74,8 +79,7 @@ def index():
 
     jogadores = Jogador.query.all()
     
-    # --- INÍCIO DA NOVA LÓGICA DE REGRA DE NEGÓCIO ---
-    # 1. Encontrar a pontuação base do SECK
+    # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA ---
     pontuacao_seck = 0
     for j in jogadores:
         if j.nome.upper() == 'SECK':
@@ -90,7 +94,6 @@ def index():
         p_data = mapa_pontos.get(j.id, {'total': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0})
         total_pontos = p_data['total']
         
-        # 2. Calcular a participação percentual e diamantes excedentes
         if pontuacao_seck > 0:
             if total_pontos >= pontuacao_seck:
                 participacao = 100.0
@@ -101,7 +104,6 @@ def index():
                 pontos_base = total_pontos
                 pontos_diamante = 0
         else:
-            # Fallback caso o SECK não tenha pontos registrados ainda
             participacao = 0
             pontos_base = total_pontos
             pontos_diamante = 0
@@ -111,21 +113,17 @@ def index():
             'jogador': j,
             'alts_str': ', '.join(alts_list),
             'pontos': total_pontos,
-            'pontos_base': pontos_base,          # Usado para compor a barra de progresso no dashboard
-            'pontos_diamante': pontos_diamante,  # Usado para exibir as doações extras
-            'participacao': participacao,        # Porcentagem final (0 a 100%)
+            'pontos_base': pontos_base,
+            'pontos_diamante': pontos_diamante,
+            'participacao': participacao,
             'atividades': p_data['atividades'],
             'blackskull': p_data['blackskull'],
             'ajustes': p_data['ajustes']
         })
         soma_total_pontos += total_pontos
 
-    # Ordenação base por nome (alfabética)
     ranking.sort(key=lambda x: x['jogador'].nome.lower())
-    
-    # 3. Nova Regra de Desempate: Pontos Totais -> Poder de Combate -> Level
     ranking.sort(key=lambda x: (x['pontos'], x['jogador'].poder_combate, x['jogador'].level), reverse=True)
-    # --- FIM DA NOVA LÓGICA ---
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
@@ -143,7 +141,8 @@ def index():
         importacoes=importacoes,
         total_jogadores=total_jogadores,
         soma_total_pontos=soma_total_pontos,
-        user_role=user_role
+        user_role=user_role,
+        cp_mega=cp_mega # Variável renderizada globalmente para todos
     )
 
 @app.route('/api/login', methods=['POST'])
@@ -174,6 +173,26 @@ def admin_required():
 def login_required():
     return session.get('logged_in')
 
+# --- NOVA ROTA: SALVAR RÉGUA MEGA NO BANCO ---
+@app.route('/api/salvar-regua-mega', methods=['POST'])
+def salvar_regua_mega():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    novo_cp = dados.get('cp_mega')
+
+    try:
+        config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
+        if not config_mega:
+            config_mega = ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=int(novo_cp), tipo_evento='sistema', is_ativa=False)
+            db.session.add(config_mega)
+        else:
+            config_mega.pontos_padrao = int(novo_cp)
+        db.session.commit()
+        return jsonify({"mensagem": "Régua Mega atualizada globalmente!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
 @app.route('/api/importar', methods=['POST'])
 def importar_xml():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -191,9 +210,9 @@ def importar_xml():
     arquivo.save(caminho)
 
     try:
-        todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.order_by(ConfigAtividade.id.asc()).all()]
-        
-        configs = ConfigAtividade.query.filter_by(is_ativa=True).all()
+        # Filtramos para não vazar a configuração MEGA no import
+        todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.filter(ConfigAtividade.nome_xml != 'REGUA_MEGA').order_by(ConfigAtividade.id.asc()).all()]
+        configs = ConfigAtividade.query.filter(ConfigAtividade.is_ativa==True, ConfigAtividade.nome_xml != 'REGUA_MEGA').all()
         mapa_configs = {c.nome_xml: c.pontos_padrao for c in configs}
 
         dados_extraidos, hash_arquivo = analisar_xml_guilda(caminho, mapa_configs)
@@ -685,6 +704,15 @@ with app.app_context():
         for atv, tipo in atividades_iniciais:
             db.session.add(ConfigAtividade(nome_xml=atv, pontos_padrao=1, tipo_evento=tipo))
         db.session.commit()
+
+    # MIGRATION: Garante que o registro da Régua Mega existe no banco de dados
+    try:
+        regua = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
+        if not regua:
+            db.session.add(ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=100000, tipo_evento='sistema', is_ativa=False))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
