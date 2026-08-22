@@ -73,24 +73,59 @@ def index():
         mapa_pontos[pid]['total'] -= pen
 
     jogadores = Jogador.query.all()
+    
+    # --- INÍCIO DA NOVA LÓGICA DE REGRA DE NEGÓCIO ---
+    # 1. Encontrar a pontuação base do SECK
+    pontuacao_seck = 0
+    for j in jogadores:
+        if j.nome.upper() == 'SECK':
+            seck_data = mapa_pontos.get(j.id, {})
+            pontuacao_seck = seck_data.get('total', 0)
+            break
+
     ranking = []
     soma_total_pontos = 0
     
     for j in jogadores:
         p_data = mapa_pontos.get(j.id, {'total': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0})
+        total_pontos = p_data['total']
+        
+        # 2. Calcular a participação percentual e diamantes excedentes
+        if pontuacao_seck > 0:
+            if total_pontos >= pontuacao_seck:
+                participacao = 100.0
+                pontos_base = pontuacao_seck
+                pontos_diamante = total_pontos - pontuacao_seck
+            else:
+                participacao = round((total_pontos / pontuacao_seck) * 100, 2)
+                pontos_base = total_pontos
+                pontos_diamante = 0
+        else:
+            # Fallback caso o SECK não tenha pontos registrados ainda
+            participacao = 0
+            pontos_base = total_pontos
+            pontos_diamante = 0
+
         alts_list = [a.nome_alt for a in j.alts]
         ranking.append({
             'jogador': j,
             'alts_str': ', '.join(alts_list),
-            'pontos': p_data['total'],
+            'pontos': total_pontos,
+            'pontos_base': pontos_base,          # Usado para compor a barra de progresso no dashboard
+            'pontos_diamante': pontos_diamante,  # Usado para exibir as doações extras
+            'participacao': participacao,        # Porcentagem final (0 a 100%)
             'atividades': p_data['atividades'],
             'blackskull': p_data['blackskull'],
             'ajustes': p_data['ajustes']
         })
-        soma_total_pontos += p_data['total']
+        soma_total_pontos += total_pontos
 
+    # Ordenação base por nome (alfabética)
     ranking.sort(key=lambda x: x['jogador'].nome.lower())
-    ranking.sort(key=lambda x: (x['pontos'], x['jogador'].level, x['jogador'].poder_combate), reverse=True)
+    
+    # 3. Nova Regra de Desempate: Pontos Totais -> Poder de Combate -> Level
+    ranking.sort(key=lambda x: (x['pontos'], x['jogador'].poder_combate, x['jogador'].level), reverse=True)
+    # --- FIM DA NOVA LÓGICA ---
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
@@ -500,7 +535,7 @@ def realizar_sorteio():
 @app.route('/api/realizar-sorteio-meme', methods=['POST'])
 def realizar_sorteio_meme():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    dados = request.get_json()
+    dados = request.request.get_json()
     jogadores_ids = dados.get('jogadores_ids', [])
     item_sorteado = dados.get('item', 'Item Misterioso')
     
