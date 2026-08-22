@@ -92,7 +92,6 @@
         tbody tr:hover { background: rgba(0, 243, 255, 0.08); }
         tbody tr:hover td { border-bottom-color: var(--neon-cyan); }
         
-        /* Destaque visual para linhas alteradas antes de salvar */
         tr.linha-modificada td { background-color: rgba(0, 255, 102, 0.05); }
 
         .th-evento { color: var(--text-light); }
@@ -192,7 +191,7 @@
 
     <div class="tabs">
         <button class="tab-btn active" onclick="trocarAba('abaRanking', this)">Módulo de Jogadores</button>
-        <button class="tab-btn" onclick="trocarAba('abaClasses', this)">Ordem de Classes</button>
+        <button class="tab-btn" onclick="trocarAba('abaClasses', this)">Ordem de Classes & Builds</button>
         <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
         <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
         
@@ -328,11 +327,11 @@
         </div>
     </div>
 
-    <!-- NOVA ABA: ORDEM DE CLASSES -->
+    <!-- NOVA ABA: ORDEM DE CLASSES E BUILDS -->
     <div id="abaClasses" class="tab-content">
         <div class="table-container" style="border-left-color: var(--neon-cyan);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);">⚔️ Ordem de Poder por Classe</h2>
+                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);">⚔️ Progressão e Ordem de Poder</h2>
                 
                 <div style="display: flex; gap: 15px; align-items: center;">
                     <label style="color: #fff; font-weight: bold; font-size: 14px;">Filtrar Classe:</label>
@@ -357,10 +356,19 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 60px;">Rank CP</th>
+                        <th style="width: 40px;">Rank</th>
                         <th style="text-align: left;">Membro</th>
-                        <th>Classe Especializada</th>
-                        <th>Poder de Combate</th>
+                        <th>Classe</th>
+                        <!-- Títulos dos Marcos (Milestones) -->
+                        <th title="Skill IV" style="width: 40px; color: #ffaa00;">S-IV</th>
+                        <th title="Skill V" style="width: 40px; color: #ffaa00;">S-V</th>
+                        <th title="Skill VI" style="width: 40px; color: #ffaa00;">S-VI</th>
+                        <th title="Skill VII" style="width: 40px; color: #ffaa00;">S-VII</th>
+                        <th title="Constante 3" style="width: 40px; color: #00ff66;">C-3</th>
+                        <th title="Constante 4" style="width: 40px; color: #00ff66;">C-4</th>
+                        <th title="Trindade" style="width: 45px; color: #bc13fe;">TRIN</th>
+                        <th title="Mestre da Técnica" style="width: 45px; color: #00f3ff;">M.TÉC</th>
+                        <th>Poder (CP)</th>
                     </tr>
                 </thead>
                 <tbody id="bodyClasses">
@@ -369,9 +377,11 @@
                     <tr class="linha-classe" data-jogador-id="{{ item.jogador.id }}">
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 16px;">{{ loop.index }}</td>
                         <td style="font-weight: 700; font-size: 16px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
+                        
+                        <!-- CLASSE -->
                         <td>
                             {% if session.get('logged_in') %}
-                            <select class="input-edit edit-classe" style="width: 140px;" onchange="this.closest('tr').classList.add('linha-modificada'); filtrarTabelaClasses();">
+                            <select class="input-edit edit-classe" style="width: 110px;" onchange="this.closest('tr').classList.add('linha-modificada'); filtrarTabelaClasses();">
                                 <option value="" {% if not item.jogador.classe %}selected{% endif %}>Sem Classe</option>
                                 <option value="Punisher" {% if item.jogador.classe == 'Punisher' %}selected{% endif %}>Punisher</option>
                                 <option value="Phantom" {% if item.jogador.classe == 'Phantom' %}selected{% endif %}>Phantom</option>
@@ -387,11 +397,34 @@
                                 <input type="hidden" class="edit-classe" value="{{ item.jogador.classe or '' }}">
                             {% endif %}
                         </td>
-                        <td style="color: var(--neon-green); font-family: monospace; font-size: 16px; font-weight: bold;">
+
+                        <!-- MARCAÇÕES DOS MILESTONES -->
+                        {% if session.get('logged_in') %}
+                            <td><input type="checkbox" class="check-s4" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_4 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer;"></td>
+                            <td><input type="checkbox" class="check-s5" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_5 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer;"></td>
+                            <td><input type="checkbox" class="check-s6" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_6 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer;"></td>
+                            <td><input type="checkbox" class="check-s7" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_7 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer;"></td>
+                            <td><input type="checkbox" class="check-c3" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.constante_3 %}checked{% endif %} style="accent-color: #00ff66; cursor:pointer;"></td>
+                            <td><input type="checkbox" class="check-c4" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.constante_4 %}checked{% endif %} style="accent-color: #00ff66; cursor:pointer;"></td>
+                            <td><input type="checkbox" class="check-trin" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.trindade %}checked{% endif %} style="accent-color: #bc13fe; cursor:pointer;"></td>
+                            <td><input type="checkbox" class="check-mt" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.mestre_tecnica %}checked{% endif %} style="accent-color: #00f3ff; cursor:pointer;"></td>
+                        {% else %}
+                            <td style="color: #ffaa00; font-weight: bold;">{% if item.jogador.skill_4 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #ffaa00; font-weight: bold;">{% if item.jogador.skill_5 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #ffaa00; font-weight: bold;">{% if item.jogador.skill_6 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #ffaa00; font-weight: bold;">{% if item.jogador.skill_7 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #00ff66; font-weight: bold;">{% if item.jogador.constante_3 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #00ff66; font-weight: bold;">{% if item.jogador.constante_4 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #bc13fe; font-weight: bold;">{% if item.jogador.trindade %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #00f3ff; font-weight: bold;">{% if item.jogador.mestre_tecnica %}✓{% else %}-{% endif %}</td>
+                        {% endif %}
+
+                        <!-- CP -->
+                        <td style="color: var(--neon-green); font-family: monospace; font-size: 16px; font-weight: bold; border-right: none;">
                             {{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}
                         </td>
                         
-                        <!-- Inputs ocultos caso a função salvarEdicoes tente localizá-los e atualizar dados vazios -->
+                        <!-- Inputs ocultos necessários para salvar a linha corretamente -->
                         <td style="display: none;">
                             <input type="hidden" class="edit-alts" value="{{ item.alts_str }}">
                             <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
@@ -601,7 +634,6 @@
                     {% endfor %}
                 </tbody>
             </table>
-            <p style="font-size: 12px; color: var(--neon-orange); margin-top: 10px;">Atenção: Ao excluir um log de arquivo XML, os pontos inseridos na data serão revertidos. Para Excel (Status), o log será removido mas você deverá corrigir Level e CP manualmente na tabela.</p>
         </div>
     </div>
     {% endif %} 
@@ -712,7 +744,6 @@
             elementoBtn.classList.add('active');
         }
 
-        // Script novo para a aba de Classes:
         function filtrarTabelaClasses() {
             const filtro = document.getElementById('filtroClasse').value;
             const linhas = document.querySelectorAll('.linha-classe');
@@ -811,7 +842,6 @@
             containerEventos.innerHTML = '';
             const eventosDiariosPadrao = ['Verificado', 'Doar', 'Atividade da Guilda'];
             
-            // Renderiza checkboxes para todos os eventos recebidos do banco
             if (todas_atividades && todas_atividades.length > 0) {
                 todas_atividades.forEach(atv => {
                     const isChecked = eventosDiariosPadrao.includes(atv) ? 'checked' : '';
@@ -828,18 +858,15 @@
                 containerEventos.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">Nenhum evento detectado.</span>';
             }
 
-            // Calcula os pontos baseados nos eventos que vieram marcados
             atualizarPreviewPontos();
         }
 
         function atualizarPreviewPontos(checkboxElement = null) {
-            // Atualiza a borda da caixa selecionada para dar um efeito visual legal
             if (checkboxElement) {
                 const label = checkboxElement.parentElement;
                 label.style.borderColor = checkboxElement.checked ? 'var(--neon-cyan)' : 'var(--text-muted)';
             }
 
-            // Lê as caixas marcadas e refaz a soma para cada jogador
             const checkboxes = document.querySelectorAll('.check-evento-import:checked');
             const eventosMarcados = Array.from(checkboxes).map(cb => cb.value);
             
@@ -857,7 +884,6 @@
                 
                 let pontosCalculados = 0;
                 j.detalhes.forEach(det => {
-                    // Se o evento do XML está na lista das caixinhas marcadas, soma o ponto
                     if (eventosMarcados.includes(det.atividade)) {
                         if (!isBlackSkull || eventosPermitidosBS.includes(det.atividade)) {
                             pontosCalculados += det.pontos;
@@ -889,7 +915,6 @@
             const btnConfirmar = e.target.querySelector('button[type="submit"]');
             btnConfirmar.innerText = 'Injetando no DB...'; btnConfirmar.disabled = true;
 
-            // Extrair quais eventos foram confirmados para o backend
             const checkboxesEventos = document.querySelectorAll('.check-evento-import:checked');
             const eventosSelecionados = Array.from(checkboxesEventos).map(cb => cb.value);
 
@@ -922,7 +947,6 @@
         }
 
         async function salvarEdicoes() {
-            // Busca APENAS as linhas que o usuário atual modificou na tela
             const linhasModificadas = document.querySelectorAll('tr.linha-modificada');
             
             if (linhasModificadas.length === 0) {
@@ -934,17 +958,26 @@
             linhasModificadas.forEach(linha => {
                 let eventos = {};
                 
-                // Coleta os valores de cada evento editado (pode não existir na aba Classes)
                 linha.querySelectorAll('.edit-evento').forEach(input => {
                     eventos[input.getAttribute('data-evento')] = input.value;
                 });
 
-                // Verifica se os inputs existem (isso garante que funcione vindo da Aba 1 ou Aba 2)
+                // Seletores genéricos
                 const inAlts = linha.querySelector('.edit-alts');
                 const inLevel = linha.querySelector('.edit-level');
                 const inPoder = linha.querySelector('.edit-poder');
                 const inPontos = linha.querySelector('.edit-pontos');
+                
+                // Seletores da nova aba de Classes
                 const inClasse = linha.querySelector('.edit-classe');
+                const ckS4 = linha.querySelector('.check-s4');
+                const ckS5 = linha.querySelector('.check-s5');
+                const ckS6 = linha.querySelector('.check-s6');
+                const ckS7 = linha.querySelector('.check-s7');
+                const ckC3 = linha.querySelector('.check-c3');
+                const ckC4 = linha.querySelector('.check-c4');
+                const ckTrin = linha.querySelector('.check-trin');
+                const ckMT = linha.querySelector('.check-mt');
 
                 jogadoresData.push({
                     id: linha.getAttribute('data-jogador-id'),
@@ -952,7 +985,15 @@
                     level: inLevel ? inLevel.value : null,
                     poder_combate: inPoder ? inPoder.value : null,
                     pontos: inPontos ? inPontos.value : null,
-                    classe: inClasse ? inClasse.value : null, // Inclui a classe para envio
+                    classe: inClasse ? inClasse.value : null,
+                    skill_4: ckS4 ? ckS4.checked : null,
+                    skill_5: ckS5 ? ckS5.checked : null,
+                    skill_6: ckS6 ? ckS6.checked : null,
+                    skill_7: ckS7 ? ckS7.checked : null,
+                    constante_3: ckC3 ? ckC3.checked : null,
+                    constante_4: ckC4 ? ckC4.checked : null,
+                    trindade: ckTrin ? ckTrin.checked : null,
+                    mestre_tecnica: ckMT ? ckMT.checked : null,
                     eventos: eventos
                 });
             });
@@ -976,7 +1017,6 @@
             document.querySelectorAll('.check-sorteio').forEach(cb => cb.checked = source.checked);
         }
 
-        // ---------- SORTEIO OFICIAL ----------
         async function abrirRoleta() {
             const checkboxes = document.querySelectorAll('.check-sorteio:checked');
             if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio.'); return; }
@@ -1037,7 +1077,6 @@
             } catch (error) { alert('Erro de rede.'); }
         }
 
-        // ---------- SORTEIO MEME ----------
         function toggleTodosMeme(source) {
             document.querySelectorAll('.check-meme').forEach(cb => cb.checked = source.checked);
         }
@@ -1109,7 +1148,6 @@
             } catch (error) { alert('Erro de rede.'); }
         }
 
-        // ---------- CONFIGURAÇÕES / IMPORTAÇÕES ----------
         async function criarEvento() {
             const payload = {
                 nome: document.getElementById('novoEventoNome').value.trim(),
