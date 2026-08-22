@@ -119,16 +119,17 @@ def index():
             pontos_diamante = 0
 
         alts_list = [a.nome_alt for a in j.alts]
-        ranking.append({
+      ranking.append({
             'jogador': j,
             'alts_str': ', '.join(alts_list),
-            'pontos': total_final,             # O saldo final para o ranking continuar correto
+            'pontos': total_final,
             'pontos_base': pontos_base,
             'pontos_diamante': pontos_diamante,
-            'participacao': participacao,      # Porcentagem 100% real de assiduidade
+            'participacao': participacao,
             'atividades': p_data['atividades'],
             'blackskull': p_data['blackskull'],
-            'ajustes': p_data['ajustes']
+            'ajustes': p_data['ajustes'],
+            'penalidades': p_data['penalidades'] # <--- ADICIONE ESTA LINHA
         })
         soma_total_pontos += total_final
 
