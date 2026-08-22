@@ -182,11 +182,21 @@
         {% endif %}
     </div>
 
-    <!-- PAINEL DE CONTROLE MEGA -->
+    <!-- PAINEL DE CONTROLE MEGA GLOBAL -->
     <div style="display: flex; justify-content: center; margin-bottom: 25px;">
         <div style="display: flex; align-items: center; gap: 20px; background: rgba(255, 215, 0, 0.1); padding: 15px 35px; border: 2px solid var(--gold-mega); border-radius: 8px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);">
             <span style="color: var(--gold-mega); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);">🏆 Régua Mega (CP):</span>
-            <input type="number" id="inputMegaCP" value="100000" class="input-edit" style="border-color: var(--gold-mega); color: var(--gold-mega); font-size: 26px; width: 180px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhaMega()" onchange="aplicarLinhaMega()" title="Defina o Poder de Combate mínimo para a Categoria Mega">
+            
+            {% if user_role == 'admin' %}
+                <!-- Admin vê o campo editável e o botão de salvar -->
+                <input type="number" id="inputMegaCP" value="{{ cp_mega }}" class="input-edit" style="border-color: var(--gold-mega); color: var(--gold-mega); font-size: 26px; width: 180px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhaMega()" onchange="aplicarLinhaMega()" title="Defina o Poder de Combate mínimo para a Categoria Mega">
+                <button class="btn" style="border-color: var(--gold-mega); color: #000; background: var(--gold-mega); font-size: 16px; padding: 10px 20px; box-shadow: 0 0 10px rgba(255,215,0,0.5);" onclick="salvarReguaMegaGlobal()">💾 Gravar Global</button>
+            {% else %}
+                <!-- Membros e Visitantes veem apenas o valor formatado -->
+                <span style="color: #fff; font-size: 30px; font-weight: bold; text-shadow: 0 0 15px rgba(255,255,255,0.5); letter-spacing: 2px;">{{ "{:,.0f}".format(cp_mega).replace(',', '.') }}</span>
+                <!-- Input invisível para o Javascript ler e aplicar a linha na tabela -->
+                <input type="hidden" id="inputMegaCP" value="{{ cp_mega }}">
+            {% endif %}
         </div>
     </div>
 
@@ -221,7 +231,6 @@
                 </thead>
                 <tbody>
                     {% for item in ranking %}
-                    <!-- Adicionado data-poder em todas as TRs -->
                     <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
                         {% if user_role == 'admin' %}
                             <td><input type="checkbox" class="check-sorteio" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--neon-cyan);"></td>
@@ -388,7 +397,7 @@
         </div>
     </div>
 
-    <!-- ABAS RESTANTES (MANTIDAS EXATAMENTE COMO ESTAVAM) -->
+    <!-- ABAS RESTANTES -->
     <div id="abaSorteio" class="tab-content">
         <div class="table-container" style="border-left-color: var(--neon-orange);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -691,7 +700,6 @@
         // SCRIPT: LÓGICA DA RÉGUA MEGA (LINHA DOURADA)
         function aplicarLinhaMega() {
             const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
-            localStorage.setItem('vortex_mega_cp', cpMega);
 
             // Remove as linhas antigas para redesenhar
             document.querySelectorAll('.linha-mega').forEach(el => el.remove());
@@ -735,15 +743,32 @@
             });
         }
 
-        // Executa a régua assim que carregar o HTML
+        // Executa a régua assim que carregar o HTML usando o valor do Back-end
         document.addEventListener('DOMContentLoaded', () => {
-            const savedCP = localStorage.getItem('vortex_mega_cp');
-            if (savedCP) {
-                document.getElementById('inputMegaCP').value = savedCP;
-            }
             aplicarLinhaMega();
         });
 
+        {% if user_role == 'admin' %}
+        // NOVA FUNÇÃO: DISPARA O VALOR GLOBALMENTE PARA O BANCO DE DADOS
+        async function salvarReguaMegaGlobal() {
+            const cpMega = document.getElementById('inputMegaCP').value;
+            try {
+                const response = await fetch('/api/salvar-regua-mega', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cp_mega: cpMega })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.mensagem);
+                } else {
+                    alert("Erro: " + data.erro);
+                }
+            } catch (e) {
+                alert("Falha de rede.");
+            }
+        }
+        {% endif %}
 
         // RESTANTE DOS SCRIPTS GERAIS DO DASHBOARD
         function trocarAba(abaId, elementoBtn) {
