@@ -254,6 +254,10 @@
                         
                         <th class="th-evento" style="color: var(--neon-purple); text-shadow: 0 0 5px var(--neon-purple);">BlackSkull</th>
                         <th class="th-evento" style="color: var(--neon-orange); text-shadow: 0 0 5px var(--neon-orange);">Ajustes Manuais</th>
+                        
+                        <!-- NOVAS COLUNAS ADICIONADAS AQUI -->
+                        <th style="font-size: 13px; color: #fff;">PARTICIPAÇÃO</th>
+                        <th style="font-size: 13px; color: #bc13fe; text-shadow: 0 0 5px #bc13fe;">DIAMANTES</th>
                         <th style="font-size: 14px; color: var(--neon-green);">TOTAL PTS</th>
                     </tr>
                 </thead>
@@ -294,6 +298,14 @@
                             <td class="td-evento" style="color: var(--neon-purple); font-weight: bold;">{{ item.blackskull }}</td>
                             <td class="td-evento" style="color: var(--neon-orange); font-weight: bold;">{{ item.ajustes }}</td>
                             
+                            <!-- NOVAS COLUNAS RENDERIZADAS -->
+                            <td style="font-weight: bold; font-size: 15px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %};">
+                                {{ item.participacao }}%
+                            </td>
+                            <td style="font-weight: bold; font-size: 14px; color: var(--neon-purple); text-shadow: {% if item.pontos_diamante > 0 %}0 0 10px rgba(188, 19, 254, 0.5){% else %}none{% endif %};">
+                                {% if item.pontos_diamante > 0 %}💎 +{{ item.pontos_diamante }}{% else %}-{% endif %}
+                            </td>
+
                             {% if user_role == 'admin' %}
                                 <td><input type="number" class="input-edit edit-pontos" value="{{ item.pontos }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             {% else %}
@@ -313,6 +325,14 @@
                             {% endfor %}
                             <td class="td-evento" style="color: var(--neon-purple); font-weight: bold;">{{ item.blackskull }}</td>
                             <td class="td-evento" style="color: var(--neon-orange); font-weight: bold;">{{ item.ajustes }}</td>
+                            
+                            <!-- NOVAS COLUNAS RENDERIZADAS -->
+                            <td style="font-weight: bold; font-size: 15px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %};">
+                                {{ item.participacao }}%
+                            </td>
+                            <td style="font-weight: bold; font-size: 14px; color: var(--neon-purple); text-shadow: {% if item.pontos_diamante > 0 %}0 0 10px rgba(188, 19, 254, 0.5){% else %}none{% endif %};">
+                                {% if item.pontos_diamante > 0 %}💎 +{{ item.pontos_diamante }}{% else %}-{% endif %}
+                            </td>
                             
                             <td style="color: var(--neon-green); font-weight: 700; font-size: 18px; text-shadow: 0 0 10px rgba(0,255,102,0.3);">{{ item.pontos }}</td>
                         {% endif %}
