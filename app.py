@@ -57,72 +57,85 @@ def index():
 
     mapa_pontos = {}
     for pid, atv, pts in pontos_brutos:
+        # Agora o sistema separa o Bruto do Final
         if pid not in mapa_pontos:
-            mapa_pontos[pid] = {'total': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0}
+            mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0}
         
         if atv == 'BlackSkull':
             mapa_pontos[pid]['blackskull'] += pts
-            mapa_pontos[pid]['total'] += pts
+            mapa_pontos[pid]['total_bruto'] += pts
+            mapa_pontos[pid]['total_final'] += pts
         elif atv in ['Edição via Painel', 'Ajuste Manual']:
             mapa_pontos[pid]['ajustes'] += pts
-            mapa_pontos[pid]['total'] += pts
+            mapa_pontos[pid]['total_bruto'] += pts
+            mapa_pontos[pid]['total_final'] += pts
         else:
             mapa_pontos[pid]['atividades'][atv] = mapa_pontos[pid]['atividades'].get(atv, 0) + pts
-            mapa_pontos[pid]['total'] += pts
+            mapa_pontos[pid]['total_bruto'] += pts
+            mapa_pontos[pid]['total_final'] += pts
 
+    # Penalidades aplicadas SOMENTE no total_final, preservando o total_bruto intacto
     penalidades = db.session.query(SorteioHistorico.jogador_id, func.sum(SorteioHistorico.penalidade)).group_by(SorteioHistorico.jogador_id).all()
     for pid, pen in penalidades:
         if pid not in mapa_pontos:
-            mapa_pontos[pid] = {'total': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0}
-        mapa_pontos[pid]['ajustes'] -= pen
-        mapa_pontos[pid]['total'] -= pen
+            mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0}
+        mapa_pontos[pid]['penalidades'] += pen
+        mapa_pontos[pid]['total_final'] -= pen
 
     jogadores = Jogador.query.all()
     
-    # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA ---
+    # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA CORRIGIDA ---
+    # A base do SECK também é calculada através do seu rendimento bruto
     pontuacao_seck = 0
     for j in jogadores:
         if j.nome.upper() == 'SECK':
             seck_data = mapa_pontos.get(j.id, {})
-            pontuacao_seck = seck_data.get('total', 0)
+            pontuacao_seck = seck_data.get('total_bruto', 0)
             break
 
     ranking = []
     soma_total_pontos = 0
     
     for j in jogadores:
-        p_data = mapa_pontos.get(j.id, {'total': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0})
-        total_pontos = p_data['total']
+        p_data = mapa_pontos.get(j.id, {'total_bruto': 0, 'total_final': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0})
         
+        # Variáveis separadas para cálculo
+        total_bruto = p_data['total_bruto']
+        total_final = p_data['total_final']
+        
+        # 2. Calcular a participação percentual baseado APENAS no bruto (antes dos descontos)
         if pontuacao_seck > 0:
-            if total_pontos >= pontuacao_seck:
+            if total_bruto >= pontuacao_seck:
                 participacao = 100.0
                 pontos_base = pontuacao_seck
-                pontos_diamante = total_pontos - pontuacao_seck
+                pontos_diamante = total_bruto - pontuacao_seck
             else:
-                participacao = round((total_pontos / pontuacao_seck) * 100, 2)
-                pontos_base = total_pontos
+                participacao = round((total_bruto / pontuacao_seck) * 100, 2)
+                pontos_base = total_bruto
                 pontos_diamante = 0
         else:
             participacao = 0
-            pontos_base = total_pontos
+            pontos_base = total_bruto
             pontos_diamante = 0
 
         alts_list = [a.nome_alt for a in j.alts]
         ranking.append({
             'jogador': j,
             'alts_str': ', '.join(alts_list),
-            'pontos': total_pontos,
+            'pontos': total_final,             # O saldo final para o ranking continuar correto
             'pontos_base': pontos_base,
             'pontos_diamante': pontos_diamante,
-            'participacao': participacao,
+            'participacao': participacao,      # Porcentagem 100% real de assiduidade
             'atividades': p_data['atividades'],
             'blackskull': p_data['blackskull'],
             'ajustes': p_data['ajustes']
         })
-        soma_total_pontos += total_pontos
+        soma_total_pontos += total_final
 
+    # Ordenação base por nome (alfabética)
     ranking.sort(key=lambda x: x['jogador'].nome.lower())
+    
+    # 3. Nova Regra de Desempate: Pontos Totais -> Poder de Combate -> Level
     ranking.sort(key=lambda x: (x['pontos'], x['jogador'].poder_combate, x['jogador'].level), reverse=True)
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
