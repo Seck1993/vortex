@@ -137,7 +137,7 @@
             clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
         }
 
-        /* ESTILOS DA LINHA MEGA */
+        /* ESTILOS DA LINHA MEGA E CLONES */
         .linha-mega td {
             padding: 0 !important;
             background: rgba(0,0,0,0.8) !important;
@@ -146,6 +146,10 @@
         .mega-glow {
             background-color: rgba(255, 215, 0, 0.08) !important;
             box-shadow: inset 5px 0 0 var(--gold-mega) !important;
+        }
+        .mega-clone {
+            background-color: rgba(255, 215, 0, 0.1) !important;
+            border-left: 3px solid var(--gold-mega) !important;
         }
         
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -237,7 +241,7 @@
                             <td><input type="checkbox" class="check-sorteio" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--neon-cyan);"></td>
                         {% endif %}
                         
-                        <td style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
+                        <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         <td style="font-weight: 700; font-size: 22px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 15px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left;">
                             {{ item.jogador.nome }}
                         </td>
@@ -706,59 +710,87 @@
     {% endif %}
 
     <script>
-        // SCRIPT: LÓGICA DA RÉGUA MEGA (LINHA DOURADA)
+        // SCRIPT: LÓGICA DA RÉGUA MEGA (LINHA DOURADA E CLONAGEM)
         function aplicarLinhaMega() {
             const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
 
-            // Remove as linhas antigas para redesenhar
-            document.querySelectorAll('.linha-mega').forEach(el => el.remove());
+            // Remove as divisórias e os clones antigos para não duplicar se rodar de novo
+            document.querySelectorAll('.linha-mega, .mega-clone').forEach(el => el.remove());
 
             ['abaRanking', 'abaClasses'].forEach(abaId => {
                 const tbody = document.querySelector(`#${abaId} tbody`);
                 if (!tbody) return;
 
-                const linhas = Array.from(tbody.querySelectorAll('tr:not(.linha-mega)'));
-                let linhaDesenhada = false;
+                const linhasOriginais = Array.from(tbody.querySelectorAll('tr:not(.linha-vazia)'));
+                
+                // Evita que rode caso a tabela seja a mensagem de "Banco Vazio"
+                if (linhasOriginais.length === 1 && linhasOriginais[0].querySelector('td') && linhasOriginais[0].querySelector('td').colSpan > 5) return;
 
-                linhas.forEach(linha => {
-                    // Pula se for a linha vazia de fallback
-                    if (linha.querySelector('td').colSpan > 10) return;
+                let clonesMega = [];
 
+                linhasOriginais.forEach(linha => {
                     const cp = parseInt(linha.getAttribute('data-poder')) || 0;
                     
-                    // Condição da Linha Física: Primeiro player que cai abaixo da régua
-                    if (cp < cpMega && !linhaDesenhada) {
-                        const trMega = document.createElement('tr');
-                        trMega.className = 'linha-mega';
-                        trMega.innerHTML = `
-                            <td colspan="100">
-                                <div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 10px 0;">
-                                    <span style="flex: 1; height: 2px; background: linear-gradient(90deg, transparent, var(--gold-mega));"></span>
-                                    <span style="color: var(--gold-mega); text-shadow: 0 0 15px var(--gold-mega); font-size: 20px; font-weight: bold; letter-spacing: 5px;">⚡ DIVISÃO MEGA ⚡</span>
-                                    <span style="flex: 1; height: 2px; background: linear-gradient(270deg, transparent, var(--gold-mega));"></span>
-                                </div>
-                            </td>`;
-                        tbody.insertBefore(trMega, linha);
-                        linhaDesenhada = true;
-                    }
-
-                    // Efeito de Brilho Dourado nas linhas de quem é Mega
                     if (cp >= cpMega) {
+                        // Original ganha o brilho
                         linha.classList.add('mega-glow');
+                        
+                        // Cria o Clone para o Topo
+                        let clone = linha.cloneNode(true);
+                        clone.classList.add('mega-clone');
+                        
+                        // Desabilita inputs de edição no clone (para evitar conflitos de salvar)
+                        clone.querySelectorAll('.input-edit, select').forEach(el => {
+                            el.disabled = true;
+                            el.style.opacity = '0.6';
+                            el.title = "Visualização Mega. Desça para a lista geral para editar.";
+                        });
+                        
+                        // Substitui o Rank do Clone por uma estrela
+                        let colRank = clone.querySelector('.rank-display');
+                        if (colRank) colRank.innerHTML = '⭐';
+
+                        clonesMega.push({ element: clone, cp: cp });
                     } else {
+                        // Limpa o brilho se ele cair na régua
                         linha.classList.remove('mega-glow');
                     }
                 });
+
+                // Se houver players Mega, adicionamos ao topo
+                if (clonesMega.length > 0) {
+                    // Ordenamos os clones por Poder (do mais forte para o mais fraco)
+                    clonesMega.sort((a, b) => b.cp - a.cp);
+
+                    // Cria a linha Divisória
+                    const trDivisor = document.createElement('tr');
+                    trDivisor.className = 'linha-mega';
+                    trDivisor.innerHTML = `
+                        <td colspan="100">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 15px 0;">
+                                <span style="flex: 1; height: 2px; background: linear-gradient(90deg, transparent, var(--gold-mega));"></span>
+                                <span style="color: var(--gold-mega); text-shadow: 0 0 15px var(--gold-mega); font-size: 22px; font-weight: bold; letter-spacing: 5px;">⚡ MEGA PLAYERS ⚡</span>
+                                <span style="flex: 1; height: 2px; background: linear-gradient(270deg, transparent, var(--gold-mega));"></span>
+                            </div>
+                        </td>`;
+                    
+                    // Insere o Divisor no topo original
+                    tbody.insertBefore(trDivisor, tbody.firstChild);
+
+                    // Insere os clones antes do Divisor (para ficarem acima dele)
+                    // Usamos reverse() para que o loop insertBefore mantenha a ordem correta
+                    clonesMega.reverse().forEach(cloneObj => {
+                        tbody.insertBefore(cloneObj.element, tbody.firstChild);
+                    });
+                }
             });
         }
 
-        // Executa a régua assim que carregar o HTML usando o valor do Back-end
         document.addEventListener('DOMContentLoaded', () => {
             aplicarLinhaMega();
         });
 
         {% if user_role == 'admin' %}
-        // NOVA FUNÇÃO: DISPARA O VALOR GLOBALMENTE PARA O BANCO DE DADOS
         async function salvarReguaMegaGlobal() {
             const cpMega = document.getElementById('inputMegaCP').value;
             try {
@@ -779,23 +811,22 @@
         }
         {% endif %}
 
-        // RESTANTE DOS SCRIPTS GERAIS DO DASHBOARD
         function trocarAba(abaId, elementoBtn) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(abaId).classList.add('active');
             elementoBtn.classList.add('active');
-            aplicarLinhaMega(); // Reaplica para evitar erros visuais na troca
+            aplicarLinhaMega(); 
         }
 
         function filtrarTabelaClasses() {
             const filtro = document.getElementById('filtroClasse').value;
+            // Pega todas as linhas originais e clones
             const linhas = document.querySelectorAll('#abaClasses tbody tr:not(.linha-mega)');
             
             let rankVisivel = 1;
             
             linhas.forEach(linha => {
-                // Pula a linha vazia
                 if (linha.querySelector('td').colSpan > 10) return;
 
                 const selectElement = linha.querySelector('.edit-classe');
@@ -803,12 +834,15 @@
 
                 if (filtro === "Todas" || classeAtribuida === filtro) {
                     linha.style.display = "";
-                    linha.querySelector('.rank-display').innerText = rankVisivel++;
+                    // Não alteramos o rank das estrelas (clones)
+                    if (!linha.classList.contains('mega-clone')) {
+                        linha.querySelector('.rank-display').innerText = rankVisivel++;
+                    }
                 } else {
                     linha.style.display = "none";
                 }
             });
-            // Quando filtramos, ocultamos a divisão mega para não sujar a tela
+            // Oculta a linha divisória Mega se não for o filtro "Todas"
             document.querySelectorAll('#abaClasses .linha-mega').forEach(el => el.style.display = filtro === "Todas" ? "" : "none");
         }
 
@@ -996,7 +1030,8 @@
         }
 
         async function salvarEdicoes() {
-            const linhasModificadas = document.querySelectorAll('tr.linha-modificada');
+            // Não permitimos pegar os inputs da classe mega-clone para evitar dados duplicados
+            const linhasModificadas = document.querySelectorAll('tr.linha-modificada:not(.mega-clone)');
             
             if (linhasModificadas.length === 0) {
                 alert("Nenhuma alteração detectada para ser salva.");
@@ -1063,8 +1098,17 @@
             const checkboxes = document.querySelectorAll('.check-sorteio:checked');
             if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio.'); return; }
 
-            const idsSelecionados = Array.from(checkboxes).map(cb => cb.value);
-            const nomesSelecionados = Array.from(checkboxes).map(cb => cb.dataset.nome);
+            // Usando um Set para prevenir que os jogadores clonados (Megas) tenham seus nomes duplicados no sorteio
+            const idsSet = new Set();
+            const nomesMap = new Map();
+            
+            checkboxes.forEach(cb => {
+                idsSet.add(cb.value);
+                nomesMap.set(cb.value, cb.dataset.nome);
+            });
+
+            const idsSelecionados = Array.from(idsSet);
+            const nomesSelecionados = idsSelecionados.map(id => nomesMap.get(id));
             
             const roletaNome = document.getElementById('roletaNome');
             const btnFecharRoleta = document.getElementById('btnFecharRoleta');
@@ -1130,8 +1174,17 @@
             if (!itemInput) { alert('Parâmetro ausente: Por favor, digite o nome do item a ser sorteado.'); return; }
             if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio meme.'); return; }
 
-            const idsSelecionados = Array.from(checkboxes).map(cb => cb.value);
-            const nomesSelecionados = Array.from(checkboxes).map(cb => cb.dataset.nome);
+            // Usando Set para prevenir duplicação de Megas no sorteio
+            const idsSet = new Set();
+            const nomesMap = new Map();
+            
+            checkboxes.forEach(cb => {
+                idsSet.add(cb.value);
+                nomesMap.set(cb.value, cb.dataset.nome);
+            });
+
+            const idsSelecionados = Array.from(idsSet);
+            const nomesSelecionados = idsSelecionados.map(id => nomesMap.get(id));
             
             const roletaNome = document.getElementById('roletaNome');
             const btnFecharRoleta = document.getElementById('btnFecharRoleta');
