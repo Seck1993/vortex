@@ -368,15 +368,34 @@ def editar_jogadores():
         for item in jogadores_data:
             jogador = db.session.get(Jogador, item['id'])
             if jogador:
+                # Atualiza Nível e Poder
                 if 'level' in item and item['level'] not in [None, '']:
                     jogador.level = int(item['level'])
                 if 'poder_combate' in item and item['poder_combate'] not in [None, '']:
                     jogador.poder_combate = int(item['poder_combate'])
+                
+                # Atualiza as Classes e Checkboxes (Milestones)
                 if 'classe' in item:
                     jogador.classe = item['classe']
+                if 'skill_4' in item and item['skill_4'] is not None:
+                    jogador.skill_4 = bool(item['skill_4'])
+                if 'skill_5' in item and item['skill_5'] is not None:
+                    jogador.skill_5 = bool(item['skill_5'])
+                if 'skill_6' in item and item['skill_6'] is not None:
+                    jogador.skill_6 = bool(item['skill_6'])
+                if 'skill_7' in item and item['skill_7'] is not None:
+                    jogador.skill_7 = bool(item['skill_7'])
+                if 'constante_3' in item and item['constante_3'] is not None:
+                    jogador.constante_3 = bool(item['constante_3'])
+                if 'constante_4' in item and item['constante_4'] is not None:
+                    jogador.constante_4 = bool(item['constante_4'])
+                if 'trindade' in item and item['trindade'] is not None:
+                    jogador.trindade = bool(item['trindade'])
+                if 'mestre_tecnica' in item and item['mestre_tecnica'] is not None:
+                    jogador.mestre_tecnica = bool(item['mestre_tecnica'])
                 
+                # Apenas Admin pode atualizar Alts e Eventos
                 if user_role == 'admin':
-                    # Salva Alts
                     if 'alts' in item and item['alts'] is not None:
                         alts_string = item.get('alts', '')
                         PersonagemSecundario.query.filter_by(jogador_id=jogador.id).delete()
@@ -387,7 +406,6 @@ def editar_jogadores():
                                 if not existente:
                                     db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
 
-                    # Salva edição nos pontos dos Eventos Específicos
                     if 'eventos' in item:
                         for atv_nome, novo_valor in item['eventos'].items():
                             novo_valor = int(novo_valor)
@@ -404,11 +422,8 @@ def editar_jogadores():
                                 )
                                 db.session.add(ajuste)
 
-                    # Salva edição nos Pontos Totais (Ajuste Manual Geral)
                     if 'pontos' in item and item['pontos'] is not None:
                         novo_total_desejado = int(item['pontos'])
-                        
-                        # Recalcula pontos após possíveis edições nos eventos acima para evitar sobreposição
                         pts = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador.id).scalar() or 0
                         pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador.id).scalar() or 0
                         pontos_atuais = pts - pens
@@ -567,16 +582,29 @@ def deletar_historico(id):
 with app.app_context():
     db.create_all()
 
-    # NOVA MIGRATION: Garante que a coluna 'classe' existe na tabela de jogadores
-    try:
-        db.session.execute(text('SELECT classe FROM jogadores LIMIT 1'))
-    except Exception:
-        db.session.rollback()
+    # MIGRATION: Garante que as colunas Classe e Milestones existem
+    colunas_jogadores = {
+        'classe': 'VARCHAR(50) DEFAULT ""',
+        'skill_4': 'BOOLEAN DEFAULT FALSE',
+        'skill_5': 'BOOLEAN DEFAULT FALSE',
+        'skill_6': 'BOOLEAN DEFAULT FALSE',
+        'skill_7': 'BOOLEAN DEFAULT FALSE',
+        'constante_3': 'BOOLEAN DEFAULT FALSE',
+        'constante_4': 'BOOLEAN DEFAULT FALSE',
+        'trindade': 'BOOLEAN DEFAULT FALSE',
+        'mestre_tecnica': 'BOOLEAN DEFAULT FALSE'
+    }
+
+    for col, tipo in colunas_jogadores.items():
         try:
-            db.session.execute(text('ALTER TABLE jogadores ADD COLUMN classe VARCHAR(50) DEFAULT ""'))
-            db.session.commit()
+            db.session.execute(text(f'SELECT {col} FROM jogadores LIMIT 1'))
         except Exception:
             db.session.rollback()
+            try:
+                db.session.execute(text(f'ALTER TABLE jogadores ADD COLUMN {col} {tipo}'))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
     try:
         db.session.execute(text('SELECT tipo_evento FROM config_atividades LIMIT 1'))
