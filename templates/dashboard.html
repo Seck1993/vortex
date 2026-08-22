@@ -17,6 +17,7 @@
             --text-muted: #6b7a90;
             --glass-border: rgba(0, 243, 255, 0.2);
             --purple-primary: var(--neon-cyan); 
+            --gold-mega: #ffd700;
         }
 
         body {
@@ -47,21 +48,6 @@
         }
         .header h1::before { content: "⚡"; font-size: 26px; filter: hue-rotate(180deg); }
 
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .card { 
-            background: var(--bg-panel); padding: 15px; 
-            border: 1px solid var(--glass-border); border-top: 3px solid var(--neon-cyan);
-            backdrop-filter: blur(10px); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-            position: relative; overflow: hidden; transition: 0.3s;
-        }
-        .card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0, 243, 255, 0.2); border-top-color: var(--neon-purple); }
-        .card::after { 
-            content: ''; position: absolute; bottom: 0; right: 0; width: 15px; height: 15px;
-            background: var(--neon-cyan); clip-path: polygon(100% 0, 100% 100%, 0 100%); opacity: 0.5;
-        }
-        .card-title { font-size: 13px; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-        .card-value { font-size: 38px; font-weight: 700; color: #fff; margin-top: 5px; text-shadow: 0 0 15px rgba(255,255,255,0.5); }
-
         .table-container { 
             background: var(--bg-panel); padding: 25px; 
             border: 1px solid var(--glass-border); border-left: 5px solid var(--neon-purple);
@@ -72,7 +58,6 @@
         
         table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: center; }
         
-        /* Ajuste nas fontes da tabela para maior legibilidade */
         th { 
             padding: 15px 10px; 
             border-bottom: 2px solid rgba(0, 243, 255, 0.3); 
@@ -151,6 +136,17 @@
             box-shadow: 0 0 60px rgba(0, 243, 255, 0.2); max-height: 90vh; overflow-y: auto; position: relative;
             clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
         }
+
+        /* ESTILOS DA LINHA MEGA */
+        .linha-mega td {
+            padding: 0 !important;
+            background: rgba(0,0,0,0.8) !important;
+            border-bottom: none !important;
+        }
+        .mega-glow {
+            background-color: rgba(255, 215, 0, 0.08) !important;
+            box-shadow: inset 5px 0 0 var(--gold-mega) !important;
+        }
         
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-dark); }
@@ -186,7 +182,15 @@
         {% endif %}
     </div>
 
-    <!-- MÓDULO DE JOGADORES REFORMULADO: SEM COLUNAS DE EVENTOS, FONTES MAIORES -->
+    <!-- PAINEL DE CONTROLE MEGA -->
+    <div style="display: flex; justify-content: center; margin-bottom: 25px;">
+        <div style="display: flex; align-items: center; gap: 20px; background: rgba(255, 215, 0, 0.1); padding: 15px 35px; border: 2px solid var(--gold-mega); border-radius: 8px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);">
+            <span style="color: var(--gold-mega); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);">🏆 Régua Mega (CP):</span>
+            <input type="number" id="inputMegaCP" value="100000" class="input-edit" style="border-color: var(--gold-mega); color: var(--gold-mega); font-size: 26px; width: 180px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhaMega()" onchange="aplicarLinhaMega()" title="Defina o Poder de Combate mínimo para a Categoria Mega">
+        </div>
+    </div>
+
+    <!-- MÓDULO DE JOGADORES -->
     <div id="abaRanking" class="tab-content active">
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -217,7 +221,8 @@
                 </thead>
                 <tbody>
                     {% for item in ranking %}
-                    <tr data-jogador-id="{{ item.jogador.id }}">
+                    <!-- Adicionado data-poder em todas as TRs -->
+                    <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
                         {% if user_role == 'admin' %}
                             <td><input type="checkbox" class="check-sorteio" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--neon-cyan);"></td>
                         {% endif %}
@@ -241,7 +246,6 @@
                             <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 110px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             
-                            <!-- PARTICIPAÇÃO APENAS (PERCENTUAL) -->
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">
                                 {{ item.participacao }}%
                             </td>
@@ -277,7 +281,7 @@
         </div>
     </div>
 
-    <!-- NOVA ABA: ORDEM DE CLASSES E BUILDS -->
+    <!-- ABA: ORDEM DE CLASSES E BUILDS -->
     <div id="abaClasses" class="tab-content">
         <div class="table-container" style="border-left-color: var(--neon-cyan);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -309,7 +313,6 @@
                         <th style="width: 50px;">Rank</th>
                         <th style="text-align: left;">Membro</th>
                         <th>Classe</th>
-                        <!-- Títulos dos Marcos (Milestones) -->
                         <th title="Skill IV" style="width: 50px; color: #ffaa00;">S-IV</th>
                         <th title="Skill V" style="width: 50px; color: #ffaa00;">S-V</th>
                         <th title="Skill VI" style="width: 50px; color: #ffaa00;">S-VI</th>
@@ -322,9 +325,8 @@
                     </tr>
                 </thead>
                 <tbody id="bodyClasses">
-                    <!-- Iterando de forma ordenada puxando do Jinja (do maior CP para o menor) -->
                     {% for item in ranking|sort(attribute='jogador.poder_combate', reverse=True) %}
-                    <tr class="linha-classe" data-jogador-id="{{ item.jogador.id }}">
+                    <tr class="linha-classe" data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         <td style="font-weight: 700; font-size: 20px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
                         
@@ -369,12 +371,10 @@
                             <td style="color: #00f3ff; font-weight: bold; font-size: 22px;">{% if item.jogador.mestre_tecnica %}✓{% else %}-{% endif %}</td>
                         {% endif %}
 
-                        <!-- CP -->
                         <td style="color: var(--neon-green); font-family: monospace; font-size: 20px; font-weight: bold; border-right: none;">
                             {{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}
                         </td>
                         
-                        <!-- Inputs ocultos necessários para salvar a linha corretamente -->
                         <td style="display: none;">
                             <input type="hidden" class="edit-alts" value="{{ item.alts_str }}">
                             <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
@@ -388,7 +388,7 @@
         </div>
     </div>
 
-    <!-- ABAS DE SORTEIO E CONFIGURAÇÃO (MANTIDAS COMO ANTES, COM AJUSTES DE TAMANHO DE FONTE APLICADOS GERAL) -->
+    <!-- ABAS RESTANTES (MANTIDAS EXATAMENTE COMO ESTAVAM) -->
     <div id="abaSorteio" class="tab-content">
         <div class="table-container" style="border-left-color: var(--neon-orange);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -688,20 +688,82 @@
     {% endif %}
 
     <script>
+        // SCRIPT: LÓGICA DA RÉGUA MEGA (LINHA DOURADA)
+        function aplicarLinhaMega() {
+            const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
+            localStorage.setItem('vortex_mega_cp', cpMega);
+
+            // Remove as linhas antigas para redesenhar
+            document.querySelectorAll('.linha-mega').forEach(el => el.remove());
+
+            ['abaRanking', 'abaClasses'].forEach(abaId => {
+                const tbody = document.querySelector(`#${abaId} tbody`);
+                if (!tbody) return;
+
+                const linhas = Array.from(tbody.querySelectorAll('tr:not(.linha-mega)'));
+                let linhaDesenhada = false;
+
+                linhas.forEach(linha => {
+                    // Pula se for a linha vazia de fallback
+                    if (linha.querySelector('td').colSpan > 10) return;
+
+                    const cp = parseInt(linha.getAttribute('data-poder')) || 0;
+                    
+                    // Condição da Linha Física: Primeiro player que cai abaixo da régua
+                    if (cp < cpMega && !linhaDesenhada) {
+                        const trMega = document.createElement('tr');
+                        trMega.className = 'linha-mega';
+                        trMega.innerHTML = `
+                            <td colspan="100">
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 10px 0;">
+                                    <span style="flex: 1; height: 2px; background: linear-gradient(90deg, transparent, var(--gold-mega));"></span>
+                                    <span style="color: var(--gold-mega); text-shadow: 0 0 15px var(--gold-mega); font-size: 20px; font-weight: bold; letter-spacing: 5px;">⚡ DIVISÃO MEGA ⚡</span>
+                                    <span style="flex: 1; height: 2px; background: linear-gradient(270deg, transparent, var(--gold-mega));"></span>
+                                </div>
+                            </td>`;
+                        tbody.insertBefore(trMega, linha);
+                        linhaDesenhada = true;
+                    }
+
+                    // Efeito de Brilho Dourado nas linhas de quem é Mega
+                    if (cp >= cpMega) {
+                        linha.classList.add('mega-glow');
+                    } else {
+                        linha.classList.remove('mega-glow');
+                    }
+                });
+            });
+        }
+
+        // Executa a régua assim que carregar o HTML
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedCP = localStorage.getItem('vortex_mega_cp');
+            if (savedCP) {
+                document.getElementById('inputMegaCP').value = savedCP;
+            }
+            aplicarLinhaMega();
+        });
+
+
+        // RESTANTE DOS SCRIPTS GERAIS DO DASHBOARD
         function trocarAba(abaId, elementoBtn) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(abaId).classList.add('active');
             elementoBtn.classList.add('active');
+            aplicarLinhaMega(); // Reaplica para evitar erros visuais na troca
         }
 
         function filtrarTabelaClasses() {
             const filtro = document.getElementById('filtroClasse').value;
-            const linhas = document.querySelectorAll('.linha-classe');
+            const linhas = document.querySelectorAll('#abaClasses tbody tr:not(.linha-mega)');
             
             let rankVisivel = 1;
             
             linhas.forEach(linha => {
+                // Pula a linha vazia
+                if (linha.querySelector('td').colSpan > 10) return;
+
                 const selectElement = linha.querySelector('.edit-classe');
                 const classeAtribuida = selectElement ? selectElement.value : "";
 
@@ -712,6 +774,8 @@
                     linha.style.display = "none";
                 }
             });
+            // Quando filtramos, ocultamos a divisão mega para não sujar a tela
+            document.querySelectorAll('#abaClasses .linha-mega').forEach(el => el.style.display = filtro === "Todas" ? "" : "none");
         }
 
         function abrirModal(id) {
@@ -908,13 +972,11 @@
             let jogadoresData = [];
             linhasModificadas.forEach(linha => {
                 
-                // Seletores genéricos
                 const inAlts = linha.querySelector('.edit-alts');
                 const inLevel = linha.querySelector('.edit-level');
                 const inPoder = linha.querySelector('.edit-poder');
                 const inPontos = linha.querySelector('.edit-pontos');
                 
-                // Seletores da aba de Classes
                 const inClasse = linha.querySelector('.edit-classe');
                 const ckS4 = linha.querySelector('.check-s4');
                 const ckS5 = linha.querySelector('.check-s5');
@@ -940,7 +1002,7 @@
                     constante_4: ckC4 ? ckC4.checked : null,
                     trindade: ckTrin ? ckTrin.checked : null,
                     mestre_tecnica: ckMT ? ckMT.checked : null,
-                    eventos: {} // Eventos individuais não são mais editados via input nesta interface limpa
+                    eventos: {} 
                 });
             });
 
