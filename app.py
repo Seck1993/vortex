@@ -368,10 +368,12 @@ def editar_jogadores():
         for item in jogadores_data:
             jogador = db.session.get(Jogador, item['id'])
             if jogador:
-                if 'level' in item:
+                if 'level' in item and item['level'] not in [None, '']:
                     jogador.level = int(item['level'])
-                if 'poder_combate' in item:
+                if 'poder_combate' in item and item['poder_combate'] not in [None, '']:
                     jogador.poder_combate = int(item['poder_combate'])
+                if 'classe' in item:
+                    jogador.classe = item['classe']
                 
                 if user_role == 'admin':
                     # Salva Alts
@@ -564,6 +566,17 @@ def deletar_historico(id):
 
 with app.app_context():
     db.create_all()
+
+    # NOVA MIGRATION: Garante que a coluna 'classe' existe na tabela de jogadores
+    try:
+        db.session.execute(text('SELECT classe FROM jogadores LIMIT 1'))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text('ALTER TABLE jogadores ADD COLUMN classe VARCHAR(50) DEFAULT ""'))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     try:
         db.session.execute(text('SELECT tipo_evento FROM config_atividades LIMIT 1'))
