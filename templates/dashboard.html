@@ -192,6 +192,7 @@
 
     <div class="tabs">
         <button class="tab-btn active" onclick="trocarAba('abaRanking', this)">Módulo de Jogadores</button>
+        <button class="tab-btn" onclick="trocarAba('abaClasses', this)">Ordem de Classes</button>
         <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
         <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
         
@@ -201,6 +202,7 @@
         {% endif %}
     </div>
 
+    <!-- MÓDULO DE JOGADORES ORIGINAL -->
     <div id="abaRanking" class="tab-content active">
         
         <h3 style="margin-bottom: 10px; font-size: 16px; color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0,243,255,0.4);">
@@ -319,6 +321,83 @@
                     {% else %}
                     <tr>
                         <td colspan="100" style="text-align: center; color: var(--text-muted); padding: 30px; border-right: none;">[ BANCO DE DADOS VAZIO ]</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- NOVA ABA: ORDEM DE CLASSES -->
+    <div id="abaClasses" class="tab-content">
+        <div class="table-container" style="border-left-color: var(--neon-cyan);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);">⚔️ Ordem de Poder por Classe</h2>
+                
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <label style="color: #fff; font-weight: bold; font-size: 14px;">Filtrar Classe:</label>
+                    <select id="filtroClasse" class="input-edit" onchange="filtrarTabelaClasses()" style="width: 150px; text-align: left;">
+                        <option value="Todas">Todas as Classes</option>
+                        <option value="Punisher">Punisher</option>
+                        <option value="Phantom">Phantom</option>
+                        <option value="Enforcer">Enforcer</option>
+                        <option value="Psypher">Psypher</option>
+                        <option value="Dreadnought">Dreadnought</option>
+                        <option value="Technician">Technician</option>
+                        <option value="Arbiter">Arbiter</option>
+                        <option value="Demolidor">Demolidor</option>
+                    </select>
+                    
+                    {% if session.get('logged_in') %}
+                        <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Rank CP</th>
+                        <th style="text-align: left;">Membro</th>
+                        <th>Classe Especializada</th>
+                        <th>Poder de Combate</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyClasses">
+                    <!-- Iterando de forma ordenada puxando do Jinja (do maior CP para o menor) -->
+                    {% for item in ranking|sort(attribute='jogador.poder_combate', reverse=True) %}
+                    <tr class="linha-classe" data-jogador-id="{{ item.jogador.id }}">
+                        <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 16px;">{{ loop.index }}</td>
+                        <td style="font-weight: 700; font-size: 16px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
+                        <td>
+                            {% if session.get('logged_in') %}
+                            <select class="input-edit edit-classe" style="width: 140px;" onchange="this.closest('tr').classList.add('linha-modificada'); filtrarTabelaClasses();">
+                                <option value="" {% if not item.jogador.classe %}selected{% endif %}>Sem Classe</option>
+                                <option value="Punisher" {% if item.jogador.classe == 'Punisher' %}selected{% endif %}>Punisher</option>
+                                <option value="Phantom" {% if item.jogador.classe == 'Phantom' %}selected{% endif %}>Phantom</option>
+                                <option value="Enforcer" {% if item.jogador.classe == 'Enforcer' %}selected{% endif %}>Enforcer</option>
+                                <option value="Psypher" {% if item.jogador.classe == 'Psypher' %}selected{% endif %}>Psypher</option>
+                                <option value="Dreadnought" {% if item.jogador.classe == 'Dreadnought' %}selected{% endif %}>Dreadnought</option>
+                                <option value="Technician" {% if item.jogador.classe == 'Technician' %}selected{% endif %}>Technician</option>
+                                <option value="Arbiter" {% if item.jogador.classe == 'Arbiter' %}selected{% endif %}>Arbiter</option>
+                                <option value="Demolidor" {% if item.jogador.classe == 'Demolidor' %}selected{% endif %}>Demolidor</option>
+                            </select>
+                            {% else %}
+                                <span style="color: var(--neon-cyan); font-weight: bold;">{{ item.jogador.classe or 'Indefinida' }}</span>
+                                <input type="hidden" class="edit-classe" value="{{ item.jogador.classe or '' }}">
+                            {% endif %}
+                        </td>
+                        <td style="color: var(--neon-green); font-family: monospace; font-size: 16px; font-weight: bold;">
+                            {{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}
+                        </td>
+                        
+                        <!-- Inputs ocultos caso a função salvarEdicoes tente localizá-los e atualizar dados vazios -->
+                        <td style="display: none;">
+                            <input type="hidden" class="edit-alts" value="{{ item.alts_str }}">
+                            <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
+                            <input type="hidden" class="edit-poder" value="{{ item.jogador.poder_combate }}">
+                            <input type="hidden" class="edit-pontos" value="{{ item.pontos }}">
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -525,7 +604,9 @@
             <p style="font-size: 12px; color: var(--neon-orange); margin-top: 10px;">Atenção: Ao excluir um log de arquivo XML, os pontos inseridos na data serão revertidos. Para Excel (Status), o log será removido mas você deverá corrigir Level e CP manualmente na tabela.</p>
         </div>
     </div>
-    {% endif %} <div id="modalLogin" class="modal-overlay">
+    {% endif %} 
+    
+    <div id="modalLogin" class="modal-overlay">
         <div class="modal-content" style="width: 400px; text-align: center; border-color: var(--neon-red); padding: 25px;">
             <h2 style="margin-top: 0; color: var(--neon-red); text-shadow: 0 0 10px rgba(255,0,60,0.5);">Acesso Restrito</h2>
             <p style="color: var(--text-muted); font-size: 13px;">Insira a credencial root ou de membro para modificar parâmetros.</p>
@@ -629,6 +710,26 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(abaId).classList.add('active');
             elementoBtn.classList.add('active');
+        }
+
+        // Script novo para a aba de Classes:
+        function filtrarTabelaClasses() {
+            const filtro = document.getElementById('filtroClasse').value;
+            const linhas = document.querySelectorAll('.linha-classe');
+            
+            let rankVisivel = 1;
+            
+            linhas.forEach(linha => {
+                const selectElement = linha.querySelector('.edit-classe');
+                const classeAtribuida = selectElement ? selectElement.value : "";
+
+                if (filtro === "Todas" || classeAtribuida === filtro) {
+                    linha.style.display = "";
+                    linha.querySelector('.rank-display').innerText = rankVisivel++;
+                } else {
+                    linha.style.display = "none";
+                }
+            });
         }
 
         function abrirModal(id) {
@@ -833,17 +934,25 @@
             linhasModificadas.forEach(linha => {
                 let eventos = {};
                 
-                // Coleta os valores de cada evento editado
+                // Coleta os valores de cada evento editado (pode não existir na aba Classes)
                 linha.querySelectorAll('.edit-evento').forEach(input => {
                     eventos[input.getAttribute('data-evento')] = input.value;
                 });
 
+                // Verifica se os inputs existem (isso garante que funcione vindo da Aba 1 ou Aba 2)
+                const inAlts = linha.querySelector('.edit-alts');
+                const inLevel = linha.querySelector('.edit-level');
+                const inPoder = linha.querySelector('.edit-poder');
+                const inPontos = linha.querySelector('.edit-pontos');
+                const inClasse = linha.querySelector('.edit-classe');
+
                 jogadoresData.push({
                     id: linha.getAttribute('data-jogador-id'),
-                    alts: linha.querySelector('.edit-alts') ? linha.querySelector('.edit-alts').value : null,
-                    level: linha.querySelector('.edit-level').value,
-                    poder_combate: linha.querySelector('.edit-poder').value,
-                    pontos: linha.querySelector('.edit-pontos') ? linha.querySelector('.edit-pontos').value : null,
+                    alts: inAlts ? inAlts.value : null,
+                    level: inLevel ? inLevel.value : null,
+                    poder_combate: inPoder ? inPoder.value : null,
+                    pontos: inPontos ? inPontos.value : null,
+                    classe: inClasse ? inClasse.value : null, // Inclui a classe para envio
                     eventos: eventos
                 });
             });
