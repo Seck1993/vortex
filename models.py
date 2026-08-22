@@ -11,6 +11,17 @@ class Jogador(db.Model):
     poder_combate = db.Column(db.Integer, default=0, nullable=False)
     status = db.Column(db.String(20), default='Ativo') 
     data_entrada = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Novas colunas adicionadas para Classe e Milestones (Marcações)
+    classe = db.Column(db.String(50), nullable=True)
+    skill_4 = db.Column(db.Boolean, default=False)
+    skill_5 = db.Column(db.Boolean, default=False)
+    skill_6 = db.Column(db.Boolean, default=False)
+    skill_7 = db.Column(db.Boolean, default=False)
+    constante_3 = db.Column(db.Boolean, default=False)
+    constante_4 = db.Column(db.Boolean, default=False)
+    trindade = db.Column(db.Boolean, default=False)
+    mestre_tecnica = db.Column(db.Boolean, default=False)
 
     pontos = db.relationship('Pontuacao', backref='jogador', lazy=True, cascade="all, delete-orphan")
 
