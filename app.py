@@ -82,7 +82,8 @@ def index():
         mapa_pontos[pid]['penalidades'] += pen
         mapa_pontos[pid]['total_final'] -= pen
 
-    jogadores = Jogador.query.all()
+    # Exibe apenas os jogadores que estão com o status 'Ativo'
+    jogadores = Jogador.query.filter_by(status='Ativo').all()
     
     # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA ---
     # A base do SECK também é calculada através do seu rendimento bruto
@@ -287,17 +288,23 @@ def confirmar_importacao():
         db.session.flush() 
 
         if guilda_alvo == 'vortex':
+            nomes_importados = []
+            
             for j_data in jogadores_data:
                 nome_xml = j_data['nome_xml']
+                nomes_importados.append(nome_xml.lower())
+                
                 jogador = Jogador.query.filter(func.lower(Jogador.nome) == nome_xml.lower()).first()
                 
                 if not jogador:
                     if cadastrar_novos:
-                        jogador = Jogador(nome=nome_xml)
+                        jogador = Jogador(nome=nome_xml, status='Ativo')
                         db.session.add(jogador)
                         db.session.flush() 
                     else:
                         continue 
+                else:
+                    jogador.status = 'Ativo' # Reativa o jogador caso ele volte à guilda
 
                 for atv in j_data['detalhes']:
                     nome_atividade = atv['atividade']
@@ -313,6 +320,12 @@ def confirmar_importacao():
                         importacao_id=nova_importacao.id
                     )
                     db.session.add(novo_ponto)
+            
+            # Nova regra: inativa quem não veio no arquivo XML da guilda principal
+            jogadores_ativos = Jogador.query.filter_by(status='Ativo').all()
+            for j_ativo in jogadores_ativos:
+                if j_ativo.nome.lower() not in nomes_importados:
+                    j_ativo.status = 'Inativo'
                     
         else:
             alts_map = {a.nome_alt.lower(): a.jogador_id for a in PersonagemSecundario.query.all()}
@@ -436,6 +449,10 @@ def editar_jogadores():
         for item in jogadores_data:
             jogador = db.session.get(Jogador, item['id'])
             if jogador:
+                # Atualiza o Nome
+                if 'nome' in item and item['nome'] and str(item['nome']).strip() != '':
+                    jogador.nome = str(item['nome']).strip()
+
                 # Atualiza Nível e Poder
                 if 'level' in item and item['level'] not in [None, '']:
                     jogador.level = int(item['level'])
@@ -730,3 +747,69 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
+
+db = SQLAlchemy()
+
+class Jogador(db.Model):
+    __tablename__ = 'jogadores'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), unique=True, nullable=False)
+    level = db.Column(db.Integer, default=1, nullable=False)
+    poder_combate = db.Column(db.Integer, default=0, nullable=False)
+    status = db.Column(db.String(20), default='Ativo') 
+    data_entrada = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Novas colunas adicionadas para Classe e Milestones (Marcações)
+    classe = db.Column(db.String(50), nullable=True)
+    skill_4 = db.Column(db.Boolean, default=False)
+    skill_5 = db.Column(db.Boolean, default=False)
+    skill_6 = db.Column(db.Boolean, default=False)
+    skill_7 = db.Column(db.Boolean, default=False)
+    constante_3 = db.Column(db.Boolean, default=False)
+    constante_4 = db.Column(db.Boolean, default=False)
+    trindade = db.Column(db.Boolean, default=False)
+    mestre_tecnica = db.Column(db.Boolean, default=False)
+
+    pontos = db.relationship('Pontuacao', backref='jogador', lazy=True, cascade="all, delete-orphan")
+
+class PersonagemSecundario(db.Model):
+    __tablename__ = 'personagens_secundarios'
+    id = db.Column(db.Integer, primary_key=True)
+    jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'), nullable=False)
+    nome_alt = db.Column(db.String(100), unique=True, nullable=False)
+    
+    jogador = db.relationship('Jogador', backref=db.backref('alts', lazy=True, cascade="all, delete-orphan"))
+
+class ConfigAtividade(db.Model):
+    __tablename__ = 'config_atividades'
+    id = db.Column(db.Integer, primary_key=True)
+    nome_xml = db.Column(db.String(100), unique=True, nullable=False)
+    pontos_padrao = db.Column(db.Integer, default=1, nullable=False)
+    is_ativa = db.Column(db.Boolean, default=True)
+    tipo_evento = db.Column(db.String(20), default='diario')
+
+class ImportacaoXML(db.Model):
+    __tablename__ = 'importacoes'
+    id = db.Column(db.Integer, primary_key=True)
+    semana = db.Column(db.String(50), nullable=False, default="Acumulativo")
+    hash_arquivo = db.Column(db.String(128), nullable=False, unique=True)
+    data_importacao = db.Column(db.DateTime, default=datetime.utcnow)
+    admin_responsavel = db.Column(db.String(100), nullable=True)
+    nome_personalizado = db.Column(db.String(100), default="") 
+    tipo_arquivo = db.Column(db.String(20), default="xml") 
+
+class Pontuacao(db.Model):
+    __tablename__ = 'pontuacoes'
+    id = db.Column(db.Integer, primary_key=True)
+    jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'), nullable=False)
+    semana = db.Column(db.String(50), nullable=False, default="Acumulativo")
+    atividade = db.Column(db.String(100), nullable=False)
+    pontos = db.Column(db.Integer, nullable=False)
+    
+    importacao_id = db.Column(db.Integer, db.ForeignKey('importacoes.id'), nullable=True)
+    motivo_ajuste = db.Column(db.String(255), nullable=True)
+    
+    data_registro = db.Column(db.DateTime, default=datetime.utcnow)
