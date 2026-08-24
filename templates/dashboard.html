@@ -230,6 +230,7 @@
                         <th style="width: 80px;">LVL</th>
                         <th style="width: 120px;">Poder de Combate</th>
                         <th style="font-size: 16px; color: #fff;">PARTICIPAÇÃO SEMANAL</th>
+                        <th style="font-size: 16px; color: var(--gold-mega); text-shadow: 0 0 5px var(--gold-mega);">DIAMANTES</th>
                         <th style="font-size: 16px; color: var(--neon-red); text-shadow: 0 0 5px var(--neon-red);">PENALIDADES</th>
                         <th style="font-size: 18px; color: var(--neon-green);">PONTUAÇÃO TOTAL</th>
                     </tr>
@@ -243,7 +244,7 @@
                         
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         
-                        <!-- NOVA LÓGICA DE EDIÇÃO DO NOME DO JOGADOR AQUI -->
+                        <!-- LÓGICA DE EDIÇÃO DO NOME DO JOGADOR -->
                         <td style="text-align: left;">
                             {% if session.get('logged_in') and user_role == 'admin' %}
                                 <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')" title="Altere o nome para transferir os pontos a um novo personagem">
@@ -268,10 +269,17 @@
                             <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 110px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             
+                            <!-- COLUNA PARTICIPAÇÃO -->
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">
                                 {{ item.participacao }}%
                             </td>
 
+                            <!-- COLUNA DIAMANTES -->
+                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">
+                                {% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}
+                            </td>
+
+                            <!-- COLUNA PENALIDADES -->
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">
                                 {% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}
                             </td>
@@ -290,10 +298,17 @@
                             <td style="color: #fff; font-size: 20px;">{{ item.jogador.level }}</td>
                             <td style="color: var(--neon-cyan); font-family: monospace; font-size: 20px; font-weight: bold;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</td>
                             
+                            <!-- COLUNA PARTICIPAÇÃO -->
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">
                                 {{ item.participacao }}%
                             </td>
+
+                            <!-- COLUNA DIAMANTES -->
+                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">
+                                {% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}
+                            </td>
                             
+                            <!-- COLUNA PENALIDADES -->
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">
                                 {% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}
                             </td>
