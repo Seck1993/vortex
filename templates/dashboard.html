@@ -242,8 +242,16 @@
                         {% endif %}
                         
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
-                        <td style="font-weight: 700; font-size: 22px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 15px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left;">
-                            {{ item.jogador.nome }}
+                        
+                        <!-- NOVA LÓGICA DE EDIÇÃO DO NOME DO JOGADOR AQUI -->
+                        <td style="text-align: left;">
+                            {% if session.get('logged_in') and user_role == 'admin' %}
+                                <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')" title="Altere o nome para transferir os pontos a um novo personagem">
+                            {% else %}
+                                <span style="font-weight: 700; font-size: 22px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 15px rgba(255,255,255,0.3){% else %}none{% endif %};">
+                                    {{ item.jogador.nome }}
+                                </span>
+                            {% endif %}
                         </td>
                         
                         {% if session.get('logged_in') %}
@@ -1041,6 +1049,7 @@
             let jogadoresData = [];
             linhasModificadas.forEach(linha => {
                 
+                const inNome = linha.querySelector('.edit-nome');
                 const inAlts = linha.querySelector('.edit-alts');
                 const inLevel = linha.querySelector('.edit-level');
                 const inPoder = linha.querySelector('.edit-poder');
@@ -1058,6 +1067,7 @@
 
                 jogadoresData.push({
                     id: linha.getAttribute('data-jogador-id'),
+                    nome: inNome ? inNome.value : null,
                     alts: inAlts ? inAlts.value : null,
                     level: inLevel ? inLevel.value : null,
                     poder_combate: inPoder ? inPoder.value : null,
