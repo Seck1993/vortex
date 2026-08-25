@@ -577,15 +577,61 @@ def salvar_configuracoes():
 def realizar_sorteio():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     dados = request.get_json()
-    jogadores_ids = dados.get('jogadores_ids', [])
-    if not jogadores_ids: return jsonify({"erro": "Nenhum jogador selecionado."}), 400
+    
+    # Nova estrutura espera um array de objetos: [{"id": 1, "pontos": 10}, {"id": 5, "pontos": 50}]
+    participantes_data = dados.get('participantes', [])
+    max_pontos = float(dados.get('max_pontos_totais', 100))
+
+    if not participantes_data or max_pontos <= 0:
+        return jsonify({"erro": "Nenhum participante ou valor de pontos totais inválido."}), 400
+
     try:
-        vencedor_id = random.choice(jogadores_ids)
-        vencedor = db.session.get(Jogador, vencedor_id)
-        novo_sorteio = SorteioHistorico(jogador_id=vencedor.id)
-        db.session.add(novo_sorteio)
-        db.session.commit()
-        return jsonify({"vencedor_nome": vencedor.nome, "vencedor_id": vencedor.id}), 200
+        fatias = {}
+        candidatos = []
+        pesos = []
+        soma_porcentagens = 0.0
+
+        for p in participantes_data:
+            jogador = db.session.get(Jogador, p['id'])
+            if jogador:
+                pontos_gastos = float(p.get('pontos', 0))
+                porcentagem = (pontos_gastos / max_pontos) * 100.0
+                fatias[jogador.nome] = porcentagem
+                soma_porcentagens += porcentagem
+
+                candidatos.append({
+                    "id": jogador.id, 
+                    "nome": jogador.nome, 
+                    "is_staff": False
+                })
+                pesos.append(porcentagem)
+
+        # Porcentagem restante fica fixa para a Staff
+        porcentagem_staff = 100.0 - soma_porcentagens
+        if porcentagem_staff > 0:
+            fatias['Staff (Administração)'] = porcentagem_staff
+            candidatos.append({
+                "id": None, 
+                "nome": 'Staff (Administração)', 
+                "is_staff": True
+            })
+            pesos.append(porcentagem_staff)
+
+        # Realiza o sorteio baseado nas porcentagens (pesos)
+        vencedor = random.choices(candidatos, weights=pesos, k=1)[0]
+
+        # Registra no histórico apenas se for um jogador (Staff não tem ID na tabela jogadores)
+        if not vencedor['is_staff']:
+            novo_sorteio = SorteioHistorico(jogador_id=vencedor['id'], observacao="Roleta de Pontos")
+            db.session.add(novo_sorteio)
+            db.session.commit()
+
+        return jsonify({
+            "vencedor_nome": vencedor['nome'],
+            "vencedor_id": vencedor['id'],
+            "fatias": fatias
+        }), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
