@@ -82,8 +82,10 @@ def index():
         mapa_pontos[pid]['penalidades'] += pen
         mapa_pontos[pid]['total_final'] -= pen
 
-    # Exibe apenas os jogadores que estão com o status 'Ativo'
-    jogadores = Jogador.query.filter_by(status='Ativo').all()
+    # Exibe os jogadores com status Ativo ou os antigos que ainda estão vazios
+    jogadores = Jogador.query.filter(
+        db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')
+    ).all()
     
     # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA ---
     # A base do SECK também é calculada através do seu rendimento bruto
@@ -322,9 +324,15 @@ def confirmar_importacao():
                     db.session.add(novo_ponto)
             
             # Nova regra: inativa quem não veio no arquivo XML da guilda principal
-            jogadores_ativos = Jogador.query.filter_by(status='Ativo').all()
+            jogadores_ativos = Jogador.query.filter(
+                db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')
+            ).all()
+            
+            # Corta espaços vazios das extremidades para evitar falsos negativos
+            nomes_limpos = [n.strip() for n in nomes_importados]
+
             for j_ativo in jogadores_ativos:
-                if j_ativo.nome.lower() not in nomes_importados:
+                if j_ativo.nome.lower().strip() not in nomes_limpos:
                     j_ativo.status = 'Inativo'
                     
         else:
