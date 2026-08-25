@@ -138,50 +138,20 @@
         }
 
         /* ESTILOS DA LINHA MEGA E CLONES */
-        .linha-mega td {
-            padding: 0 !important;
-            background: rgba(0,0,0,0.8) !important;
-            border-bottom: none !important;
-        }
-        .mega-glow {
-            background-color: rgba(255, 215, 0, 0.08) !important;
-            box-shadow: inset 5px 0 0 var(--gold-mega) !important;
-        }
-        .mega-clone {
-            background-color: rgba(255, 215, 0, 0.1) !important;
-            border-left: 3px solid var(--gold-mega) !important;
-        }
+        .linha-mega td { padding: 0 !important; background: rgba(0,0,0,0.8) !important; border-bottom: none !important; }
+        .mega-glow { background-color: rgba(255, 215, 0, 0.08) !important; box-shadow: inset 5px 0 0 var(--gold-mega) !important; }
+        .mega-clone { background-color: rgba(255, 215, 0, 0.1) !important; border-left: 3px solid var(--gold-mega) !important; }
 
-        /* ESTILOS DA ROLETA VISUAL DE PONTOS */
-        .roleta-container {
-            position: relative;
-            width: 320px;
-            height: 320px;
-            margin: 20px auto;
-        }
-        .roleta-circulo {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            border: 4px solid var(--neon-cyan);
-            box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
-            overflow: hidden;
-            transform: rotate(0deg);
-        }
-        .roleta-ponteiro {
-            position: absolute;
-            top: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-top: 40px solid var(--neon-red);
-            z-index: 10;
-            filter: drop-shadow(0 0 10px var(--neon-red));
-        }
-        
+        /* NOVO BANNER DO EVENTO */
+        .banner-evento { background: rgba(255, 170, 0, 0.08); border: 2px solid var(--neon-orange); border-radius: 8px; padding: 25px; margin-bottom: 25px; box-shadow: 0 0 20px rgba(255, 170, 0, 0.2); text-align: center;}
+        .banner-evento h2 { color: var(--neon-orange); font-size: 32px; text-shadow: 0 0 15px rgba(255,170,0,0.6); margin-bottom: 20px;}
+        .item-card { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); padding: 15px; margin-top: 15px; text-align: left; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--neon-cyan); }
+
+        /* NOVA ROLETA CANVAS */
+        .roleta-container { position: relative; width: 350px; height: 350px; margin: 20px auto; display: flex; justify-content: center; align-items: center;}
+        .roleta-canvas-wrapper { width: 100%; height: 100%; border-radius: 50%; border: 6px solid #111; box-shadow: 0 0 30px rgba(0, 243, 255, 0.5); overflow: hidden; transform: rotate(0deg); }
+        .roleta-ponteiro { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid var(--neon-red); z-index: 10; filter: drop-shadow(0 0 10px var(--neon-red)); }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-dark); }
         ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
@@ -195,6 +165,7 @@
         <div style="display: flex; gap: 15px;">
             {% if session.get('logged_in') %}
                 {% if user_role == 'admin' %}
+                    <button class="btn btn-warning" onclick="abrirModal('modalCriarEvento')">🎟️ Criar Banner de Sorteio</button>
                     <button class="btn btn-outline" onclick="abrirModal('modalImportacao')">⇪ Inicializar Uploads</button>
                 {% endif %}
                 <button class="btn btn-danger" style="font-size: 16px; border: 1px solid var(--neon-red); color: var(--neon-red); padding: 10px 20px;" onclick="fazerLogout()">⏻ Sair</button>
@@ -203,6 +174,54 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- BANNER DE EVENTO ATIVO -->
+    {% if evento %}
+    <div class="banner-evento">
+        <h2>📢 {{ evento.titulo }}</h2>
+        <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER!</p>
+        
+        {% for item in evento.itens %}
+        <div class="item-card" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
+            <div>
+                <h3 style="color: #fff; margin: 0; font-size: 22px;">{{ item.nome_item }}</h3>
+                <p style="margin: 5px 0 0 0; color: var(--neon-cyan); font-weight: bold;">Probabilidade Máxima: {{ item.max_pontos }} PTS = 100%</p>
+                <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">Total depositado pelos membros: {{ item.total_apostado }} PTS</p>
+                
+                {% if item.sorteado %}
+                    <p style="color: var(--neon-green); font-weight: bold; font-size: 18px; margin-top: 10px;">🏆 Vencedor: {{ item.vencedor_nome }}</p>
+                {% else %}
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        {% for aposta in item.apostas %}
+                            <span style="background: rgba(0,243,255,0.1); border: 1px solid var(--glass-border); padding: 4px 8px; font-size: 14px; border-radius: 4px; color: #fff;">
+                                {{ aposta.jogador_nome }} ({{ aposta.pontos }} pts)
+                                {% if user_role == 'admin' %}<span style="color:var(--neon-red); cursor:pointer; margin-left:5px;" onclick="removerAposta({{ aposta.id }})">✖</span>{% endif %}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-direction: column;">
+                {% if not item.sorteado %}
+                    {% if session.get('logged_in') %}
+                        <button class="btn" onclick="abrirModalAposta({{ item.id }}, '{{ item.nome_item }}', {{ item.max_pontos }})">➕ Apostar</button>
+                    {% endif %}
+                    {% if user_role == 'admin' %}
+                        <button class="btn btn-warning" onclick="prepararRoletaItem({{ item.id }}, '{{ item.nome_item }}')">🎲 Girar Roleta</button>
+                    {% endif %}
+                {% else %}
+                    <span style="color: var(--neon-green); font-weight: bold; font-size: 18px;">[ FINALIZADO ]</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if user_role == 'admin' %}
+            <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red); margin-top: 25px;" onclick="encerrarEvento()">✖ Encerrar Evento</button>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <div class="tabs">
         <button class="tab-btn active" onclick="trocarAba('abaRanking', this)">Módulo de Jogadores</button>
@@ -222,13 +241,10 @@
             <span style="color: var(--gold-mega); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);">🏆 Régua Mega (CP):</span>
             
             {% if user_role == 'admin' %}
-                <!-- Admin vê o campo editável e o botão de salvar -->
                 <input type="number" id="inputMegaCP" value="{{ cp_mega }}" class="input-edit" style="border-color: var(--gold-mega); color: var(--gold-mega); font-size: 26px; width: 180px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhaMega()" onchange="aplicarLinhaMega()" title="Defina o Poder de Combate mínimo para a Categoria Mega">
                 <button class="btn" style="border-color: var(--gold-mega); color: #000; background: var(--gold-mega); font-size: 16px; padding: 10px 20px; box-shadow: 0 0 10px rgba(255,215,0,0.5);" onclick="salvarReguaMegaGlobal()">💾 Gravar Global</button>
             {% else %}
-                <!-- Membros e Visitantes veem apenas o valor formatado -->
                 <span style="color: #fff; font-size: 30px; font-weight: bold; text-shadow: 0 0 15px rgba(255,255,255,0.5); letter-spacing: 2px;">{{ "{:,.0f}".format(cp_mega).replace(',', '.') }}</span>
-                <!-- Input invisível para o Javascript ler e aplicar a linha na tabela -->
                 <input type="hidden" id="inputMegaCP" value="{{ cp_mega }}">
             {% endif %}
         </div>
@@ -241,9 +257,6 @@
                 <h2>🏆 Classificação Semanal Ativa</h2>
                 {% if session.get('logged_in') %}
                 <div style="display: flex; gap: 15px;">
-                    {% if user_role == 'admin' %}
-                        <button class="btn btn-warning" onclick="abrirSetupSorteio()">🎲 Módulo de Sorteio</button>
-                    {% endif %}
                     <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
                 </div>
                 {% endif %}
@@ -251,9 +264,6 @@
             <table>
                 <thead>
                     <tr>
-                        {% if user_role == 'admin' %}
-                            <th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleTodosSorteio(this)" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--neon-cyan);"></th>
-                        {% endif %}
                         <th style="width: 50px;">Rank</th>
                         <th style="text-align: left;">Jogador</th>
                         <th style="text-align: left;">Alts</th>
@@ -268,16 +278,12 @@
                 <tbody>
                     {% for item in ranking %}
                     <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
-                        {% if user_role == 'admin' %}
-                            <td><input type="checkbox" class="check-sorteio" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--neon-cyan);"></td>
-                        {% endif %}
-                        
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         
-                        <!-- LÓGICA DE EDIÇÃO DO NOME DO JOGADOR -->
+                        <!-- NOME DO JOGADOR -->
                         <td style="text-align: left;">
                             {% if session.get('logged_in') and user_role == 'admin' %}
-                                <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')" title="Altere o nome para transferir os pontos a um novo personagem">
+                                <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')">
                             {% else %}
                                 <span style="font-weight: 700; font-size: 22px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 15px rgba(255,255,255,0.3){% else %}none{% endif %};">
                                     {{ item.jogador.nome }}
@@ -286,63 +292,32 @@
                         </td>
                         
                         {% if session.get('logged_in') %}
-                            
                             {% if user_role == 'admin' %}
                                 <td style="text-align: left;"><input type="text" class="input-edit edit-alts" value="{{ item.alts_str }}" placeholder="Alts..." style="width: 150px; text-align: left;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             {% else %}
-                                <td style="color: var(--text-muted); font-size: 16px; text-align: left;">
-                                    {{ item.alts_str or '-' }}
-                                    <input type="hidden" class="edit-alts" value="{{ item.alts_str }}">
-                                </td>
+                                <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}<input type="hidden" class="edit-alts" value="{{ item.alts_str }}"></td>
                             {% endif %}
                             
                             <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 110px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             
-                            <!-- COLUNA PARTICIPAÇÃO -->
-                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">
-                                {{ item.participacao }}%
-                            </td>
-
-                            <!-- COLUNA DIAMANTES -->
-                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">
-                                {% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}
-                            </td>
-
-                            <!-- COLUNA PENALIDADES -->
-                            <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">
-                                {% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}
-                            </td>
+                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
+                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
+                            <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
 
                             {% if user_role == 'admin' %}
                                 <td><input type="number" class="input-edit edit-pontos" value="{{ item.pontos }}" style="width: 100px; font-size: 22px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             {% else %}
-                                <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">
-                                    {{ item.pontos }} PTS
-                                    <input type="hidden" class="edit-pontos" value="{{ item.pontos }}">
-                                </td>
+                                <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS<input type="hidden" class="edit-pontos" value="{{ item.pontos }}"></td>
                             {% endif %}
 
                         {% else %}
                             <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}</td>
                             <td style="color: #fff; font-size: 20px;">{{ item.jogador.level }}</td>
                             <td style="color: var(--neon-cyan); font-family: monospace; font-size: 20px; font-weight: bold;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</td>
-                            
-                            <!-- COLUNA PARTICIPAÇÃO -->
-                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">
-                                {{ item.participacao }}%
-                            </td>
-
-                            <!-- COLUNA DIAMANTES -->
-                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">
-                                {% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}
-                            </td>
-                            
-                            <!-- COLUNA PENALIDADES -->
-                            <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">
-                                {% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}
-                            </td>
-
+                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
+                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
+                            <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
                             <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS</td>
                         {% endif %}
                     </tr>
@@ -552,7 +527,7 @@
                         <th style="text-align: left;">Vencedor</th>
                         <th>Item Sorteado</th>
                         <th>Observações</th>
-                        {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
+                        {% if user_role == 'admin' %th style="border-right: none;">Comandos</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -664,6 +639,8 @@
     </div>
     {% endif %} 
     
+    <!-- MODALS -->
+
     <div id="modalLogin" class="modal-overlay">
         <div class="modal-content" style="width: 450px; text-align: center; border-color: var(--neon-red); padding: 35px;">
             <h2 style="margin-top: 0; color: var(--neon-red); text-shadow: 0 0 10px rgba(255,0,60,0.5);">Acesso Restrito</h2>
@@ -719,14 +696,12 @@
             </div>
 
             <div id="areaPreview" style="display: none; border-top: 1px solid var(--neon-cyan); padding-top: 25px;">
-                
                 <div id="areaFiltroEventos" style="margin-bottom: 20px; background: rgba(0, 243, 255, 0.05); padding: 20px; border: 1px solid var(--glass-border); border-radius: 6px;">
                     <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 22px;">☑</span> Autorização de Pontuação
                     </h3>
                     <p style="font-size: 14px; color: var(--text-light); margin-bottom: 20px;">Selecione abaixo quais eventos identificados no banco de dados devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
-                    <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 15px;">
-                        </div>
+                    <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
                 </div>
 
                 <h3 style="margin-top: 0; font-size: 18px; color: var(--neon-cyan);">Resultado do Escaneamento (Jogadores)</h3>
@@ -748,212 +723,87 @@
             </div>
         </div>
     </div>
+    
+    <!-- MODAL DE CRIAR EVENTO DE SORTEIO (BANNER) -->
+    <div id="modalCriarEvento" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="color: var(--neon-orange); margin-top: 0;">Configurar Novo Sorteio</h2>
+            <label style="color: #fff; font-weight: bold;">Título do Banner:</label>
+            <input type="text" id="tituloEvento" class="input-edit" value="SORTEIO HOJE AS 20:00" style="width: 100%; margin-bottom: 20px; text-align: left;">
+            
+            <h3 style="color: var(--neon-cyan);">Adicionar Itens</h3>
+            <div id="listaItensCriacao" style="background: rgba(0,0,0,0.4); padding: 15px; border: 1px dashed var(--glass-border); margin-bottom: 20px;">
+                <!-- Campos dinâmicos entram aqui -->
+            </div>
+            
+            <button class="btn" onclick="adicionarCampoItem()">+ Novo Item</button>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCriarEvento')">Cancelar</button>
+                <button class="btn btn-warning" onclick="salvarNovoEvento()">Publicar Banner</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Modal Roleta Texto Original (Para o Sorteio Meme) -->
+    <!-- NOVA ROLETA CANVAS (PARA EVENTOS DE PONTOS) -->
+    <div id="modalRoletaItem" class="modal-overlay" style="z-index: 120;">
+        <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 600px; padding: 20px;">
+            <h2 id="tituloRoletaVisual" style="color: var(--neon-orange); font-size: 26px; margin-top:0; text-shadow: 0 0 15px rgba(255,170,0,0.5);">SORTEIO EM ANDAMENTO</h2>
+            
+            <div class="roleta-container">
+                <div class="roleta-ponteiro"></div>
+                <div id="wrapperCanvas" class="roleta-canvas-wrapper">
+                    <!-- O Canvas onde o Javascript vai desenhar as fatias perfeitamente -->
+                    <canvas id="canvasRoleta" width="350" height="350"></canvas>
+                </div>
+            </div>
+
+            <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
+            
+            <button id="btnFecharRoletaVisual" onclick="window.location.reload()" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;">Concluir (Pontos Descontados)</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- MODAL DE APOSTA (MEMBROS) -->
+    <div id="modalAposta" class="modal-overlay" style="z-index: 110;">
+        <div class="modal-content" style="width: 400px; text-align: center;">
+            <h2 style="color: var(--neon-cyan); margin-top: 0;">Apostar no Item</h2>
+            <p id="labelItemAposta" style="color: #fff; font-size: 18px; font-weight: bold;"></p>
+            <p id="labelMaxPontos" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;"></p>
+            
+            <input type="hidden" id="apostaItemId">
+            
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Selecione seu Personagem:</label>
+            <select id="apostaJogadorId" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                {% for item in ranking %}
+                    <option value="{{ item.jogador.id }}">{{ item.jogador.nome }}</option>
+                {% endfor %}
+            </select>
+            
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Quantos pontos deseja arriscar?</label>
+            <input type="number" id="apostaPontos" class="input-edit" placeholder="Ex: 10" style="width: 100%; font-size: 22px; margin-bottom: 25px;">
+            
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAposta')">Cancelar</button>
+                <button class="btn btn-success" onclick="confirmarAposta()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Roleta Texto Original (Sorteio Meme) -->
     <div id="modalRoletaMeme" class="modal-overlay" style="z-index: 110;">
         <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 500px;">
             <h2 style="color: var(--neon-orange); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(255,170,0,0.5);">GERADOR QUÂNTICO (MEME)</h2>
             <p id="tituloRoletaMeme" style="color: var(--text-light); font-weight: bold; margin-bottom: 8px; font-size: 18px;"></p>
             <p style="color: var(--text-muted); margin-bottom: 25px; font-family: monospace; font-size: 15px;">Processando algoritmos de aleatoriedade...</p>
-            
             <div class="roleta-box" style="font-size: 40px; padding: 40px;"><span id="roletaNomeMeme">---</span></div>
-            
             <button id="btnFecharRoletaMeme" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 25px auto 0; font-size: 18px;">Concluir e Registrar</button>
         </div>
     </div>
 
-    <!-- NOVO: Modal Setup Sorteio (Pontos) -->
-    <div id="modalSetupSorteio" class="modal-overlay" style="z-index: 110;">
-        <div class="modal-content" style="border-color: var(--neon-orange); width: 450px;">
-            <h2 style="color: var(--neon-orange); text-shadow: 0 0 10px rgba(255,170,0,0.5); margin-top:0;">Configurar Apostas</h2>
-            
-            <div style="margin-bottom: 20px;">
-                <label style="color:var(--text-light); font-weight:bold; display:block; margin-bottom:5px;">Pontuação Máxima da Roleta (100%):</label>
-                <input type="number" id="maxPontosRoleta" class="input-edit" value="100" style="width: 100%; border-color: var(--neon-orange); font-size: 20px;">
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <label style="color:var(--text-light); font-weight:bold;">Pontos investidos por participante:</label>
-            </div>
-            
-            <div id="listaParticipantesSetup" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.5); padding: 15px; border-radius:4px; margin-bottom:20px; border:1px solid var(--glass-border);">
-            </div>
-            
-            <div style="display:flex; justify-content:space-between;">
-                <button class="btn btn-outline" onclick="fecharModal('modalSetupSorteio')">Cancelar</button>
-                <button id="btnGirarRoletaAcao" class="btn btn-warning" onclick="iniciarRoletaValendo()">Girar Roleta Visual</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- NOVO: Modal Roleta Visual (Pontos) -->
-    <div id="modalRoletaPontos" class="modal-overlay" style="z-index: 120;">
-        <div class="modal-content" style="border-color: var(--neon-cyan); text-align: center; width: 600px;">
-            <h2 style="color: var(--neon-cyan); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(0,243,255,0.5); margin-top:0;">ROLETA DE ESPÓLIOS</h2>
-            
-            <div class="roleta-container">
-                <div class="roleta-ponteiro"></div>
-                <div id="roletaCirculo" class="roleta-circulo"></div>
-            </div>
-
-            <div id="roletaLegenda" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:20px; max-height:120px; overflow-y:auto; padding:10px; background:rgba(0,0,0,0.4); border-radius:4px;">
-            </div>
-
-            <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
-            
-            <button id="btnFecharRoletaPontos" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;">Concluir e Registrar</button>
-        </div>
-    </div>
-
-    {% endif %}
-
     <script>
-        // SCRIPT: LÓGICA DA RÉGUA MEGA (LINHA DOURADA E CLONAGEM)
-        function aplicarLinhaMega() {
-            const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
-
-            // Remove as divisórias e os clones antigos para não duplicar se rodar de novo
-            document.querySelectorAll('.linha-mega, .mega-clone').forEach(el => el.remove());
-
-            ['abaRanking', 'abaClasses'].forEach(abaId => {
-                const tbody = document.querySelector(`#${abaId} tbody`);
-                if (!tbody) return;
-
-                const linhasOriginais = Array.from(tbody.querySelectorAll('tr:not(.linha-vazia)'));
-                
-                // Evita que rode caso a tabela seja a mensagem de "Banco Vazio"
-                if (linhasOriginais.length === 1 && linhasOriginais[0].querySelector('td') && linhasOriginais[0].querySelector('td').colSpan > 5) return;
-
-                let clonesMega = [];
-
-                linhasOriginais.forEach(linha => {
-                    const cp = parseInt(linha.getAttribute('data-poder')) || 0;
-                    
-                    if (cp >= cpMega) {
-                        // Original ganha o brilho
-                        linha.classList.add('mega-glow');
-                        
-                        // Cria o Clone para o Topo
-                        let clone = linha.cloneNode(true);
-                        clone.classList.add('mega-clone');
-                        
-                        // Desabilita inputs de edição no clone (para evitar conflitos de salvar)
-                        clone.querySelectorAll('.input-edit, select, input[type="checkbox"]').forEach(el => {
-                            el.disabled = true;
-                            el.style.opacity = '0.6';
-                            el.title = "Visualização Mega. Desça para a lista geral para editar.";
-                        });
-                        
-                        // Substitui o Rank do Clone por uma estrela
-                        let colRank = clone.querySelector('.rank-display');
-                        if (colRank) colRank.innerHTML = '⭐';
-
-                        clonesMega.push({ element: clone, cp: cp });
-                    } else {
-                        // Limpa o brilho se ele cair na régua
-                        linha.classList.remove('mega-glow');
-                    }
-                });
-
-                // Se houver players Mega, adicionamos ao topo
-                if (clonesMega.length > 0) {
-                    // Ordenamos os clones por Poder (do mais forte para o mais fraco)
-                    clonesMega.sort((a, b) => b.cp - a.cp);
-
-                    // Cria a linha Divisória
-                    const trDivisor = document.createElement('tr');
-                    trDivisor.className = 'linha-mega';
-                    trDivisor.innerHTML = `
-                        <td colspan="100">
-                            <div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 15px 0;">
-                                <span style="flex: 1; height: 2px; background: linear-gradient(90deg, transparent, var(--gold-mega));"></span>
-                                <span style="color: var(--gold-mega); text-shadow: 0 0 15px var(--gold-mega); font-size: 22px; font-weight: bold; letter-spacing: 5px;">⚡ MEGA PLAYERS ⚡</span>
-                                <span style="flex: 1; height: 2px; background: linear-gradient(270deg, transparent, var(--gold-mega));"></span>
-                            </div>
-                        </td>`;
-                    
-                    // Insere o Divisor no topo original
-                    tbody.insertBefore(trDivisor, tbody.firstChild);
-
-                    // Insere os clones antes do Divisor (para ficarem acima dele)
-                    // Usamos reverse() para que o loop insertBefore mantenha a ordem correta
-                    clonesMega.reverse().forEach(cloneObj => {
-                        tbody.insertBefore(cloneObj.element, tbody.firstChild);
-                    });
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            aplicarLinhaMega();
-        });
-
-        {% if user_role == 'admin' %}
-        async function salvarReguaMegaGlobal() {
-            const cpMega = document.getElementById('inputMegaCP').value;
-            try {
-                const response = await fetch('/api/salvar-regua-mega', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cp_mega: cpMega })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    alert(data.mensagem);
-                } else {
-                    alert("Erro: " + data.erro);
-                }
-            } catch (e) {
-                alert("Falha de rede.");
-            }
-        }
-        {% endif %}
-
-        function trocarAba(abaId, elementoBtn) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(abaId).classList.add('active');
-            elementoBtn.classList.add('active');
-            aplicarLinhaMega(); 
-        }
-
-        function filtrarTabelaClasses() {
-            const filtro = document.getElementById('filtroClasse').value;
-            // Pega todas as linhas originais e clones
-            const linhas = document.querySelectorAll('#abaClasses tbody tr:not(.linha-mega)');
-            
-            let rankVisivel = 1;
-            
-            linhas.forEach(linha => {
-                if (linha.querySelector('td').colSpan > 10) return;
-
-                const selectElement = linha.querySelector('.edit-classe');
-                const classeAtribuida = selectElement ? selectElement.value : "";
-
-                if (filtro === "Todas" || classeAtribuida === filtro) {
-                    linha.style.display = "";
-                    // Não alteramos o rank das estrelas (clones)
-                    if (!linha.classList.contains('mega-clone')) {
-                        linha.querySelector('.rank-display').innerText = rankVisivel++;
-                    }
-                } else {
-                    linha.style.display = "none";
-                }
-            });
-            // Oculta a linha divisória Mega se não for o filtro "Todas"
-            document.querySelectorAll('#abaClasses .linha-mega').forEach(el => el.style.display = filtro === "Todas" ? "" : "none");
-        }
-
-        function abrirModal(id) {
-            document.getElementById(id).style.display = 'flex';
-            if(id === 'modalImportacao'){
-                document.getElementById('formImportacao').parentElement.style.display = 'block';
-                document.getElementById('formExcel').parentElement.style.display = 'block';
-                document.getElementById('areaPreview').style.display = 'none';
-                document.getElementById('formImportacao').reset();
-                document.getElementById('formExcel').reset();
-            }
-        }
+        function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
         function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
         function fecharModalEAtualizar() { window.location.reload(); }
 
@@ -977,174 +827,265 @@
             } catch (e) { alert('Erro de conexão'); }
         }
 
-        {% if session.get('logged_in') %}
-        
-        let dadosImportacaoAtual = []; 
+        /* --- LOGICA MEGA, ABAS E FILTROS --- */
+        function aplicarLinhaMega() {
+            const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
+            document.querySelectorAll('.linha-mega, .mega-clone').forEach(el => el.remove());
 
-        async function enviarXML(e) {
-            e.preventDefault();
-            const btnEnviar = document.getElementById('btnEnviar');
-            btnEnviar.innerText = 'Analisando...'; btnEnviar.disabled = true;
+            ['abaRanking', 'abaClasses'].forEach(abaId => {
+                const tbody = document.querySelector(`#${abaId} tbody`);
+                if (!tbody) return;
+                const linhasOriginais = Array.from(tbody.querySelectorAll('tr:not(.linha-vazia)'));
+                if (linhasOriginais.length === 1 && linhasOriginais[0].querySelector('td') && linhasOriginais[0].querySelector('td').colSpan > 5) return;
 
-            const formData = new FormData(document.getElementById('formImportacao'));
-            try {
-                const response = await fetch('/api/importar', { method: 'POST', body: formData });
-                const data = await response.json();
-                if (response.ok) { mostrarPreview(data.preview, data.hash, data.atividades_encontradas); } 
-                else { alert('Falha: ' + data.erro); }
-            } catch (error) { alert('Falha de conexão com o servidor matriz.'); } 
-            finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
-        }
-
-        async function enviarExcel(e) {
-            e.preventDefault();
-            const btnEnviarEx = document.getElementById('btnEnviarExcel');
-            btnEnviarEx.innerText = 'Extraindo...'; btnEnviarEx.disabled = true;
-
-            const formData = new FormData(document.getElementById('formExcel'));
-            try {
-                const response = await fetch('/api/importar-excel', { method: 'POST', body: formData });
-                const data = await response.json();
-                if (response.ok) { alert(data.mensagem); window.location.reload(); } 
-                else { alert('Falha: ' + data.erro); }
-            } catch (error) { alert('Falha de conexão com o servidor matriz.'); } 
-            finally { btnEnviarEx.innerText = 'Sincronizar Atributos'; btnEnviarEx.disabled = false; }
-        }
-
-        function mostrarPreview(jogadores, hash, todas_atividades) {
-            document.getElementById('formImportacao').parentElement.style.display = 'none';
-            document.getElementById('formExcel').parentElement.style.display = 'none';
-            document.getElementById('areaPreview').style.display = 'block';
-            document.getElementById('hashArquivo').value = hash;
-            
-            dadosImportacaoAtual = jogadores;
-            
-            const containerEventos = document.getElementById('listaEventosEncontrados');
-            containerEventos.innerHTML = '';
-            const eventosDiariosPadrao = ['Verificado', 'Doar', 'Atividade da Guilda'];
-            
-            if (todas_atividades && todas_atividades.length > 0) {
-                todas_atividades.forEach(atv => {
-                    const isChecked = eventosDiariosPadrao.includes(atv) ? 'checked' : '';
-                    const borderColor = isChecked ? 'var(--neon-cyan)' : 'var(--text-muted)';
-                    
-                    containerEventos.innerHTML += `
-                        <label style="display: flex; align-items: center; gap: 8px; font-size: 15px; color: #fff; cursor: pointer; background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 4px; border: 1px solid ${borderColor}; transition: 0.2s;">
-                            <input type="checkbox" class="check-evento-import" value="${atv}" ${isChecked} onchange="atualizarPreviewPontos(this)" style="accent-color: var(--neon-cyan); width: 18px; height: 18px;">
-                            ${atv}
-                        </label>
-                    `;
-                });
-            } else {
-                containerEventos.innerHTML = '<span style="color: var(--text-muted); font-size: 14px;">Nenhum evento detectado.</span>';
-            }
-
-            atualizarPreviewPontos();
-        }
-
-        function atualizarPreviewPontos(checkboxElement = null) {
-            if (checkboxElement) {
-                const label = checkboxElement.parentElement;
-                label.style.borderColor = checkboxElement.checked ? 'var(--neon-cyan)' : 'var(--text-muted)';
-            }
-
-            const checkboxes = document.querySelectorAll('.check-evento-import:checked');
-            const eventosMarcados = Array.from(checkboxes).map(cb => cb.value);
-            
-            const isBlackSkull = document.getElementById('guildaAlvoSelect').value === 'blackskull';
-            const eventosPermitidosBS = ['Raid de Guilda', 'Expedição da Guilda'];
-
-            let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
-            let temDesconhecido = false;
-
-            dadosImportacaoAtual.forEach(j => {
-                let cor = j.encontrado_no_bd ? '#10b981' : '#ff003c'; 
-                if (!j.encontrado_no_bd) temDesconhecido = true;
-                
-                let labelStatus = j.encontrado_no_bd ? '[OK]' : '[NÃO VINCULADO]';
-                
-                let pontosCalculados = 0;
-                j.detalhes.forEach(det => {
-                    if (eventosMarcados.includes(det.atividade)) {
-                        if (!isBlackSkull || eventosPermitidosBS.includes(det.atividade)) {
-                            pontosCalculados += det.pontos;
-                        }
-                    }
+                let clonesMega = [];
+                linhasOriginais.forEach(linha => {
+                    const cp = parseInt(linha.getAttribute('data-poder')) || 0;
+                    if (cp >= cpMega) {
+                        linha.classList.add('mega-glow');
+                        let clone = linha.cloneNode(true);
+                        clone.classList.add('mega-clone');
+                        clone.querySelectorAll('.input-edit, select, input[type="checkbox"]').forEach(el => {
+                            el.disabled = true; el.style.opacity = '0.6'; el.title = "Visualização Mega.";
+                        });
+                        let colRank = clone.querySelector('.rank-display');
+                        if (colRank) colRank.innerHTML = '⭐';
+                        clonesMega.push({ element: clone, cp: cp });
+                    } else { linha.classList.remove('mega-glow'); }
                 });
 
-                html += `<li style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 8px 0;">
-                            <span style="color: ${cor}">${labelStatus} ${j.nome_xml}</span>
-                            <span style="color: var(--neon-cyan);">+${pontosCalculados} pts (tentativa)</span>
-                        </li>`;
-            });
-            
-            html += '</ul>';
-            document.getElementById('resultadoPreview').innerHTML = html;
-            
-            if(temDesconhecido && !isBlackSkull) {
-                document.getElementById('areaAlertaNovos').style.display = 'flex';
-            } else {
-                document.getElementById('areaAlertaNovos').style.display = 'none';
-                if(isBlackSkull && temDesconhecido) {
-                    document.getElementById('resultadoPreview').innerHTML += '<p style="color: var(--neon-orange); margin-top: 10px; font-size: 13px;">⚠️ Alts "NÃO VINCULADOS" serão ignorados na injeção.</p>';
+                if (clonesMega.length > 0) {
+                    clonesMega.sort((a, b) => b.cp - a.cp);
+                    const trDivisor = document.createElement('tr');
+                    trDivisor.className = 'linha-mega';
+                    trDivisor.innerHTML = `<td colspan="100"><div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 15px 0;"><span style="flex: 1; height: 2px; background: linear-gradient(90deg, transparent, var(--gold-mega));"></span><span style="color: var(--gold-mega); text-shadow: 0 0 15px var(--gold-mega); font-size: 22px; font-weight: bold; letter-spacing: 5px;">⚡ MEGA PLAYERS ⚡</span><span style="flex: 1; height: 2px; background: linear-gradient(270deg, transparent, var(--gold-mega));"></span></div></td>`;
+                    tbody.insertBefore(trDivisor, tbody.firstChild);
+                    clonesMega.reverse().forEach(cloneObj => { tbody.insertBefore(cloneObj.element, tbody.firstChild); });
                 }
-            }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => { aplicarLinhaMega(); });
+
+        function trocarAba(abaId, elementoBtn) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(abaId).classList.add('active');
+            elementoBtn.classList.add('active');
+            aplicarLinhaMega(); 
         }
 
-        async function confirmarImportacao(e) {
-            e.preventDefault();
-            const btnConfirmar = e.target.querySelector('button[type="submit"]');
-            btnConfirmar.innerText = 'Injetando no DB...'; btnConfirmar.disabled = true;
+        function filtrarTabelaClasses() {
+            const filtro = document.getElementById('filtroClasse').value;
+            const linhas = document.querySelectorAll('#abaClasses tbody tr:not(.linha-mega)');
+            let rankVisivel = 1;
+            linhas.forEach(linha => {
+                if (linha.querySelector('td').colSpan > 10) return;
+                const selectElement = linha.querySelector('.edit-classe');
+                const classeAtribuida = selectElement ? selectElement.value : "";
+                if (filtro === "Todas" || classeAtribuida === filtro) {
+                    linha.style.display = "";
+                    if (!linha.classList.contains('mega-clone')) { linha.querySelector('.rank-display').innerText = rankVisivel++; }
+                } else { linha.style.display = "none"; }
+            });
+            document.querySelectorAll('#abaClasses .linha-mega').forEach(el => el.style.display = filtro === "Todas" ? "" : "none");
+        }
 
-            const checkboxesEventos = document.querySelectorAll('.check-evento-import:checked');
-            const eventosSelecionados = Array.from(checkboxesEventos).map(cb => cb.value);
+        /* --- LÓGICA DE EVENTOS (BANNER E APOSTAS) --- */
+        function adicionarCampoItem() {
+            const container = document.getElementById('listaItensCriacao');
+            const index = container.children.length + 1;
+            container.innerHTML += `
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" class="input-edit item-nome-novo" placeholder="Nome do Item ${index}" style="flex: 2; text-align: left;">
+                    <input type="number" class="input-edit item-pontos-novo" placeholder="Pontos (100%)" value="100" style="flex: 1;">
+                </div>
+            `;
+        }
 
+        async function salvarNovoEvento() {
+            const titulo = document.getElementById('tituloEvento').value;
+            let itens = [];
+            document.querySelectorAll('.item-nome-novo').forEach((input, i) => {
+                const maxPts = document.querySelectorAll('.item-pontos-novo')[i].value;
+                if(input.value.trim()) itens.push({ nome: input.value, max_pontos: maxPts });
+            });
+            if (itens.length === 0) return alert("Adicione pelo menos um item!");
+
+            const response = await fetch('/api/publicar-banner', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ titulo: titulo, itens: itens })
+            });
+            if(response.ok) window.location.reload();
+        }
+
+        async function encerrarEvento() {
+            if(!confirm("Encerrar o banner sumirá com ele da tela. Continuar?")) return;
+            await fetch('/api/encerrar-banner', {method: 'POST'});
+            window.location.reload();
+        }
+
+        function abrirModalAposta(itemId, nomeItem, maxPontos) {
+            document.getElementById('apostaItemId').value = itemId;
+            document.getElementById('labelItemAposta').innerText = nomeItem;
+            document.getElementById('labelMaxPontos').innerText = `O custo para ter 100% de chance é de ${maxPontos} pts.`;
+            document.getElementById('apostaPontos').value = '';
+            abrirModal('modalAposta');
+        }
+
+        async function confirmarAposta() {
             const payload = {
-                hash: document.getElementById('hashArquivo').value,
-                jogadores: dadosImportacaoAtual,
-                guilda_alvo: document.getElementById('guildaAlvoSelect').value,
-                cadastrar_novos: document.getElementById('checkCadastrarNovos') ? document.getElementById('checkCadastrarNovos').checked : false,
-                eventos_selecionados: eventosSelecionados
+                item_id: document.getElementById('apostaItemId').value,
+                jogador_id: document.getElementById('apostaJogadorId').value,
+                pontos: document.getElementById('apostaPontos').value
             };
+            if(payload.pontos <= 0) return alert("Insira uma pontuação válida.");
+
+            const response = await fetch('/api/apostar-item', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if(response.ok) { window.location.reload(); } else { alert(data.erro); }
+        }
+
+        async function removerAposta(apostaId) {
+            if(!confirm("Remover aposta?")) return;
+            await fetch(`/api/remover-aposta/${apostaId}`, {method: 'DELETE'});
+            window.location.reload();
+        }
+
+        /* --- LÓGICA DA ROLETA CANVAS (PARA EVENTOS) --- */
+        async function prepararRoletaItem(itemId, nomeItem) {
+            const btn = event.target;
+            btn.innerText = "Processando..."; btn.disabled = true;
 
             try {
-                const response = await fetch('/api/confirmar', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                const response = await fetch('/api/realizar-sorteio-item', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ item_id: itemId })
                 });
                 const data = await response.json();
-                if (response.ok) { alert('Operação bem sucedida: ' + data.mensagem); window.location.reload(); } 
-                else { alert('Falha na operação: ' + data.erro); btnConfirmar.innerText = 'Confirmar Injeção de Dados'; btnConfirmar.disabled = false; }
-            } catch (error) { alert('Falha no servidor.'); btnConfirmar.disabled = false; }
+                
+                if (response.ok) {
+                    iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem);
+                } else {
+                    alert(data.erro);
+                    btn.innerText = "🎲 Girar Roleta"; btn.disabled = false;
+                }
+            } catch(e) { alert("Erro de rede."); btn.innerText = "🎲 Girar Roleta"; btn.disabled = false;}
         }
 
-        async function deletarImportacao(id) {
-            if (!confirm("Aviso Crítico: Purgar este upload irá DESFAZER TODOS OS PONTOS adicionados por ele. Confirma?")) return;
-            try {
-                const response = await fetch(`/api/deletar-importacao/${id}`, { method: 'DELETE' });
-                const data = await response.json();
-                if (response.ok) { alert(data.mensagem); window.location.reload(); } 
-                else { alert('Falha: ' + data.erro); }
-            } catch (error) { alert('Erro de rede.'); }
-        }
-
-        async function salvarEdicoes() {
-            // Não permitimos pegar os inputs da classe mega-clone para evitar dados duplicados
-            const linhasModificadas = document.querySelectorAll('tr.linha-modificada:not(.mega-clone)');
+        function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
+            document.getElementById('tituloRoletaVisual').innerText = "SORTEANDO: " + nomeItem.toUpperCase();
+            abrirModal('modalRoletaItem');
             
-            if (linhasModificadas.length === 0) {
-                alert("Nenhuma alteração detectada para ser salva.");
-                return;
+            const wrapper = document.getElementById('wrapperCanvas');
+            const canvas = document.getElementById('canvasRoleta');
+            const ctx = canvas.getContext('2d');
+            const labelVencedor = document.getElementById('roletaVencedorLabel');
+            const btnFechar = document.getElementById('btnFecharRoletaVisual');
+            
+            // Reseta visual da animação anterior
+            wrapper.style.transition = 'none';
+            wrapper.style.transform = 'rotate(0deg)';
+            labelVencedor.style.display = 'none';
+            btnFechar.style.display = 'none';
+
+            // Desenhar a Roleta no Canvas
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 2;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const cores = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#00f3ff', '#bc13fe', '#ffaa00', '#ff003c', '#10b981'];
+            let startAngle = -Math.PI / 2; // Começa no Topo
+            let colorIndex = 0;
+            
+            let startWinDeg = 0;
+            let endWinDeg = 0;
+            let currentDegAcumulado = 0;
+
+            for (const [nome, porcentagem] of Object.entries(fatias)) {
+                const p = parseFloat(porcentagem);
+                if (p <= 0) continue;
+
+                // Capturar graus para matemática da animação
+                if (nome === vencedorNome) {
+                    startWinDeg = currentDegAcumulado;
+                    endWinDeg = currentDegAcumulado + ((p / 100) * 360);
+                }
+                currentDegAcumulado += ((p / 100) * 360);
+
+                const sliceAngle = (p / 100) * 2 * Math.PI;
+                const endAngle = startAngle + sliceAngle;
+
+                // Desenha Fatia
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = cores[colorIndex % cores.length];
+                ctx.fill();
+                
+                // Bordas escuras
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#111';
+                ctx.stroke();
+
+                // Desenha Nome do Player dentro da Fatia
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 16px 'Rajdhani'";
+                ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1;
+                
+                let textNome = nome.length > 15 ? nome.substring(0, 15) + "..." : nome;
+                ctx.fillText(`${textNome} (${p.toFixed(1)}%)`, radius - 20, 5);
+                ctx.restore();
+
+                startAngle = endAngle;
+                colorIndex++;
             }
 
+            // Iniciar o Giro após breve delay pro CSS processar o reset
+            setTimeout(() => {
+                // Sorteia um ponto de parada seguro dentro da fatia vencedora (longe das bordas)
+                const margin = (endWinDeg - startWinDeg) * 0.1;
+                const winDeg = startWinDeg + margin + (Math.random() * ((endWinDeg - startWinDeg) - (margin * 2)));
+                
+                // Lógica de Rotação
+                const rotacaoParaTopo = 360 - winDeg;
+                const voltasCompletas = 360 * 12; // 12 voltas
+                const rotacaoFinal = voltasCompletas + rotacaoParaTopo;
+
+                wrapper.style.transition = 'transform 6s cubic-bezier(0.2, 0, 0, 1)'; // Desaceleração dramática
+                wrapper.style.transform = `rotate(${rotacaoFinal}deg)`;
+
+                // Libera Botões e Vencedor após acabar a animação
+                setTimeout(() => {
+                    labelVencedor.innerText = "🏆 " + vencedorNome + " 🏆";
+                    labelVencedor.style.display = 'block';
+                    btnFechar.style.display = 'block';
+                }, 6200);
+            }, 100);
+        }
+
+        {% if session.get('logged_in') %}
+
+        /* --- LÓGICA DE EDIÇÃO E HISTÓRICO ORIGINAL --- */
+        async function salvarEdicoes() {
+            const linhasModificadas = document.querySelectorAll('tr.linha-modificada:not(.mega-clone)');
+            if (linhasModificadas.length === 0) { alert("Nenhuma alteração detectada para ser salva."); return; }
             let jogadoresData = [];
             linhasModificadas.forEach(linha => {
-                
                 const inNome = linha.querySelector('.edit-nome');
                 const inAlts = linha.querySelector('.edit-alts');
                 const inLevel = linha.querySelector('.edit-level');
                 const inPoder = linha.querySelector('.edit-poder');
                 const inPontos = linha.querySelector('.edit-pontos');
-                
                 const inClasse = linha.querySelector('.edit-classe');
                 const ckS4 = linha.querySelector('.check-s4');
                 const ckS5 = linha.querySelector('.check-s5');
@@ -1179,233 +1120,160 @@
                 const response = await fetch('/api/editar-jogadores', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: jogadoresData })
                 });
-                if (response.ok) { 
-                    alert("Sincronização concluída apenas para as modificações feitas!"); 
-                    window.location.reload(); 
-                } else { 
-                    alert('Falha ao gravar alterações.'); 
-                }
-            } catch (error) { 
-                alert('Erro de rede.'); 
-            }
+                if (response.ok) { alert("Sincronização concluída apenas para as modificações feitas!"); window.location.reload(); } else { alert('Falha ao gravar alterações.'); }
+            } catch (error) { alert('Erro de rede.'); }
         }
-
-        function toggleTodosSorteio(source) {
-            document.querySelectorAll('.check-sorteio').forEach(cb => cb.checked = source.checked);
-        }
-
-        /* ----- NOVA LÓGICA DE SORTEIO COM PONTOS (VISUAL) ----- */
-        function abrirSetupSorteio() {
-            const checkboxes = document.querySelectorAll('.check-sorteio:checked');
-            if (checkboxes.length === 0) { alert('Selecione os participantes primeiro para configurar a roleta.'); return; }
-
-            // Usa um Set para evitar jogadores clonados (Megas) duplicados no Setup
-            const idsSet = new Set();
-            const nomesMap = new Map();
-            
-            checkboxes.forEach(cb => {
-                idsSet.add(cb.value);
-                nomesMap.set(cb.value, cb.dataset.nome);
-            });
-
-            const lista = document.getElementById('listaParticipantesSetup');
-            lista.innerHTML = '';
-            
-            idsSet.forEach(id => {
-                const nome = nomesMap.get(id);
-                lista.innerHTML += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom:8px;">
-                        <span style="color:#fff; font-size:18px;">${nome}</span>
-                        <input type="number" class="input-edit pts-aposta" data-id="${id}" value="10" style="width:90px;" min="0">
-                    </div>
-                `;
-            });
-
-            abrirModal('modalSetupSorteio');
-        }
-
-        async function iniciarRoletaValendo() {
-            const maxPontos = parseFloat(document.getElementById('maxPontosRoleta').value);
-            if(isNaN(maxPontos) || maxPontos <= 0) { alert('Pontuação máxima inválida.'); return; }
-
-            let payload = {
-                max_pontos_totais: maxPontos,
-                participantes: []
-            };
-
-            document.querySelectorAll('.pts-aposta').forEach(input => {
-                payload.participantes.push({
-                    id: input.dataset.id,
-                    pontos: parseFloat(input.value || 0)
-                });
-            });
-
-            const btn = document.getElementById('btnGirarRoletaAcao');
-            btn.disabled = true;
-            btn.innerText = 'Calculando Probabilidades...';
-
-            try {
-                const response = await fetch('/api/realizar-sorteio', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-
-                if(response.ok) {
-                    fecharModal('modalSetupSorteio');
-                    mostrarRoletaVisual(data.fatias, data.vencedor_nome);
-                } else {
-                    alert('Erro: ' + data.erro);
-                }
-            } catch(e) {
-                alert('Falha na requisição.');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Girar Roleta Visual';
-            }
-        }
-
-        function mostrarRoletaVisual(fatias, vencedorNome) {
-            abrirModal('modalRoletaPontos');
-            const roleta = document.getElementById('roletaCirculo');
-            const roletaLabel = document.getElementById('roletaVencedorLabel');
-            const btnFechar = document.getElementById('btnFecharRoletaPontos');
-            
-            // Reseta estilos da animação anterior
-            roleta.style.transition = 'none';
-            roleta.style.transform = 'rotate(0deg)';
-            roletaLabel.style.display = 'none';
-            btnFechar.style.display = 'none';
-
-            // Cores vibrantes
-            const cores = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#00f3ff', '#bc13fe', '#ffaa00', '#ff003c', '#10b981'];
-            let gradientParts = [];
-            let legendaHtml = '';
-            
-            let acumulado = 0;
-            let i = 0;
-            let startWinDeg = 0;
-            let endWinDeg = 0;
-
-            for (const [nome, porcentagem] of Object.entries(fatias)) {
-                const p = parseFloat(porcentagem);
-                if (p <= 0) continue;
-
-                const cor = cores[i % cores.length];
-                gradientParts.push(`${cor} ${acumulado}% ${acumulado + p}%`);
-                
-                legendaHtml += `<div style="display:flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;background:${cor};border-radius:3px;"></span><span style="color:#fff;font-size:14px;">${nome} (${p.toFixed(1)}%)</span></div>`;
-
-                // Guarda os ângulos (em graus) da fatia vencedora para a matemática da rotação
-                if (nome === vencedorNome) {
-                    startWinDeg = (acumulado / 100) * 360;
-                    endWinDeg = ((acumulado + p) / 100) * 360;
-                }
-
-                acumulado += p;
-                i++;
-            }
-
-            roleta.style.background = `conic-gradient(${gradientParts.join(', ')})`;
-            document.getElementById('roletaLegenda').innerHTML = legendaHtml;
-
-            // Inicia o giro após um brevíssimo delay (para o browser aplicar o CSS resetado acima)
-            setTimeout(() => {
-                // Sorteia um ponto aleatório dentro da fatia do vencedor
-                const winDeg = startWinDeg + (Math.random() * (endWinDeg - startWinDeg));
-                
-                // O pointer está fixo no Topo (0 graus / 360 graus). 
-                // A roleta roda em sentido horário. Para o winDeg chegar ao Topo, precisamos girar (360 - winDeg).
-                const rotacaoBaseParaTopo = 360 - winDeg;
-                
-                // Adiciona múltiplas voltas completas para o efeito visual da roleta girando
-                const voltasCompletas = 360 * 10; 
-                const finalRotation = voltasCompletas + rotacaoBaseParaTopo;
-
-                // Aplica uma transição suave que desacelera no final (ease-out)
-                roleta.style.transition = 'transform 5s cubic-bezier(0.25, 0.1, 0.25, 1)';
-                roleta.style.transform = `rotate(${finalRotation}deg)`;
-
-                // Mostra o resultado após a animação de 5 segundos
-                setTimeout(() => {
-                    roletaLabel.innerText = "🏆 " + vencedorNome + " 🏆";
-                    roletaLabel.style.display = 'block';
-                    btnFechar.style.display = 'block';
-                }, 5200);
-            }, 100);
-        }
-        /* ---------------------------------------------------- */
 
         async function salvarHistorico() {
             let historicoData = [];
             document.querySelectorAll('tr[data-historico-id]').forEach(linha => {
-                historicoData.push({
-                    id: linha.getAttribute('data-historico-id'),
-                    observacao: linha.querySelector('.hist-obs').value,
-                    penalidade: linha.querySelector('.hist-penalidade').value
-                });
+                historicoData.push({ id: linha.getAttribute('data-historico-id'), observacao: linha.querySelector('.hist-obs').value, penalidade: linha.querySelector('.hist-penalidade').value });
             });
-
-            try {
-                const response = await fetch('/api/editar-historico', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData })
-                });
-                if (response.ok) { alert("Registros atualizados."); window.location.reload(); } 
-                else { alert('Falha ao gravar.'); }
-            } catch (error) { alert('Erro de rede.'); }
+            const response = await fetch('/api/editar-historico', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData }) });
+            if (response.ok) { alert("Registros atualizados."); window.location.reload(); }
         }
 
         async function deletarHistorico(id) {
             if (!confirm("Aviso: Purgar este registro restaurará os pontos deduzidos do jogador. Confirmar?")) return;
+            const response = await fetch(`/api/deletar-historico/${id}`, { method: 'DELETE' });
+            if (response.ok) { window.location.reload(); } 
+        }
+
+        /* --- LÓGICA DE IMPORTAÇÃO (XML/EXCEL) --- */
+        let dadosImportacaoAtual = []; 
+
+        async function enviarXML(e) {
+            e.preventDefault();
+            const btnEnviar = document.getElementById('btnEnviar');
+            btnEnviar.innerText = 'Analisando...'; btnEnviar.disabled = true;
+            const formData = new FormData(document.getElementById('formImportacao'));
             try {
-                const response = await fetch(`/api/deletar-historico/${id}`, { method: 'DELETE' });
-                if (response.ok) { window.location.reload(); } 
-            } catch (error) { alert('Erro de rede.'); }
+                const response = await fetch('/api/importar', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (response.ok) { mostrarPreview(data.preview, data.hash, data.atividades_encontradas); } else { alert('Falha: ' + data.erro); }
+            } catch (error) { alert('Falha de conexão com o servidor matriz.'); } finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
         }
 
-        function toggleTodosMeme(source) {
-            document.querySelectorAll('.check-meme').forEach(cb => cb.checked = source.checked);
+        async function enviarExcel(e) {
+            e.preventDefault();
+            const btnEnviarEx = document.getElementById('btnEnviarExcel');
+            btnEnviarEx.innerText = 'Extraindo...'; btnEnviarEx.disabled = true;
+            const formData = new FormData(document.getElementById('formExcel'));
+            try {
+                const response = await fetch('/api/importar-excel', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (response.ok) { alert(data.mensagem); window.location.reload(); } else { alert('Falha: ' + data.erro); }
+            } catch (error) { alert('Falha de conexão.'); } finally { btnEnviarEx.innerText = 'Sincronizar Atributos'; btnEnviarEx.disabled = false; }
         }
 
-        /* Lógica Mantida Intacta para o Sorteio Meme (Trocando Nomes) */
+        function mostrarPreview(jogadores, hash, todas_atividades) {
+            document.getElementById('formImportacao').parentElement.style.display = 'none';
+            document.getElementById('formExcel').parentElement.style.display = 'none';
+            document.getElementById('areaPreview').style.display = 'block';
+            document.getElementById('hashArquivo').value = hash;
+            dadosImportacaoAtual = jogadores;
+            const containerEventos = document.getElementById('listaEventosEncontrados');
+            containerEventos.innerHTML = '';
+            const eventosDiariosPadrao = ['Verificado', 'Doar', 'Atividade da Guilda'];
+            
+            if (todas_atividades && todas_atividades.length > 0) {
+                todas_atividades.forEach(atv => {
+                    const isChecked = eventosDiariosPadrao.includes(atv) ? 'checked' : '';
+                    const borderColor = isChecked ? 'var(--neon-cyan)' : 'var(--text-muted)';
+                    containerEventos.innerHTML += `<label style="display: flex; align-items: center; gap: 8px; font-size: 15px; color: #fff; cursor: pointer; background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 4px; border: 1px solid ${borderColor}; transition: 0.2s;"><input type="checkbox" class="check-evento-import" value="${atv}" ${isChecked} onchange="atualizarPreviewPontos(this)" style="accent-color: var(--neon-cyan); width: 18px; height: 18px;">${atv}</label>`;
+                });
+            } else { containerEventos.innerHTML = '<span style="color: var(--text-muted); font-size: 14px;">Nenhum evento detectado.</span>'; }
+            atualizarPreviewPontos();
+        }
+
+        function atualizarPreviewPontos(checkboxElement = null) {
+            if (checkboxElement) {
+                const label = checkboxElement.parentElement;
+                label.style.borderColor = checkboxElement.checked ? 'var(--neon-cyan)' : 'var(--text-muted)';
+            }
+            const checkboxes = document.querySelectorAll('.check-evento-import:checked');
+            const eventosMarcados = Array.from(checkboxes).map(cb => cb.value);
+            const isBlackSkull = document.getElementById('guildaAlvoSelect').value === 'blackskull';
+            const eventosPermitidosBS = ['Raid de Guilda', 'Expedição da Guilda'];
+            let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
+            let temDesconhecido = false;
+
+            dadosImportacaoAtual.forEach(j => {
+                let cor = j.encontrado_no_bd ? '#10b981' : '#ff003c'; 
+                if (!j.encontrado_no_bd) temDesconhecido = true;
+                let labelStatus = j.encontrado_no_bd ? '[OK]' : '[NÃO VINCULADO]';
+                let pontosCalculados = 0;
+                j.detalhes.forEach(det => {
+                    if (eventosMarcados.includes(det.atividade)) {
+                        if (!isBlackSkull || eventosPermitidosBS.includes(det.atividade)) pontosCalculados += det.pontos;
+                    }
+                });
+                html += `<li style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 8px 0;"><span style="color: ${cor}">${labelStatus} ${j.nome_xml}</span><span style="color: var(--neon-cyan);">+${pontosCalculados} pts (tentativa)</span></li>`;
+            });
+            html += '</ul>';
+            document.getElementById('resultadoPreview').innerHTML = html;
+            
+            if(temDesconhecido && !isBlackSkull) { document.getElementById('areaAlertaNovos').style.display = 'flex'; } 
+            else { 
+                document.getElementById('areaAlertaNovos').style.display = 'none'; 
+                if(isBlackSkull && temDesconhecido) document.getElementById('resultadoPreview').innerHTML += '<p style="color: var(--neon-orange); margin-top: 10px; font-size: 13px;">⚠️ Alts "NÃO VINCULADOS" serão ignorados na injeção.</p>';
+            }
+        }
+
+        async function confirmarImportacao(e) {
+            e.preventDefault();
+            const btnConfirmar = e.target.querySelector('button[type="submit"]');
+            btnConfirmar.innerText = 'Injetando no DB...'; btnConfirmar.disabled = true;
+            const checkboxesEventos = document.querySelectorAll('.check-evento-import:checked');
+            const eventosSelecionados = Array.from(checkboxesEventos).map(cb => cb.value);
+
+            const payload = {
+                hash: document.getElementById('hashArquivo').value,
+                jogadores: dadosImportacaoAtual,
+                guilda_alvo: document.getElementById('guildaAlvoSelect').value,
+                cadastrar_novos: document.getElementById('checkCadastrarNovos') ? document.getElementById('checkCadastrarNovos').checked : false,
+                eventos_selecionados: eventosSelecionados
+            };
+
+            try {
+                const response = await fetch('/api/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await response.json();
+                if (response.ok) { alert('Operação bem sucedida: ' + data.mensagem); window.location.reload(); } else { alert('Falha na operação: ' + data.erro); btnConfirmar.innerText = 'Confirmar Injeção de Dados'; btnConfirmar.disabled = false; }
+            } catch (error) { alert('Falha no servidor.'); btnConfirmar.disabled = false; }
+        }
+
+        async function deletarImportacao(id) {
+            if (!confirm("Aviso Crítico: Purgar este upload irá DESFAZER TODOS OS PONTOS adicionados por ele. Confirma?")) return;
+            const response = await fetch(`/api/deletar-importacao/${id}`, { method: 'DELETE' });
+            if (response.ok) { window.location.reload(); } 
+        }
+
+        /* --- LÓGICA DO SORTEIO MEME --- */
+        function toggleTodosMeme(source) { document.querySelectorAll('.check-meme').forEach(cb => cb.checked = source.checked); }
+
         async function abrirRoletaMeme() {
             const checkboxes = document.querySelectorAll('.check-meme:checked');
             const itemInput = document.getElementById('inputItemMeme').value.trim();
-
             if (!itemInput) { alert('Parâmetro ausente: Por favor, digite o nome do item a ser sorteado.'); return; }
             if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio meme.'); return; }
 
-            // Usando Set para prevenir duplicação de Megas no sorteio
             const idsSet = new Set();
             const nomesMap = new Map();
-            
-            checkboxes.forEach(cb => {
-                idsSet.add(cb.value);
-                nomesMap.set(cb.value, cb.dataset.nome);
-            });
-
+            checkboxes.forEach(cb => { idsSet.add(cb.value); nomesMap.set(cb.value, cb.dataset.nome); });
             const idsSelecionados = Array.from(idsSet);
             const nomesSelecionados = idsSelecionados.map(id => nomesMap.get(id));
             
             const roletaNomeMeme = document.getElementById('roletaNomeMeme');
             const btnFecharRoletaMeme = document.getElementById('btnFecharRoletaMeme');
-            const tituloRoletaMeme = document.getElementById('tituloRoletaMeme');
-            
-            tituloRoletaMeme.innerText = `Sorteando (Meme): ${itemInput.toUpperCase()}`;
-            roletaNomeMeme.style.color = "white"; 
-            btnFecharRoletaMeme.style.display = 'none';
+            document.getElementById('tituloRoletaMeme').innerText = `Sorteando (Meme): ${itemInput.toUpperCase()}`;
+            roletaNomeMeme.style.color = "white"; btnFecharRoletaMeme.style.display = 'none';
             abrirModal('modalRoletaMeme');
 
             let i = 0;
             const intervaloAnimacao = setInterval(() => { roletaNomeMeme.innerText = nomesSelecionados[i % nomesSelecionados.length]; i++; }, 50);
 
             try {
-                const response = await fetch('/api/realizar-sorteio-meme', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ jogadores_ids: idsSelecionados, item: itemInput })
-                });
+                const response = await fetch('/api/realizar-sorteio-meme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores_ids: idsSelecionados, item: itemInput }) });
                 const data = await response.json();
                 if (response.ok) {
                     setTimeout(() => {
@@ -1421,66 +1289,47 @@
 
         async function salvarHistoricoMeme() {
             let historicoData = [];
-            document.querySelectorAll('tr[data-historico-meme-id]').forEach(linha => {
-                historicoData.push({
-                    id: linha.getAttribute('data-historico-meme-id'),
-                    observacao: linha.querySelector('.hist-meme-obs').value
-                });
-            });
-
-            try {
-                const response = await fetch('/api/editar-historico-meme', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData })
-                });
-                if (response.ok) { alert("Registros Meme atualizados."); window.location.reload(); } 
-                else { alert('Falha ao gravar.'); }
-            } catch (error) { alert('Erro de rede.'); }
+            document.querySelectorAll('tr[data-historico-meme-id]').forEach(linha => { historicoData.push({ id: linha.getAttribute('data-historico-meme-id'), observacao: linha.querySelector('.hist-meme-obs').value }); });
+            const response = await fetch('/api/editar-historico-meme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData }) });
+            if (response.ok) { alert("Registros Meme atualizados."); window.location.reload(); }
         }
 
         async function deletarHistoricoMeme(id) {
             if (!confirm("Aviso: Purgar este registro de sorteio meme. Confirmar?")) return;
-            try {
-                const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
-                if (response.ok) { window.location.reload(); } 
-            } catch (error) { alert('Erro de rede.'); }
+            const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
+            if (response.ok) window.location.reload();
+        }
+
+        {% if user_role == 'admin' %}
+        /* --- LÓGICA DE CONFIGURAÇÃO MATRIZ E LOGS (ADMIN ONLY) --- */
+        async function salvarReguaMegaGlobal() {
+            const cpMega = document.getElementById('inputMegaCP').value;
+            const response = await fetch('/api/salvar-regua-mega', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cp_mega: cpMega }) });
+            const data = await response.json();
+            if (response.ok) { alert(data.mensagem); } else { alert("Erro: " + data.erro); }
         }
 
         async function criarEvento() {
-            const payload = {
-                nome: document.getElementById('novoEventoNome').value.trim(),
-                tipo: document.getElementById('novoEventoTipo').value,
-                pontos: document.getElementById('novoEventoPontos').value
-            };
+            const payload = { nome: document.getElementById('novoEventoNome').value.trim(), tipo: document.getElementById('novoEventoTipo').value, pontos: document.getElementById('novoEventoPontos').value };
             if(!payload.nome) return alert("Parâmetro 'Nome' é obrigatório.");
-            try {
-                const response = await fetch('/api/criar-evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (response.ok) { window.location.reload(); } else { alert('Falha ao criar módulo.'); }
-            } catch (error) { alert('Erro de rede.'); }
+            const response = await fetch('/api/criar-evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (response.ok) { window.location.reload(); } else { alert('Falha ao criar módulo.'); }
         }
 
         async function salvarConfiguracoes() {
             let configsData = [];
-            document.querySelectorAll('tr[data-config-id]').forEach(linha => {
-                configsData.push({ id: linha.getAttribute('data-config-id'), pontos: linha.querySelector('.conf-pontos').value });
-            });
-            try {
-                const response = await fetch('/api/salvar-configuracoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs: configsData }) });
-                if (response.ok) { alert("Matriz atualizada. Cálculo refeito."); window.location.reload(); } 
-                else { alert('Falha ao atualizar matriz.'); }
-            } catch (error) { alert('Erro de rede.'); }
+            document.querySelectorAll('tr[data-config-id]').forEach(linha => { configsData.push({ id: linha.getAttribute('data-config-id'), pontos: linha.querySelector('.conf-pontos').value }); });
+            const response = await fetch('/api/salvar-configuracoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs: configsData }) });
+            if (response.ok) { alert("Matriz atualizada. Cálculo refeito."); window.location.reload(); }
         }
 
         async function salvarEdicaoImports() {
             let importsData = [];
-            document.querySelectorAll('tr[data-import-id]').forEach(linha => {
-                importsData.push({ id: linha.getAttribute('data-import-id'), nome: linha.querySelector('.imp-nome').value });
-            });
-            try {
-                const response = await fetch('/api/editar-importacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ importacoes: importsData }) });
-                if (response.ok) { alert("Logs gravados."); window.location.reload(); } 
-                else { alert('Falha ao gravar logs.'); }
-            } catch (error) { alert('Erro de rede.'); }
+            document.querySelectorAll('tr[data-import-id]').forEach(linha => { importsData.push({ id: linha.getAttribute('data-import-id'), nome: linha.querySelector('.imp-nome').value }); });
+            const response = await fetch('/api/editar-importacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ importacoes: importsData }) });
+            if (response.ok) { alert("Logs gravados."); window.location.reload(); }
         }
+        {% endif %}
 
         {% endif %}
     </script>
