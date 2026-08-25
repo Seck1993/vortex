@@ -39,7 +39,7 @@ class SorteioMemeHistorico(db.Model):
     
     jogador = db.relationship('Jogador', backref=db.backref('sorteios_meme', lazy=True))
 
-# ================= NOVOS MODELOS DE EVENTO (BANNER E APOSTAS) =================
+# ================= MODELOS DE EVENTO (BANNER E APOSTAS) =================
 class EventoSorteio(db.Model):
     __tablename__ = 'evento_sorteio'
     id = db.Column(db.Integer, primary_key=True)
@@ -230,14 +230,13 @@ def admin_required():
 def login_required():
     return session.get('logged_in')
 
-# ================= ROTAS DO BANNER E APOSTAS =================
+# ================= ROTAS DO BANNER E APOSTAS (OTIMIZADAS) =================
 
 @app.route('/api/publicar-banner', methods=['POST'])
 def publicar_banner():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     dados = request.get_json()
     
-    # Desativa qualquer evento que estava ativo
     EventoSorteio.query.filter_by(ativo=True).update({'ativo': False})
     
     novo_evento = EventoSorteio(titulo=dados.get('titulo', 'SORTEIO HOJE AS 20:00'))
@@ -270,10 +269,26 @@ def apostar_item():
     item = db.session.get(EventoItem, item_id)
     if not item or item.sorteado: return jsonify({"erro": "Item inválido ou já sorteado"}), 400
 
-    # Atualiza aposta existente ou cria uma nova
-    aposta = ApostaSorteio.query.filter_by(item_id=item_id, jogador_id=jogador_id).first()
-    if aposta:
-        aposta.pontos = pontos
+    # VALIDAÇÃO DE SALDO DISPONÍVEL
+    pts_brutos = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id).scalar() or 0
+    pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador_id).scalar() or 0
+    
+    # Soma de pontos retidos em outras apostas ativas
+    apostas_ativas = db.session.query(func.sum(ApostaSorteio.pontos)).join(EventoItem).filter(
+        ApostaSorteio.jogador_id == jogador_id,
+        EventoItem.sorteado == False
+    ).scalar() or 0
+
+    aposta_existente = ApostaSorteio.query.filter_by(item_id=item_id, jogador_id=jogador_id).first()
+    aposta_atual = aposta_existente.pontos if aposta_existente else 0
+
+    pontos_disponiveis = (pts_brutos - pens) - apostas_ativas + aposta_atual
+
+    if pontos > pontos_disponiveis:
+        return jsonify({"erro": f"Saldo insuficiente! Você possui apenas {pontos_disponiveis:.0f} pts reais livres para apostar."}), 400
+
+    if aposta_existente:
+        aposta_existente.pontos = pontos
     else:
         db.session.add(ApostaSorteio(item_id=item_id, jogador_id=jogador_id, pontos=pontos))
     
@@ -289,8 +304,10 @@ def remover_aposta(id):
         db.session.commit()
     return jsonify({"mensagem": "Aposta removida."}), 200
 
-@app.route('/api/realizar-sorteio-item', methods=['POST'])
-def realizar_sorteio_item():
+
+# ROTA 1 DO SORTEIO: FAZ A MATEMÁTICA NA MEMÓRIA E DEVOLVE RÁPIDO (TIRA O LAG)
+@app.route('/api/simular-sorteio-item', methods=['POST'])
+def simular_sorteio_item():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     item_id = request.get_json().get('item_id')
     
@@ -303,44 +320,61 @@ def realizar_sorteio_item():
     fatias = {}
     candidatos = []
     pesos = []
-    soma_porcentagens = 0.0
+    
+    total_pontos = sum(ap.pontos for ap in apostas)
 
+    # Regra da Staff: Fixa em 15% 
+    fatias['Staff (Administração)'] = 15.0
+    candidatos.append({"id": None, "nome": 'Staff (Administração)', "pontos_apostados": 0, "is_staff": True})
+    pesos.append(15.0)
+
+    # Os 85% restantes são distribuídos proporcionalmente à quantidade de pontos
     for ap in apostas:
-        porcentagem = (ap.pontos / item.max_pontos) * 100.0
+        porcentagem = (ap.pontos / total_pontos) * 85.0 if total_pontos > 0 else 0
         fatias[ap.jogador.nome] = porcentagem
-        soma_porcentagens += porcentagem
         candidatos.append({"id": ap.jogador.id, "nome": ap.jogador.nome, "pontos_apostados": ap.pontos, "is_staff": False})
         pesos.append(porcentagem)
 
-    # Porcentagem não alcançada fica fixa para a Staff
-    porcentagem_staff = 100.0 - soma_porcentagens
-    if porcentagem_staff > 0:
-        fatias['Staff (Administração)'] = porcentagem_staff
-        candidatos.append({"id": None, "nome": 'Staff (Administração)', "pontos_apostados": 0, "is_staff": True})
-        pesos.append(porcentagem_staff)
-
     vencedor = random.choices(candidatos, weights=pesos, k=1)[0]
     
-    # Atualiza o Item confirmando o fim do sorteio
+    # IMPORTANTE: Nenhum db.session.commit() é feito aqui para a roleta girar instantaneamente na tela
+    return jsonify({
+        "vencedor_nome": vencedor['nome'],
+        "vencedor_id": vencedor['id'],
+        "pontos_apostados": vencedor['pontos_apostados'],
+        "is_staff": vencedor['is_staff'],
+        "fatias": fatias
+    }), 200
+
+
+# ROTA 2 DO SORTEIO: QUANDO A ROLETA TERMINA, ELE SALVA NO BANCO O DESCONTO
+@app.route('/api/confirmar-sorteio-item', methods=['POST'])
+def confirmar_sorteio_item():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    item_id = dados.get('item_id')
+    vencedor_id = dados.get('vencedor_id')
+    vencedor_nome = dados.get('vencedor_nome')
+    is_staff = dados.get('is_staff')
+    pontos_apostados = dados.get('pontos_apostados', 0)
+
+    item = db.session.get(EventoItem, item_id)
+    if not item or item.sorteado: return jsonify({"erro": "Erro: Item já finalizado."}), 400
+
     item.sorteado = True
-    item.vencedor_nome = vencedor['nome']
+    item.vencedor_nome = vencedor_nome
     
-    # REGRA ESPECÍFICA: Apenas debita do Histórico o Jogador que VENCEU
-    if not vencedor['is_staff']:
+    # Apenas o Vencedor tem seus pontos descontados
+    if not is_staff and vencedor_id:
         novo_sorteio = SorteioHistorico(
-            jogador_id=vencedor['id'], 
+            jogador_id=vencedor_id, 
             observacao=f"Venceu: {item.nome_item}",
-            penalidade=int(vencedor['pontos_apostados'])
+            penalidade=int(pontos_apostados)
         )
         db.session.add(novo_sorteio)
 
     db.session.commit()
-
-    return jsonify({
-        "vencedor_nome": vencedor['nome'],
-        "vencedor_id": vencedor['id'],
-        "fatias": fatias
-    }), 200
+    return jsonify({"mensagem": "Sorteio finalizado e dados salvos!"}), 200
 
 # ================= AS DEMAIS ROTAS =================
 
@@ -727,6 +761,7 @@ def salvar_configuracoes():
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
 
+# === ROTA DO SORTEIO DA ABA MEME PERMANECE INTACTA ===
 @app.route('/api/realizar-sorteio-meme', methods=['POST'])
 def realizar_sorteio_meme():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
