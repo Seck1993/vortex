@@ -8,7 +8,7 @@ from xml_engine import analisar_xml_guilda
 
 app = Flask(__name__)
 
-# Configuração de Banco de Dados
+# Configuração que aceita o PostgreSQL do Render ou o SQLite local
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///vortex.db')
 if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
     app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
@@ -19,7 +19,6 @@ app.config['SECRET_KEY'] = 'chave_super_secreta_vortex'
 
 db.init_app(app)
 
-# ================= MODELOS ORIGINAIS =================
 class SorteioHistorico(db.Model):
     __tablename__ = 'sorteios'
     id = db.Column(db.Integer, primary_key=True)
@@ -27,6 +26,7 @@ class SorteioHistorico(db.Model):
     data_sorteio = db.Column(db.DateTime, default=datetime.utcnow)
     observacao = db.Column(db.String(255), default="")
     penalidade = db.Column(db.Integer, default=0)
+    
     jogador = db.relationship('Jogador', backref=db.backref('sorteios', lazy=True))
 
 class SorteioMemeHistorico(db.Model):
@@ -36,46 +36,28 @@ class SorteioMemeHistorico(db.Model):
     item_sorteado = db.Column(db.String(100), default="")
     data_sorteio = db.Column(db.DateTime, default=datetime.utcnow)
     observacao = db.Column(db.String(255), default="")
+    
     jogador = db.relationship('Jogador', backref=db.backref('sorteios_meme', lazy=True))
 
-# ================= NOVOS MODELOS DE EVENTO (BANNER) =================
-class EventoSorteio(db.Model):
-    __tablename__ = 'evento_sorteio'
-    id = db.Column(db.Integer, primary_key=True)
-    titulo = db.Column(db.String(100), default="SORTEIO HOJE AS 20:00")
-    ativo = db.Column(db.Boolean, default=True)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
-    itens = db.relationship('EventoItem', backref='evento', cascade="all, delete-orphan", lazy=True)
-
-class EventoItem(db.Model):
-    __tablename__ = 'evento_item'
-    id = db.Column(db.Integer, primary_key=True)
-    evento_id = db.Column(db.Integer, db.ForeignKey('evento_sorteio.id'))
-    nome_item = db.Column(db.String(100), nullable=False)
-    max_pontos = db.Column(db.Float, default=100.0)
-    sorteado = db.Column(db.Boolean, default=False)
-    vencedor_nome = db.Column(db.String(100), nullable=True)
-    apostas = db.relationship('ApostaSorteio', backref='item', cascade="all, delete-orphan", lazy=True)
-
-class ApostaSorteio(db.Model):
-    __tablename__ = 'aposta_sorteio'
-    id = db.Column(db.Integer, primary_key=True)
-    item_id = db.Column(db.Integer, db.ForeignKey('evento_item.id'))
-    jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'))
-    pontos = db.Column(db.Float, default=0.0)
-    jogador = db.relationship('Jogador')
-
-# ================= ROTAS E LÓGICA =================
 @app.route('/')
 def index():
+    # Oculta a REGUA_MEGA da lista de configurações visíveis
     configuracoes = ConfigAtividade.query.filter(ConfigAtividade.nome_xml != 'REGUA_MEGA').order_by(ConfigAtividade.id.asc()).all()
+    tipos_eventos = {c.nome_xml: c.tipo_evento for c in configuracoes}
+
+    # Busca a Régua Mega global no banco de dados
     config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
     cp_mega = config_mega.pontos_padrao if config_mega else 100000
 
-    pontos_brutos = db.session.query(Pontuacao.jogador_id, Pontuacao.atividade, func.sum(Pontuacao.pontos)).group_by(Pontuacao.jogador_id, Pontuacao.atividade).all()
+    pontos_brutos = db.session.query(
+        Pontuacao.jogador_id, 
+        Pontuacao.atividade, 
+        func.sum(Pontuacao.pontos)
+    ).group_by(Pontuacao.jogador_id, Pontuacao.atividade).all()
 
     mapa_pontos = {}
     for pid, atv, pts in pontos_brutos:
+        # Agora o sistema separa o Bruto do Final
         if pid not in mapa_pontos:
             mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0}
         
@@ -92,6 +74,7 @@ def index():
             mapa_pontos[pid]['total_bruto'] += pts
             mapa_pontos[pid]['total_final'] += pts
 
+    # Penalidades aplicadas SOMENTE no total_final, preservando o total_bruto intacto
     penalidades = db.session.query(SorteioHistorico.jogador_id, func.sum(SorteioHistorico.penalidade)).group_by(SorteioHistorico.jogador_id).all()
     for pid, pen in penalidades:
         if pid not in mapa_pontos:
@@ -99,12 +82,17 @@ def index():
         mapa_pontos[pid]['penalidades'] += pen
         mapa_pontos[pid]['total_final'] -= pen
 
-    jogadores = Jogador.query.filter(db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')).all()
+    # Exibe todos os jogadores com status Ativo ou ainda sem status definido
+    jogadores = Jogador.query.filter(
+        db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')
+    ).all()
     
+    # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA ---
     pontuacao_seck = 0
     for j in jogadores:
         if j.nome.upper().strip() == 'SECK':
-            pontuacao_seck = mapa_pontos.get(j.id, {}).get('total_bruto', 0)
+            seck_data = mapa_pontos.get(j.id, {})
+            pontuacao_seck = seck_data.get('total_bruto', 0)
             break
 
     ranking = []
@@ -112,208 +100,641 @@ def index():
     
     for j in jogadores:
         p_data = mapa_pontos.get(j.id, {'total_bruto': 0, 'total_final': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0})
+        
         total_bruto = p_data['total_bruto']
         total_final = p_data['total_final']
         
+        # Calcular participação percentual e diamantes
         if pontuacao_seck > 0:
             if total_bruto >= pontuacao_seck:
-                participacao, pontos_base, pontos_diamante = 100.0, pontuacao_seck, total_bruto - pontuacao_seck
+                participacao = 100.0
+                pontos_base = pontuacao_seck
+                pontos_diamante = total_bruto - pontuacao_seck
             else:
-                participacao, pontos_base, pontos_diamante = round((total_bruto / pontuacao_seck) * 100, 2), total_bruto, 0
+                participacao = round((total_bruto / pontuacao_seck) * 100, 2)
+                pontos_base = total_bruto
+                pontos_diamante = 0
         else:
-            participacao, pontos_base, pontos_diamante = 0, total_bruto, 0
+            participacao = 0
+            pontos_base = total_bruto
+            pontos_diamante = 0
 
+        alts_list = [a.nome_alt for a in j.alts]
         ranking.append({
-            'jogador': j, 'alts_str': ', '.join([a.nome_alt for a in j.alts]), 'pontos': total_final,
-            'pontos_base': pontos_base, 'pontos_diamante': pontos_diamante, 'participacao': participacao,
+            'jogador': j,
+            'alts_str': ', '.join(alts_list),
+            'pontos': total_final,
+            'pontos_base': pontos_base,
+            'pontos_diamante': pontos_diamante,
+            'participacao': participacao,
+            'atividades': p_data['atividades'],
+            'blackskull': p_data['blackskull'],
+            'ajustes': p_data['ajustes'],
             'penalidades': p_data['penalidades']
         })
         soma_total_pontos += total_final
 
+    # Ordenação base por nome
+    ranking.sort(key=lambda x: x['jogador'].nome.lower())
+    
+    # Regra de Desempate: Pontos Totais -> Poder de Combate -> Level
     ranking.sort(key=lambda x: (x['pontos'], x['jogador'].poder_combate, x['jogador'].level), reverse=True)
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
     importacoes = ImportacaoXML.query.order_by(ImportacaoXML.data_importacao.desc()).all()
     
+    total_jogadores = len(jogadores)
     user_role = session.get('role', 'guest')
 
-    # Dados do Evento Ativo
-    evento_ativo = EventoSorteio.query.filter_by(ativo=True).order_by(EventoSorteio.id.desc()).first()
-    
-    # Preparar estrutura do evento para o frontend
-    evento_data = None
-    if evento_ativo:
-        itens_data = []
-        for item in evento_ativo.itens:
-            apostas = [{'jogador_nome': a.jogador.nome, 'pontos': a.pontos, 'id': a.id} for a in item.apostas]
-            itens_data.append({
-                'id': item.id,
-                'nome_item': item.nome_item,
-                'max_pontos': item.max_pontos,
-                'sorteado': item.sorteado,
-                'vencedor_nome': item.vencedor_nome,
-                'apostas': apostas,
-                'total_apostado': sum(a['pontos'] for a in apostas)
-            })
-        evento_data = {
-            'id': evento_ativo.id,
-            'titulo': evento_ativo.titulo,
-            'itens': itens_data
-        }
-
     return render_template(
-        'dashboard.html', ranking=ranking, historico_sorteios=historico_sorteios, historico_meme=historico_meme, 
-        configuracoes=configuracoes, importacoes=importacoes, user_role=user_role, cp_mega=cp_mega, 
-        evento=evento_data
+        'dashboard.html', 
+        ranking=ranking, 
+        historico_sorteios=historico_sorteios,
+        historico_meme=historico_meme, 
+        configuracoes=configuracoes,
+        importacoes=importacoes,
+        total_jogadores=total_jogadores,
+        soma_total_pontos=soma_total_pontos,
+        user_role=user_role,
+        cp_mega=cp_mega
     )
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    senha = request.get_json().get('senha')
-    if senha == 'vortex2026':  
-        session['logged_in'], session['role'] = True, 'admin'
-        return jsonify({"mensagem": "Autenticado Administrador"}), 200
-    elif senha == 'membro2026':
-        session['logged_in'], session['role'] = True, 'membro'
-        return jsonify({"mensagem": "Autenticado Membro"}), 200
+    dados = request.get_json()
+    senha_enviada = dados.get('senha')
+    
+    if senha_enviada == 'vortex2026':  
+        session['logged_in'] = True
+        session['role'] = 'admin'
+        return jsonify({"mensagem": "Autenticado como Administrador"}), 200
+    elif senha_enviada == 'membro2026':
+        session['logged_in'] = True
+        session['role'] = 'membro'
+        return jsonify({"mensagem": "Autenticado como Membro"}), 200
+        
     return jsonify({"erro": "Senha incorreta"}), 401
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
     session.pop('logged_in', None)
     session.pop('role', None)
-    return jsonify({"mensagem": "Logout"}), 200
+    return jsonify({"mensagem": "Logout efetuado"}), 200
 
-def admin_required(): return session.get('logged_in') and session.get('role') == 'admin'
-def login_required(): return session.get('logged_in')
+def admin_required():
+    return session.get('logged_in') and session.get('role') == 'admin'
 
-# --- ROTAS DO NOVO SISTEMA DE EVENTOS (BANNER E APOSTAS) ---
+def login_required():
+    return session.get('logged_in')
+
+@app.route('/api/salvar-regua-mega', methods=['POST'])
+def salvar_regua_mega():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    novo_cp = dados.get('cp_mega')
+
+    try:
+        config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
+        if not config_mega:
+            config_mega = ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=int(novo_cp), tipo_evento='sistema', is_ativa=False)
+            db.session.add(config_mega)
+        else:
+            config_mega.pontos_padrao = int(novo_cp)
+        db.session.commit()
+        return jsonify({"mensagem": "Régua Mega atualizada globalmente!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/importar', methods=['POST'])
+def importar_xml():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    
+    if 'xml_file' not in request.files:
+        return jsonify({"erro": "Arquivo não enviado."}), 400
+
+    arquivo = request.files['xml_file']
+    guilda_alvo = request.form.get('guilda_alvo', 'vortex') 
+    
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+        
+    caminho = os.path.join(app.config['UPLOAD_FOLDER'], arquivo.filename)
+    arquivo.save(caminho)
+
+    try:
+        todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.filter(ConfigAtividade.nome_xml != 'REGUA_MEGA').order_by(ConfigAtividade.id.asc()).all()]
+        configs = ConfigAtividade.query.filter(ConfigAtividade.is_ativa==True, ConfigAtividade.nome_xml != 'REGUA_MEGA').all()
+        mapa_configs = {c.nome_xml: c.pontos_padrao for c in configs}
+
+        dados_extraidos, hash_arquivo = analisar_xml_guilda(caminho, mapa_configs)
+
+        if ImportacaoXML.query.filter_by(semana="Acumulativo", hash_arquivo=hash_arquivo).first():
+            os.remove(caminho)
+            return jsonify({"erro": "Este arquivo exato já foi importado!"}), 409
+
+        if guilda_alvo == 'vortex':
+            jogadores_validos = {j.nome.lower().strip(): True for j in Jogador.query.all()}
+        else:
+            jogadores_validos = {a.nome_alt.lower().strip(): True for a in PersonagemSecundario.query.all()}
+
+        preview_dados = []
+
+        for d in dados_extraidos:
+            nome_limpo = d['nome'].strip()
+            encontrado = nome_limpo.lower() in jogadores_validos
+            
+            preview_dados.append({
+                "nome_xml": nome_limpo,
+                "encontrado_no_bd": encontrado,
+                "detalhes": d['atividades']
+            })
+
+        os.remove(caminho)
+        return jsonify({
+            "mensagem": "Pré-visualização gerada",
+            "hash": hash_arquivo,
+            "preview": preview_dados,
+            "atividades_encontradas": todas_atividades_db 
+        }), 200
+
+    except Exception as e:
+        if os.path.exists(caminho):
+            os.remove(caminho)
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/confirmar', methods=['POST'])
+def confirmar_importacao():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    
+    dados = request.get_json()
+    hash_arquivo = dados.get('hash')
+    jogadores_data = dados.get('jogadores', [])
+    cadastrar_novos = dados.get('cadastrar_novos', True) # Padrão True para sempre cadastrar novatos
+    guilda_alvo = dados.get('guilda_alvo', 'vortex')
+    eventos_selecionados = dados.get('eventos_selecionados', []) 
+    semana_fixa = "Acumulativo"
+
+    if ImportacaoXML.query.filter_by(semana=semana_fixa, hash_arquivo=hash_arquivo).first():
+        return jsonify({"erro": "Esta importação já foi confirmada."}), 409
+
+    try:
+        label_import = "Upload Diário (Vortex)" if guilda_alvo == 'vortex' else "Upload Semanal (BlackSkull)"
+        nova_importacao = ImportacaoXML(semana=semana_fixa, hash_arquivo=hash_arquivo, admin_responsavel="admin", nome_personalizado=label_import, tipo_arquivo="xml")
+        db.session.add(nova_importacao)
+        db.session.flush() 
+
+        if guilda_alvo == 'vortex':
+            nomes_importados = []
+            
+            for j_data in jogadores_data:
+                nome_xml = j_data['nome_xml'].strip()
+                if not nome_xml: continue
+                
+                nomes_importados.append(nome_xml.lower())
+                
+                jogador = Jogador.query.filter(func.lower(Jogador.nome) == nome_xml.lower()).first()
+                
+                if not jogador:
+                    if cadastrar_novos:
+                        jogador = Jogador(nome=nome_xml, status='Ativo')
+                        db.session.add(jogador)
+                        db.session.flush() 
+                    else:
+                        continue 
+                else:
+                    jogador.status = 'Ativo' # Garante reativação imediata
+
+                for atv in j_data['detalhes']:
+                    nome_atividade = atv['atividade']
+                    
+                    if nome_atividade not in eventos_selecionados:
+                        continue
+
+                    novo_ponto = Pontuacao(
+                        jogador_id=jogador.id,
+                        semana=semana_fixa,
+                        atividade=nome_atividade,
+                        pontos=atv['pontos'],
+                        importacao_id=nova_importacao.id
+                    )
+                    db.session.add(novo_ponto)
+            
+            # Inativa apenas jogadores que não vieram neste XML da guilda principal
+            if len(nomes_importados) > 0:
+                todos_jogadores = Jogador.query.all()
+                for j in todos_jogadores:
+                    if j.nome.lower().strip() not in nomes_importados:
+                        j.status = 'Inativo'
+                    
+        else:
+            alts_map = {a.nome_alt.lower().strip(): a.jogador_id for a in PersonagemSecundario.query.all()}
+            eventos_permitidos_bs = ['Raid de Guilda', 'Expedição da Guilda']
+            
+            for j_data in jogadores_data:
+                nome_xml = j_data['nome_xml'].lower().strip()
+                if nome_xml in alts_map:
+                    jogador_id = alts_map[nome_xml]
+                    
+                    total_pts = sum(
+                        a['pontos'] for a in j_data['detalhes'] 
+                        if a['atividade'] in eventos_permitidos_bs and a['atividade'] in eventos_selecionados
+                    )
+                    
+                    if total_pts > 0:
+                        novo_ponto = Pontuacao(
+                            jogador_id=jogador_id,
+                            semana=semana_fixa,
+                            atividade="BlackSkull",
+                            pontos=total_pts,
+                            importacao_id=nova_importacao.id
+                        )
+                        db.session.add(novo_ponto)
+
+        db.session.commit()
+        return jsonify({"mensagem": "Importação de Pontos concluída!"}), 200
+
+    except Exception as e:
+        db.session.rollback() 
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/importar-excel', methods=['POST'])
+def importar_excel():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    if 'excel_file' not in request.files: return jsonify({"erro": "Arquivo não enviado."}), 400
+
+    arquivo = request.files['excel_file']
+    caminho = os.path.join(app.config['UPLOAD_FOLDER'], arquivo.filename)
+    arquivo.save(caminho)
+
+    try: import openpyxl
+    except ImportError: return jsonify({"erro": "A biblioteca 'openpyxl' não está instalada."}), 500
+
+    try:
+        wb = openpyxl.load_workbook(caminho)
+        sheet = wb.active
+        headers = [str(cell.value).lower().strip() if cell.value else "" for cell in sheet[1]]
+        
+        idx_nome = next((i for i, h in enumerate(headers) if 'nome' in h or 'personagem' in h or 'jogador' in h), None)
+        idx_level = next((i for i, h in enumerate(headers) if 'level' in h or 'nivel' in h or 'nível' in h or 'lvl' in h), None)
+        idx_poder = next((i for i, h in enumerate(headers) if 'poder' in h or 'combate' in h or 'cp' in h), None)
+        
+        if idx_nome is None: raise ValueError("Coluna de 'Nome' não encontrada.")
+            
+        jogadores_atualizados = 0
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            nome_celula = row[idx_nome]
+            if not nome_celula: continue
+            
+            nome_str = str(nome_celula).strip()
+            if not nome_str: continue
+            
+            jogador = Jogador.query.filter(func.lower(Jogador.nome) == nome_str.lower()).first()
+            
+            # Se o jogador do Excel não existia no banco, ele é automaticamente criado
+            if not jogador:
+                jogador = Jogador(nome=nome_str, status='Ativo')
+                db.session.add(jogador)
+                db.session.flush()
+            else:
+                jogador.status = 'Ativo' # Reativa se estava inativo
+
+            if idx_level is not None and row[idx_level] is not None:
+                jogador.level = int(row[idx_level])
+            if idx_poder is not None and row[idx_poder] is not None:
+                poder_str = str(row[idx_poder]).replace('.', '').replace(',', '').strip()
+                jogador.poder_combate = int(poder_str)
+            jogadores_atualizados += 1
+
+        hash_arquivo = "EXCEL_" + str(datetime.utcnow().timestamp())
+        nova_importacao = ImportacaoXML(semana="Acumulativo", hash_arquivo=hash_arquivo, admin_responsavel="admin", nome_personalizado="Atualização de Atributos", tipo_arquivo="excel")
+        db.session.add(nova_importacao)
+        db.session.commit()
+        os.remove(caminho)
+        return jsonify({"mensagem": f"{jogadores_atualizados} jogadores atualizados/cadastrados!"}), 200
+        
+    except Exception as e:
+        if os.path.exists(caminho): os.remove(caminho)
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/editar-importacao', methods=['POST'])
+def editar_importacao():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    importacoes_data = dados.get('importacoes', [])
+    try:
+        for item in importacoes_data:
+            imp = db.session.get(ImportacaoXML, item['id'])
+            if imp: imp.nome_personalizado = item['nome']
+        db.session.commit()
+        return jsonify({"mensagem": "Nomes de upload atualizados com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/deletar-importacao/<int:id>', methods=['DELETE'])
+def deletar_importacao(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    try:
+        imp = db.session.get(ImportacaoXML, id)
+        if imp:
+            Pontuacao.query.filter_by(importacao_id=imp.id).delete()
+            db.session.delete(imp)
+            db.session.commit()
+            return jsonify({"mensagem": "Rollback concluído! Importação e pontos desfeitos."}), 200
+        return jsonify({"erro": "Registro não encontrado."}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/editar-jogadores', methods=['POST'])
+def editar_jogadores():
+    if not login_required(): return jsonify({"erro": "Acesso negado"}), 401
+    
+    dados = request.get_json()
+    jogadores_data = dados.get('jogadores', [])
+    user_role = session.get('role')
+    
+    try:
+        for item in jogadores_data:
+            jogador = db.session.get(Jogador, item['id'])
+            if jogador:
+                if 'nome' in item and item['nome'] and str(item['nome']).strip() != '':
+                    jogador.nome = str(item['nome']).strip()
+
+                if 'level' in item and item['level'] not in [None, '']:
+                    jogador.level = int(item['level'])
+                if 'poder_combate' in item and item['poder_combate'] not in [None, '']:
+                    jogador.poder_combate = int(item['poder_combate'])
+                
+                if 'classe' in item:
+                    jogador.classe = item['classe']
+                if 'skill_4' in item and item['skill_4'] is not None:
+                    jogador.skill_4 = bool(item['skill_4'])
+                if 'skill_5' in item and item['skill_5'] is not None:
+                    jogador.skill_5 = bool(item['skill_5'])
+                if 'skill_6' in item and item['skill_6'] is not None:
+                    jogador.skill_6 = bool(item['skill_6'])
+                if 'skill_7' in item and item['skill_7'] is not None:
+                    jogador.skill_7 = bool(item['skill_7'])
+                if 'constante_3' in item and item['constante_3'] is not None:
+                    jogador.constante_3 = bool(item['constante_3'])
+                if 'constante_4' in item and item['constante_4'] is not None:
+                    jogador.constante_4 = bool(item['constante_4'])
+                if 'trindade' in item and item['trindade'] is not None:
+                    jogador.trindade = bool(item['trindade'])
+                if 'mestre_tecnica' in item and item['mestre_tecnica'] is not None:
+                    jogador.mestre_tecnica = bool(item['mestre_tecnica'])
+                
+                if user_role == 'admin':
+                    if 'alts' in item and item['alts'] is not None:
+                        alts_string = item.get('alts', '')
+                        PersonagemSecundario.query.filter_by(jogador_id=jogador.id).delete()
+                        if alts_string:
+                            novos_alts = [n.strip() for n in alts_string.split(',') if n.strip()]
+                            for n_alt in novos_alts:
+                                existente = PersonagemSecundario.query.filter_by(nome_alt=n_alt).first()
+                                if not existente:
+                                    db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
+
+                    if 'eventos' in item:
+                        for atv_nome, novo_valor in item['eventos'].items():
+                            novo_valor = int(novo_valor)
+                            pts_atuais = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador.id, atividade=atv_nome).scalar() or 0
+                            
+                            diferenca = novo_valor - pts_atuais
+                            if diferenca != 0:
+                                ajuste = Pontuacao(
+                                    jogador_id=jogador.id,
+                                    semana="Ajuste Manual",
+                                    atividade=atv_nome,
+                                    pontos=diferenca,
+                                    motivo_ajuste="Edição direta do evento na tabela"
+                                )
+                                db.session.add(ajuste)
+
+                    if 'pontos' in item and item['pontos'] is not None:
+                        novo_total_desejado = int(item['pontos'])
+                        pts = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador.id).scalar() or 0
+                        pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador.id).scalar() or 0
+                        pontos_atuais = pts - pens
+                        
+                        diferenca_total = novo_total_desejado - pontos_atuais
+                        if diferenca_total != 0:
+                            ajuste = Pontuacao(
+                                jogador_id=jogador.id,
+                                semana="Ajuste Manual",
+                                atividade="Ajuste Manual",
+                                pontos=diferenca_total,
+                                motivo_ajuste="Ajuste direto do total na tabela"
+                            )
+                            db.session.add(ajuste)
+        
+        db.session.commit()
+        return jsonify({"mensagem": "Modificações salvas com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
 
 @app.route('/api/criar-evento', methods=['POST'])
-def api_criar_evento():
+def criar_evento():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     dados = request.get_json()
-    
-    # Desativa eventos anteriores
-    EventoSorteio.query.filter_by(ativo=True).update({'ativo': False})
-    
-    novo_evento = EventoSorteio(titulo=dados.get('titulo', 'NOVO SORTEIO'))
-    db.session.add(novo_evento)
-    db.session.flush()
+    nome = dados.get('nome')
+    tipo = dados.get('tipo')
+    pontos = dados.get('pontos')
 
-    for item in dados.get('itens', []):
-        db.session.add(EventoItem(evento_id=novo_evento.id, nome_item=item['nome'], max_pontos=float(item['max_pontos'])))
-    
-    db.session.commit()
-    return jsonify({"mensagem": "Evento de sorteio publicado!"}), 200
-
-@app.route('/api/encerrar-evento', methods=['POST'])
-def api_encerrar_evento():
-    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    EventoSorteio.query.filter_by(ativo=True).update({'ativo': False})
-    db.session.commit()
-    return jsonify({"mensagem": "Evento encerrado e banner removido."}), 200
-
-@app.route('/api/apostar-item', methods=['POST'])
-def api_apostar_item():
-    if not login_required(): return jsonify({"erro": "Faça login para apostar"}), 401
-    dados = request.get_json()
-    item_id = dados.get('item_id')
-    jogador_id = dados.get('jogador_id')
-    pontos = float(dados.get('pontos', 0))
-
-    if pontos <= 0: return jsonify({"erro": "Pontos inválidos"}), 400
-
-    item = db.session.get(EventoItem, item_id)
-    if not item or item.sorteado: return jsonify({"erro": "Item inválido ou já sorteado"}), 400
-
-    # Verifica se já existe aposta do player neste item, se sim, atualiza, senão, cria
-    aposta = ApostaSorteio.query.filter_by(item_id=item_id, jogador_id=jogador_id).first()
-    if aposta:
-        aposta.pontos = pontos
-    else:
-        db.session.add(ApostaSorteio(item_id=item_id, jogador_id=jogador_id, pontos=pontos))
-    
-    db.session.commit()
-    return jsonify({"mensagem": "Aposta registrada com sucesso! Ponto só será descontado se você vencer."}), 200
-
-@app.route('/api/remover-aposta/<int:id>', methods=['DELETE'])
-def api_remover_aposta(id):
-    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    aposta = db.session.get(ApostaSorteio, id)
-    if aposta:
-        db.session.delete(aposta)
+    try:
+        novo_evento = ConfigAtividade(nome_xml=nome, pontos_padrao=int(pontos), tipo_evento=tipo)
+        db.session.add(novo_evento)
         db.session.commit()
-    return jsonify({"mensagem": "Aposta removida."}), 200
+        return jsonify({"mensagem": "Novo evento criado!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": "Erro ao criar."}), 500
 
-@app.route('/api/realizar-sorteio-item', methods=['POST'])
-def api_realizar_sorteio_item():
+@app.route('/api/salvar-configuracoes', methods=['POST'])
+def salvar_configuracoes():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    item_id = request.get_json().get('item_id')
+    dados = request.get_json()
+    configs_data = dados.get('configs', [])
+    try:
+        for item in configs_data:
+            conf = db.session.get(ConfigAtividade, item['id'])
+            if conf:
+                novo_valor = int(item['pontos'])
+                conf.pontos_padrao = novo_valor
+                Pontuacao.query.filter_by(atividade=conf.nome_xml).update({'pontos': novo_valor})
+        db.session.commit()
+        return jsonify({"mensagem": "Matriz atualizada!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/realizar-sorteio', methods=['POST'])
+def realizar_sorteio():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
     
-    item = db.session.get(EventoItem, item_id)
-    if not item or item.sorteado: return jsonify({"erro": "Item já sorteado."}), 400
+    # Nova estrutura espera um array de objetos: [{"id": 1, "pontos": 10}, {"id": 5, "pontos": 50}]
+    participantes_data = dados.get('participantes', [])
+    max_pontos = float(dados.get('max_pontos_totais', 100))
 
-    apostas = ApostaSorteio.query.filter_by(item_id=item_id).all()
-    if not apostas: return jsonify({"erro": "Nenhum participante apostou neste item ainda."}), 400
+    if not participantes_data or max_pontos <= 0:
+        return jsonify({"erro": "Nenhum participante ou valor de pontos totais inválido."}), 400
 
-    fatias = {}
-    candidatos = []
-    pesos = []
-    soma_porcentagens = 0.0
+    try:
+        fatias = {}
+        candidatos = []
+        pesos = []
+        soma_porcentagens = 0.0
 
-    for ap in apostas:
-        porcentagem = (ap.pontos / item.max_pontos) * 100.0
-        fatias[ap.jogador.nome] = porcentagem
-        soma_porcentagens += porcentagem
-        candidatos.append({"id": ap.jogador.id, "nome": ap.jogador.nome, "pontos_apostados": ap.pontos, "is_staff": False})
-        pesos.append(porcentagem)
+        for p in participantes_data:
+            jogador = db.session.get(Jogador, p['id'])
+            if jogador:
+                pontos_gastos = float(p.get('pontos', 0))
+                porcentagem = (pontos_gastos / max_pontos) * 100.0
+                fatias[jogador.nome] = porcentagem
+                soma_porcentagens += porcentagem
 
-    # O que sobrar vai pra Staff
-    porcentagem_staff = 100.0 - soma_porcentagens
-    if porcentagem_staff > 0:
-        fatias['Staff (Administração)'] = porcentagem_staff
-        candidatos.append({"id": None, "nome": 'Staff (Administração)', "pontos_apostados": 0, "is_staff": True})
-        pesos.append(porcentagem_staff)
+                candidatos.append({
+                    "id": jogador.id, 
+                    "nome": jogador.nome, 
+                    "is_staff": False
+                })
+                pesos.append(porcentagem)
 
-    # Sorteio Quântico
-    vencedor = random.choices(candidatos, weights=pesos, k=1)[0]
+        # Porcentagem restante fica fixa para a Staff
+        porcentagem_staff = 100.0 - soma_porcentagens
+        if porcentagem_staff > 0:
+            fatias['Staff (Administração)'] = porcentagem_staff
+            candidatos.append({
+                "id": None, 
+                "nome": 'Staff (Administração)', 
+                "is_staff": True
+            })
+            pesos.append(porcentagem_staff)
+
+        # Realiza o sorteio baseado nas porcentagens (pesos)
+        vencedor = random.choices(candidatos, weights=pesos, k=1)[0]
+
+        # Registra no histórico apenas se for um jogador (Staff não tem ID na tabela jogadores)
+        if not vencedor['is_staff']:
+            novo_sorteio = SorteioHistorico(jogador_id=vencedor['id'], observacao="Roleta de Pontos")
+            db.session.add(novo_sorteio)
+            db.session.commit()
+
+        return jsonify({
+            "vencedor_nome": vencedor['nome'],
+            "vencedor_id": vencedor['id'],
+            "fatias": fatias
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/realizar-sorteio-meme', methods=['POST'])
+def realizar_sorteio_meme():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    jogadores_ids = dados.get('jogadores_ids', [])
+    item_sorteado = dados.get('item', 'Item Misterioso')
     
-    # Atualiza o Item
-    item.sorteado = True
-    item.vencedor_nome = vencedor['nome']
-    
-    # REGRA: Somente debita pontos se for um Jogador que venceu (Apenas quem ganha perde os pontos)
-    if not vencedor['is_staff']:
-        novo_sorteio = SorteioHistorico(
-            jogador_id=vencedor['id'], 
-            observacao=f"Venceu: {item.nome_item}",
-            penalidade=int(vencedor['pontos_apostados']) # Deduz apenas os pontos apostados pelo vencedor
-        )
-        db.session.add(novo_sorteio)
+    if not jogadores_ids: return jsonify({"erro": "Nenhum jogador selecionado."}), 400
+    try:
+        vencedor_id = random.choice(jogadores_ids)
+        vencedor = db.session.get(Jogador, vencedor_id)
+        
+        novo_sorteio_meme = SorteioMemeHistorico(jogador_id=vencedor.id, item_sorteado=item_sorteado)
+        db.session.add(novo_sorteio_meme)
+        db.session.commit()
+        
+        return jsonify({"vencedor_nome": vencedor.nome, "vencedor_id": vencedor.id, "item": item_sorteado}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
 
-    db.session.commit()
+@app.route('/api/editar-historico-meme', methods=['POST'])
+def editar_historico_meme():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    historico_data = dados.get('historico', [])
+    try:
+        for item in historico_data:
+            reg = db.session.get(SorteioMemeHistorico, item['id'])
+            if reg:
+                reg.observacao = item['observacao']
+        db.session.commit()
+        return jsonify({"mensagem": "Registros gravados!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
 
-    return jsonify({
-        "vencedor_nome": vencedor['nome'],
-        "vencedor_id": vencedor['id'],
-        "fatias": fatias
-    }), 200
+@app.route('/api/deletar-historico-meme/<int:id>', methods=['DELETE'])
+def deletar_historico_meme(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    try:
+        reg = db.session.get(SorteioMemeHistorico, id)
+        if reg:
+            db.session.delete(reg)
+            db.session.commit()
+            return jsonify({"mensagem": "Registro purgado!"}), 200
+        return jsonify({"erro": "Não encontrado."}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
 
-# ================= AS DEMAIS ROTAS CONTINUAM INTACTAS =================
-# (Mantenha as rotas /api/importar, /api/editar-jogadores, /api/realizar-sorteio-meme, etc. exatamente como você já tinha nas versões anteriores)
+@app.route('/api/editar-historico', methods=['POST'])
+def editar_historico():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    historico_data = dados.get('historico', [])
+    try:
+        for item in historico_data:
+            reg = db.session.get(SorteioHistorico, item['id'])
+            if reg:
+                reg.observacao = item['observacao']
+                reg.penalidade = int(item['penalidade'])
+        db.session.commit()
+        return jsonify({"mensagem": "Registros gravados!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/deletar-historico/<int:id>', methods=['DELETE'])
+def deletar_historico(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    try:
+        reg = db.session.get(SorteioHistorico, id)
+        if reg:
+            db.session.delete(reg)
+            db.session.commit()
+            return jsonify({"mensagem": "Registro purgado!"}), 200
+        return jsonify({"erro": "Não encontrado."}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"erro": str(e)}), 500
 
 with app.app_context():
     db.create_all()
-    # Adicionando checagem de colunas para garantir que o SQLite ou Postgres se atualizem sozinhos
+
+    # MIGRATION: Garante que as colunas Status, Classe e Milestones existem
     colunas_jogadores = {
-        'status': "VARCHAR(20) DEFAULT 'Ativo'", 'classe': "VARCHAR(50) DEFAULT ''",
-        'skill_4': 'BOOLEAN DEFAULT FALSE', 'skill_5': 'BOOLEAN DEFAULT FALSE',
-        'skill_6': 'BOOLEAN DEFAULT FALSE', 'skill_7': 'BOOLEAN DEFAULT FALSE',
-        'constante_3': 'BOOLEAN DEFAULT FALSE', 'constante_4': 'BOOLEAN DEFAULT FALSE',
-        'trindade': 'BOOLEAN DEFAULT FALSE', 'mestre_tecnica': 'BOOLEAN DEFAULT FALSE'
+        'status': "VARCHAR(20) DEFAULT 'Ativo'",
+        'classe': "VARCHAR(50) DEFAULT ''",
+        'skill_4': 'BOOLEAN DEFAULT FALSE',
+        'skill_5': 'BOOLEAN DEFAULT FALSE',
+        'skill_6': 'BOOLEAN DEFAULT FALSE',
+        'skill_7': 'BOOLEAN DEFAULT FALSE',
+        'constante_3': 'BOOLEAN DEFAULT FALSE',
+        'constante_4': 'BOOLEAN DEFAULT FALSE',
+        'trindade': 'BOOLEAN DEFAULT FALSE',
+        'mestre_tecnica': 'BOOLEAN DEFAULT FALSE'
     }
+
     for col, tipo in colunas_jogadores.items():
         try:
             db.session.execute(text(f'SELECT {col} FROM jogadores LIMIT 1'))
@@ -322,8 +743,67 @@ with app.app_context():
             try:
                 db.session.execute(text(f'ALTER TABLE jogadores ADD COLUMN {col} {tipo}'))
                 db.session.commit()
-            except Exception:
+            except Exception as e:
                 db.session.rollback()
+
+    # RECUPERAÇÃO AUTOMÁTICA: Define 'Ativo' para qualquer registro sem status
+    try:
+        db.session.execute(text("UPDATE jogadores SET status = 'Ativo' WHERE status IS NULL OR status = ''"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        db.session.execute(text('SELECT tipo_evento FROM config_atividades LIMIT 1'))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE config_atividades ADD COLUMN tipo_evento VARCHAR(20) DEFAULT 'diario'"))
+            db.session.commit()
+            eventos_semanais = "'Raid de Guilda', 'Expedição da Guilda', 'Confronto pelo Paraíso', 'Campo de Batalha de Aço', 'Escaramuça', 'Guerra de Mineração', 'Fortaleza Albern'"
+            db.session.execute(text(f"UPDATE config_atividades SET tipo_evento = 'semanal' WHERE nome_xml IN ({eventos_semanais})"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    try:
+        db.session.execute(text('SELECT nome_personalizado FROM importacoes LIMIT 1'))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE importacoes ADD COLUMN nome_personalizado VARCHAR(100) DEFAULT ''"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        
+    try:
+        db.session.execute(text('SELECT tipo_arquivo FROM importacoes LIMIT 1'))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE importacoes ADD COLUMN tipo_arquivo VARCHAR(20) DEFAULT 'xml'"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    if not ConfigAtividade.query.first():
+        atividades_iniciais = [
+            ('Verificado', 'diario'), ('Doar', 'diario'), ('Atividade da Guilda', 'diario'), 
+            ('Raid de Guilda', 'semanal'), ('Expedição da Guilda', 'semanal'), 
+            ('Confronto pelo Paraíso', 'semanal'), ('Campo de Batalha de Aço', 'semanal'), 
+            ('Escaramuça', 'semanal'), ('Guerra de Mineração', 'semanal'), ('Fortaleza Albern', 'semanal')
+        ]
+        for atv, tipo in atividades_iniciais:
+            db.session.add(ConfigAtividade(nome_xml=atv, pontos_padrao=1, tipo_evento=tipo))
+        db.session.commit()
+
+    try:
+        regua = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
+        if not regua:
+            db.session.add(ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=100000, tipo_evento='sistema', is_ativa=False))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
