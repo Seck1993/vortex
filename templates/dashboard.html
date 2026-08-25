@@ -151,6 +151,36 @@
             background-color: rgba(255, 215, 0, 0.1) !important;
             border-left: 3px solid var(--gold-mega) !important;
         }
+
+        /* ESTILOS DA ROLETA VISUAL DE PONTOS */
+        .roleta-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 20px auto;
+        }
+        .roleta-circulo {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid var(--neon-cyan);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
+            overflow: hidden;
+            transform: rotate(0deg);
+        }
+        .roleta-ponteiro {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid var(--neon-red);
+            z-index: 10;
+            filter: drop-shadow(0 0 10px var(--neon-red));
+        }
         
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-dark); }
@@ -212,7 +242,7 @@
                 {% if session.get('logged_in') %}
                 <div style="display: flex; gap: 15px;">
                     {% if user_role == 'admin' %}
-                        <button class="btn btn-warning" onclick="abrirRoleta()">🎲 Módulo de Sorteio</button>
+                        <button class="btn btn-warning" onclick="abrirSetupSorteio()">🎲 Módulo de Sorteio</button>
                     {% endif %}
                     <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
                 </div>
@@ -719,17 +749,62 @@
         </div>
     </div>
 
-    <div id="modalRoleta" class="modal-overlay" style="z-index: 110;">
+    <!-- Modal Roleta Texto Original (Para o Sorteio Meme) -->
+    <div id="modalRoletaMeme" class="modal-overlay" style="z-index: 110;">
         <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 500px;">
-            <h2 style="color: var(--neon-orange); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(255,170,0,0.5);">GERADOR QUÂNTICO</h2>
-            <p id="tituloRoleta" style="color: var(--text-light); font-weight: bold; margin-bottom: 8px; font-size: 18px;"></p>
+            <h2 style="color: var(--neon-orange); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(255,170,0,0.5);">GERADOR QUÂNTICO (MEME)</h2>
+            <p id="tituloRoletaMeme" style="color: var(--text-light); font-weight: bold; margin-bottom: 8px; font-size: 18px;"></p>
             <p style="color: var(--text-muted); margin-bottom: 25px; font-family: monospace; font-size: 15px;">Processando algoritmos de aleatoriedade...</p>
             
-            <div class="roleta-box" style="font-size: 40px; padding: 40px;"><span id="roletaNome">---</span></div>
+            <div class="roleta-box" style="font-size: 40px; padding: 40px;"><span id="roletaNomeMeme">---</span></div>
             
-            <button id="btnFecharRoleta" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 25px auto 0; font-size: 18px;">Concluir e Registrar</button>
+            <button id="btnFecharRoletaMeme" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 25px auto 0; font-size: 18px;">Concluir e Registrar</button>
         </div>
     </div>
+
+    <!-- NOVO: Modal Setup Sorteio (Pontos) -->
+    <div id="modalSetupSorteio" class="modal-overlay" style="z-index: 110;">
+        <div class="modal-content" style="border-color: var(--neon-orange); width: 450px;">
+            <h2 style="color: var(--neon-orange); text-shadow: 0 0 10px rgba(255,170,0,0.5); margin-top:0;">Configurar Apostas</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="color:var(--text-light); font-weight:bold; display:block; margin-bottom:5px;">Pontuação Máxima da Roleta (100%):</label>
+                <input type="number" id="maxPontosRoleta" class="input-edit" value="100" style="width: 100%; border-color: var(--neon-orange); font-size: 20px;">
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="color:var(--text-light); font-weight:bold;">Pontos investidos por participante:</label>
+            </div>
+            
+            <div id="listaParticipantesSetup" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.5); padding: 15px; border-radius:4px; margin-bottom:20px; border:1px solid var(--glass-border);">
+            </div>
+            
+            <div style="display:flex; justify-content:space-between;">
+                <button class="btn btn-outline" onclick="fecharModal('modalSetupSorteio')">Cancelar</button>
+                <button id="btnGirarRoletaAcao" class="btn btn-warning" onclick="iniciarRoletaValendo()">Girar Roleta Visual</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO: Modal Roleta Visual (Pontos) -->
+    <div id="modalRoletaPontos" class="modal-overlay" style="z-index: 120;">
+        <div class="modal-content" style="border-color: var(--neon-cyan); text-align: center; width: 600px;">
+            <h2 style="color: var(--neon-cyan); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(0,243,255,0.5); margin-top:0;">ROLETA DE ESPÓLIOS</h2>
+            
+            <div class="roleta-container">
+                <div class="roleta-ponteiro"></div>
+                <div id="roletaCirculo" class="roleta-circulo"></div>
+            </div>
+
+            <div id="roletaLegenda" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:20px; max-height:120px; overflow-y:auto; padding:10px; background:rgba(0,0,0,0.4); border-radius:4px;">
+            </div>
+
+            <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
+            
+            <button id="btnFecharRoletaPontos" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;">Concluir e Registrar</button>
+        </div>
+    </div>
+
     {% endif %}
 
     <script>
@@ -763,7 +838,7 @@
                         clone.classList.add('mega-clone');
                         
                         // Desabilita inputs de edição no clone (para evitar conflitos de salvar)
-                        clone.querySelectorAll('.input-edit, select').forEach(el => {
+                        clone.querySelectorAll('.input-edit, select, input[type="checkbox"]').forEach(el => {
                             el.disabled = true;
                             el.style.opacity = '0.6';
                             el.title = "Visualização Mega. Desça para a lista geral para editar.";
@@ -1119,11 +1194,12 @@
             document.querySelectorAll('.check-sorteio').forEach(cb => cb.checked = source.checked);
         }
 
-        async function abrirRoleta() {
+        /* ----- NOVA LÓGICA DE SORTEIO COM PONTOS (VISUAL) ----- */
+        function abrirSetupSorteio() {
             const checkboxes = document.querySelectorAll('.check-sorteio:checked');
-            if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio.'); return; }
+            if (checkboxes.length === 0) { alert('Selecione os participantes primeiro para configurar a roleta.'); return; }
 
-            // Usando um Set para prevenir que os jogadores clonados (Megas) tenham seus nomes duplicados no sorteio
+            // Usa um Set para evitar jogadores clonados (Megas) duplicados no Setup
             const idsSet = new Set();
             const nomesMap = new Map();
             
@@ -1132,34 +1208,134 @@
                 nomesMap.set(cb.value, cb.dataset.nome);
             });
 
-            const idsSelecionados = Array.from(idsSet);
-            const nomesSelecionados = idsSelecionados.map(id => nomesMap.get(id));
+            const lista = document.getElementById('listaParticipantesSetup');
+            lista.innerHTML = '';
             
-            const roletaNome = document.getElementById('roletaNome');
-            const btnFecharRoleta = document.getElementById('btnFecharRoleta');
-            document.getElementById('tituloRoleta').innerText = ""; 
-            roletaNome.style.color = "white"; btnFecharRoleta.style.display = 'none';
-            document.getElementById('modalRoleta').style.display = 'flex';
+            idsSet.forEach(id => {
+                const nome = nomesMap.get(id);
+                lista.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom:8px;">
+                        <span style="color:#fff; font-size:18px;">${nome}</span>
+                        <input type="number" class="input-edit pts-aposta" data-id="${id}" value="10" style="width:90px;" min="0">
+                    </div>
+                `;
+            });
 
-            let i = 0;
-            const intervaloAnimacao = setInterval(() => { roletaNome.innerText = nomesSelecionados[i % nomesSelecionados.length]; i++; }, 50);
+            abrirModal('modalSetupSorteio');
+        }
+
+        async function iniciarRoletaValendo() {
+            const maxPontos = parseFloat(document.getElementById('maxPontosRoleta').value);
+            if(isNaN(maxPontos) || maxPontos <= 0) { alert('Pontuação máxima inválida.'); return; }
+
+            let payload = {
+                max_pontos_totais: maxPontos,
+                participantes: []
+            };
+
+            document.querySelectorAll('.pts-aposta').forEach(input => {
+                payload.participantes.push({
+                    id: input.dataset.id,
+                    pontos: parseFloat(input.value || 0)
+                });
+            });
+
+            const btn = document.getElementById('btnGirarRoletaAcao');
+            btn.disabled = true;
+            btn.innerText = 'Calculando Probabilidades...';
 
             try {
                 const response = await fetch('/api/realizar-sorteio', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores_ids: idsSelecionados })
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
-                if (response.ok) {
-                    setTimeout(() => {
-                        clearInterval(intervaloAnimacao);
-                        roletaNome.innerText = "► " + data.vencedor_nome + " ◄";
-                        roletaNome.style.color = "var(--neon-green)"; 
-                        roletaNome.style.textShadow = "0 0 20px rgba(0,255,102,0.8)";
-                        btnFecharRoleta.style.display = 'block';
-                    }, 2500); 
-                } else { clearInterval(intervaloAnimacao); alert("Falha: " + data.erro); document.getElementById('modalRoleta').style.display = 'none'; }
-            } catch (error) { clearInterval(intervaloAnimacao); alert('Falha de rede.'); document.getElementById('modalRoleta').style.display = 'none'; }
+
+                if(response.ok) {
+                    fecharModal('modalSetupSorteio');
+                    mostrarRoletaVisual(data.fatias, data.vencedor_nome);
+                } else {
+                    alert('Erro: ' + data.erro);
+                }
+            } catch(e) {
+                alert('Falha na requisição.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Girar Roleta Visual';
+            }
         }
+
+        function mostrarRoletaVisual(fatias, vencedorNome) {
+            abrirModal('modalRoletaPontos');
+            const roleta = document.getElementById('roletaCirculo');
+            const roletaLabel = document.getElementById('roletaVencedorLabel');
+            const btnFechar = document.getElementById('btnFecharRoletaPontos');
+            
+            // Reseta estilos da animação anterior
+            roleta.style.transition = 'none';
+            roleta.style.transform = 'rotate(0deg)';
+            roletaLabel.style.display = 'none';
+            btnFechar.style.display = 'none';
+
+            // Cores vibrantes
+            const cores = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#00f3ff', '#bc13fe', '#ffaa00', '#ff003c', '#10b981'];
+            let gradientParts = [];
+            let legendaHtml = '';
+            
+            let acumulado = 0;
+            let i = 0;
+            let startWinDeg = 0;
+            let endWinDeg = 0;
+
+            for (const [nome, porcentagem] of Object.entries(fatias)) {
+                const p = parseFloat(porcentagem);
+                if (p <= 0) continue;
+
+                const cor = cores[i % cores.length];
+                gradientParts.push(`${cor} ${acumulado}% ${acumulado + p}%`);
+                
+                legendaHtml += `<div style="display:flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;background:${cor};border-radius:3px;"></span><span style="color:#fff;font-size:14px;">${nome} (${p.toFixed(1)}%)</span></div>`;
+
+                // Guarda os ângulos (em graus) da fatia vencedora para a matemática da rotação
+                if (nome === vencedorNome) {
+                    startWinDeg = (acumulado / 100) * 360;
+                    endWinDeg = ((acumulado + p) / 100) * 360;
+                }
+
+                acumulado += p;
+                i++;
+            }
+
+            roleta.style.background = `conic-gradient(${gradientParts.join(', ')})`;
+            document.getElementById('roletaLegenda').innerHTML = legendaHtml;
+
+            // Inicia o giro após um brevíssimo delay (para o browser aplicar o CSS resetado acima)
+            setTimeout(() => {
+                // Sorteia um ponto aleatório dentro da fatia do vencedor
+                const winDeg = startWinDeg + (Math.random() * (endWinDeg - startWinDeg));
+                
+                // O pointer está fixo no Topo (0 graus / 360 graus). 
+                // A roleta roda em sentido horário. Para o winDeg chegar ao Topo, precisamos girar (360 - winDeg).
+                const rotacaoBaseParaTopo = 360 - winDeg;
+                
+                // Adiciona múltiplas voltas completas para o efeito visual da roleta girando
+                const voltasCompletas = 360 * 10; 
+                const finalRotation = voltasCompletas + rotacaoBaseParaTopo;
+
+                // Aplica uma transição suave que desacelera no final (ease-out)
+                roleta.style.transition = 'transform 5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                roleta.style.transform = `rotate(${finalRotation}deg)`;
+
+                // Mostra o resultado após a animação de 5 segundos
+                setTimeout(() => {
+                    roletaLabel.innerText = "🏆 " + vencedorNome + " 🏆";
+                    roletaLabel.style.display = 'block';
+                    btnFechar.style.display = 'block';
+                }, 5200);
+            }, 100);
+        }
+        /* ---------------------------------------------------- */
 
         async function salvarHistorico() {
             let historicoData = [];
@@ -1192,6 +1368,7 @@
             document.querySelectorAll('.check-meme').forEach(cb => cb.checked = source.checked);
         }
 
+        /* Lógica Mantida Intacta para o Sorteio Meme (Trocando Nomes) */
         async function abrirRoletaMeme() {
             const checkboxes = document.querySelectorAll('.check-meme:checked');
             const itemInput = document.getElementById('inputItemMeme').value.trim();
@@ -1211,17 +1388,17 @@
             const idsSelecionados = Array.from(idsSet);
             const nomesSelecionados = idsSelecionados.map(id => nomesMap.get(id));
             
-            const roletaNome = document.getElementById('roletaNome');
-            const btnFecharRoleta = document.getElementById('btnFecharRoleta');
-            const tituloRoleta = document.getElementById('tituloRoleta');
+            const roletaNomeMeme = document.getElementById('roletaNomeMeme');
+            const btnFecharRoletaMeme = document.getElementById('btnFecharRoletaMeme');
+            const tituloRoletaMeme = document.getElementById('tituloRoletaMeme');
             
-            tituloRoleta.innerText = `Sorteando (Meme): ${itemInput.toUpperCase()}`;
-            roletaNome.style.color = "white"; 
-            btnFecharRoleta.style.display = 'none';
-            document.getElementById('modalRoleta').style.display = 'flex';
+            tituloRoletaMeme.innerText = `Sorteando (Meme): ${itemInput.toUpperCase()}`;
+            roletaNomeMeme.style.color = "white"; 
+            btnFecharRoletaMeme.style.display = 'none';
+            abrirModal('modalRoletaMeme');
 
             let i = 0;
-            const intervaloAnimacao = setInterval(() => { roletaNome.innerText = nomesSelecionados[i % nomesSelecionados.length]; i++; }, 50);
+            const intervaloAnimacao = setInterval(() => { roletaNomeMeme.innerText = nomesSelecionados[i % nomesSelecionados.length]; i++; }, 50);
 
             try {
                 const response = await fetch('/api/realizar-sorteio-meme', {
@@ -1233,13 +1410,13 @@
                 if (response.ok) {
                     setTimeout(() => {
                         clearInterval(intervaloAnimacao);
-                        roletaNome.innerText = "🏆 " + data.vencedor_nome + " 🏆";
-                        roletaNome.style.color = "var(--neon-cyan)"; 
-                        roletaNome.style.textShadow = "0 0 20px rgba(0,243,255,0.8)";
-                        btnFecharRoleta.style.display = 'block';
+                        roletaNomeMeme.innerText = "🏆 " + data.vencedor_nome + " 🏆";
+                        roletaNomeMeme.style.color = "var(--neon-cyan)"; 
+                        roletaNomeMeme.style.textShadow = "0 0 20px rgba(0,243,255,0.8)";
+                        btnFecharRoletaMeme.style.display = 'block';
                     }, 2500); 
-                } else { clearInterval(intervaloAnimacao); alert("Falha: " + data.erro); document.getElementById('modalRoleta').style.display = 'none'; }
-            } catch (error) { clearInterval(intervaloAnimacao); alert('Falha de rede.'); document.getElementById('modalRoleta').style.display = 'none'; }
+                } else { clearInterval(intervaloAnimacao); alert("Falha: " + data.erro); fecharModal('modalRoletaMeme'); }
+            } catch (error) { clearInterval(intervaloAnimacao); alert('Falha de rede.'); fecharModal('modalRoletaMeme'); }
         }
 
         async function salvarHistoricoMeme() {
