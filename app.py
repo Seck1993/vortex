@@ -82,16 +82,15 @@ def index():
         mapa_pontos[pid]['penalidades'] += pen
         mapa_pontos[pid]['total_final'] -= pen
 
-    # Exibe os jogadores com status Ativo ou os antigos que ainda estão vazios
+    # Exibe todos os jogadores com status Ativo ou ainda sem status definido
     jogadores = Jogador.query.filter(
         db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')
     ).all()
     
     # --- LÓGICA DE REGRA DE NEGÓCIO DA SEMANA ---
-    # A base do SECK também é calculada através do seu rendimento bruto
     pontuacao_seck = 0
     for j in jogadores:
-        if j.nome.upper() == 'SECK':
+        if j.nome.upper().strip() == 'SECK':
             seck_data = mapa_pontos.get(j.id, {})
             pontuacao_seck = seck_data.get('total_bruto', 0)
             break
@@ -102,11 +101,10 @@ def index():
     for j in jogadores:
         p_data = mapa_pontos.get(j.id, {'total_bruto': 0, 'total_final': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0})
         
-        # Variáveis separadas para cálculo
         total_bruto = p_data['total_bruto']
         total_final = p_data['total_final']
         
-        # 2. Calcular a participação percentual baseado APENAS no bruto (antes dos descontos)
+        # Calcular participação percentual e diamantes
         if pontuacao_seck > 0:
             if total_bruto >= pontuacao_seck:
                 participacao = 100.0
@@ -125,10 +123,10 @@ def index():
         ranking.append({
             'jogador': j,
             'alts_str': ', '.join(alts_list),
-            'pontos': total_final,             # O saldo final para o ranking continuar correto
+            'pontos': total_final,
             'pontos_base': pontos_base,
             'pontos_diamante': pontos_diamante,
-            'participacao': participacao,      # Porcentagem 100% real de assiduidade
+            'participacao': participacao,
             'atividades': p_data['atividades'],
             'blackskull': p_data['blackskull'],
             'ajustes': p_data['ajustes'],
@@ -136,10 +134,10 @@ def index():
         })
         soma_total_pontos += total_final
 
-    # Ordenação base por nome (alfabética)
+    # Ordenação base por nome
     ranking.sort(key=lambda x: x['jogador'].nome.lower())
     
-    # 3. Nova Regra de Desempate: Pontos Totais -> Poder de Combate -> Level
+    # Regra de Desempate: Pontos Totais -> Poder de Combate -> Level
     ranking.sort(key=lambda x: (x['pontos'], x['jogador'].poder_combate, x['jogador'].level), reverse=True)
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
@@ -159,7 +157,7 @@ def index():
         total_jogadores=total_jogadores,
         soma_total_pontos=soma_total_pontos,
         user_role=user_role,
-        cp_mega=cp_mega # Variável renderizada globalmente para todos
+        cp_mega=cp_mega
     )
 
 @app.route('/api/login', methods=['POST'])
@@ -190,7 +188,6 @@ def admin_required():
 def login_required():
     return session.get('logged_in')
 
-# --- NOVA ROTA: SALVAR RÉGUA MEGA NO BANCO ---
 @app.route('/api/salvar-regua-mega', methods=['POST'])
 def salvar_regua_mega():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -227,7 +224,6 @@ def importar_xml():
     arquivo.save(caminho)
 
     try:
-        # Filtramos para não vazar a configuração MEGA no import
         todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.filter(ConfigAtividade.nome_xml != 'REGUA_MEGA').order_by(ConfigAtividade.id.asc()).all()]
         configs = ConfigAtividade.query.filter(ConfigAtividade.is_ativa==True, ConfigAtividade.nome_xml != 'REGUA_MEGA').all()
         mapa_configs = {c.nome_xml: c.pontos_padrao for c in configs}
@@ -239,18 +235,18 @@ def importar_xml():
             return jsonify({"erro": "Este arquivo exato já foi importado!"}), 409
 
         if guilda_alvo == 'vortex':
-            jogadores_validos = {j.nome.lower(): True for j in Jogador.query.all()}
+            jogadores_validos = {j.nome.lower().strip(): True for j in Jogador.query.all()}
         else:
-            jogadores_validos = {a.nome_alt.lower(): True for a in PersonagemSecundario.query.all()}
+            jogadores_validos = {a.nome_alt.lower().strip(): True for a in PersonagemSecundario.query.all()}
 
         preview_dados = []
 
         for d in dados_extraidos:
-            nome_lower = d['nome'].lower()
-            encontrado = nome_lower in jogadores_validos
+            nome_limpo = d['nome'].strip()
+            encontrado = nome_limpo.lower() in jogadores_validos
             
             preview_dados.append({
-                "nome_xml": d['nome'],
+                "nome_xml": nome_limpo,
                 "encontrado_no_bd": encontrado,
                 "detalhes": d['atividades']
             })
@@ -274,8 +270,8 @@ def confirmar_importacao():
     
     dados = request.get_json()
     hash_arquivo = dados.get('hash')
-    jogadores_data = dados.get('jogadores')
-    cadastrar_novos = dados.get('cadastrar_novos', False)
+    jogadores_data = dados.get('jogadores', [])
+    cadastrar_novos = dados.get('cadastrar_novos', True) # Padrão True para sempre cadastrar novatos
     guilda_alvo = dados.get('guilda_alvo', 'vortex')
     eventos_selecionados = dados.get('eventos_selecionados', []) 
     semana_fixa = "Acumulativo"
@@ -293,7 +289,9 @@ def confirmar_importacao():
             nomes_importados = []
             
             for j_data in jogadores_data:
-                nome_xml = j_data['nome_xml']
+                nome_xml = j_data['nome_xml'].strip()
+                if not nome_xml: continue
+                
                 nomes_importados.append(nome_xml.lower())
                 
                 jogador = Jogador.query.filter(func.lower(Jogador.nome) == nome_xml.lower()).first()
@@ -306,7 +304,7 @@ def confirmar_importacao():
                     else:
                         continue 
                 else:
-                    jogador.status = 'Ativo' # Reativa o jogador caso ele volte à guilda
+                    jogador.status = 'Ativo' # Garante reativação imediata
 
                 for atv in j_data['detalhes']:
                     nome_atividade = atv['atividade']
@@ -323,24 +321,19 @@ def confirmar_importacao():
                     )
                     db.session.add(novo_ponto)
             
-            # Nova regra: inativa quem não veio no arquivo XML da guilda principal
-            jogadores_ativos = Jogador.query.filter(
-                db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')
-            ).all()
-            
-            # Corta espaços vazios das extremidades para evitar falsos negativos
-            nomes_limpos = [n.strip() for n in nomes_importados]
-
-            for j_ativo in jogadores_ativos:
-                if j_ativo.nome.lower().strip() not in nomes_limpos:
-                    j_ativo.status = 'Inativo'
+            # Inativa apenas jogadores que não vieram neste XML da guilda principal
+            if len(nomes_importados) > 0:
+                todos_jogadores = Jogador.query.all()
+                for j in todos_jogadores:
+                    if j.nome.lower().strip() not in nomes_importados:
+                        j.status = 'Inativo'
                     
         else:
-            alts_map = {a.nome_alt.lower(): a.jogador_id for a in PersonagemSecundario.query.all()}
+            alts_map = {a.nome_alt.lower().strip(): a.jogador_id for a in PersonagemSecundario.query.all()}
             eventos_permitidos_bs = ['Raid de Guilda', 'Expedição da Guilda']
             
             for j_data in jogadores_data:
-                nome_xml = j_data['nome_xml'].lower()
+                nome_xml = j_data['nome_xml'].lower().strip()
                 if nome_xml in alts_map:
                     jogador_id = alts_map[nome_xml]
                     
@@ -391,24 +384,35 @@ def importar_excel():
             
         jogadores_atualizados = 0
         for row in sheet.iter_rows(min_row=2, values_only=True):
-            nome = row[idx_nome]
-            if not nome: continue
+            nome_celula = row[idx_nome]
+            if not nome_celula: continue
             
-            jogador = Jogador.query.filter(func.lower(Jogador.nome) == str(nome).lower()).first()
-            if jogador:
-                if idx_level is not None and row[idx_level] is not None:
-                    jogador.level = int(row[idx_level])
-                if idx_poder is not None and row[idx_poder] is not None:
-                    poder_str = str(row[idx_poder]).replace('.', '').replace(',', '').strip()
-                    jogador.poder_combate = int(poder_str)
-                jogadores_atualizados += 1
+            nome_str = str(nome_celula).strip()
+            if not nome_str: continue
+            
+            jogador = Jogador.query.filter(func.lower(Jogador.nome) == nome_str.lower()).first()
+            
+            # Se o jogador do Excel não existia no banco, ele é automaticamente criado
+            if not jogador:
+                jogador = Jogador(nome=nome_str, status='Ativo')
+                db.session.add(jogador)
+                db.session.flush()
+            else:
+                jogador.status = 'Ativo' # Reativa se estava inativo
+
+            if idx_level is not None and row[idx_level] is not None:
+                jogador.level = int(row[idx_level])
+            if idx_poder is not None and row[idx_poder] is not None:
+                poder_str = str(row[idx_poder]).replace('.', '').replace(',', '').strip()
+                jogador.poder_combate = int(poder_str)
+            jogadores_atualizados += 1
 
         hash_arquivo = "EXCEL_" + str(datetime.utcnow().timestamp())
         nova_importacao = ImportacaoXML(semana="Acumulativo", hash_arquivo=hash_arquivo, admin_responsavel="admin", nome_personalizado="Atualização de Atributos", tipo_arquivo="excel")
         db.session.add(nova_importacao)
         db.session.commit()
         os.remove(caminho)
-        return jsonify({"mensagem": f"{jogadores_atualizados} jogadores atualizados!"}), 200
+        return jsonify({"mensagem": f"{jogadores_atualizados} jogadores atualizados/cadastrados!"}), 200
         
     except Exception as e:
         if os.path.exists(caminho): os.remove(caminho)
@@ -457,17 +461,14 @@ def editar_jogadores():
         for item in jogadores_data:
             jogador = db.session.get(Jogador, item['id'])
             if jogador:
-                # Atualiza o Nome
                 if 'nome' in item and item['nome'] and str(item['nome']).strip() != '':
                     jogador.nome = str(item['nome']).strip()
 
-                # Atualiza Nível e Poder
                 if 'level' in item and item['level'] not in [None, '']:
                     jogador.level = int(item['level'])
                 if 'poder_combate' in item and item['poder_combate'] not in [None, '']:
                     jogador.poder_combate = int(item['poder_combate'])
                 
-                # Atualiza as Classes e Checkboxes (Milestones)
                 if 'classe' in item:
                     jogador.classe = item['classe']
                 if 'skill_4' in item and item['skill_4'] is not None:
@@ -487,7 +488,6 @@ def editar_jogadores():
                 if 'mestre_tecnica' in item and item['mestre_tecnica'] is not None:
                     jogador.mestre_tecnica = bool(item['mestre_tecnica'])
                 
-                # Apenas Admin pode atualizar Alts e Eventos
                 if user_role == 'admin':
                     if 'alts' in item and item['alts'] is not None:
                         alts_string = item.get('alts', '')
@@ -593,7 +593,7 @@ def realizar_sorteio():
 @app.route('/api/realizar-sorteio-meme', methods=['POST'])
 def realizar_sorteio_meme():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    dados = request.request.get_json()
+    dados = request.get_json()
     jogadores_ids = dados.get('jogadores_ids', [])
     item_sorteado = dados.get('item', 'Item Misterioso')
     
@@ -675,8 +675,9 @@ def deletar_historico(id):
 with app.app_context():
     db.create_all()
 
-    # MIGRATION: Garante que as colunas Classe e Milestones existem
+    # MIGRATION: Garante que as colunas Status, Classe e Milestones existem
     colunas_jogadores = {
+        'status': "VARCHAR(20) DEFAULT 'Ativo'",
         'classe': "VARCHAR(50) DEFAULT ''",
         'skill_4': 'BOOLEAN DEFAULT FALSE',
         'skill_5': 'BOOLEAN DEFAULT FALSE',
@@ -697,8 +698,14 @@ with app.app_context():
                 db.session.execute(text(f'ALTER TABLE jogadores ADD COLUMN {col} {tipo}'))
                 db.session.commit()
             except Exception as e:
-                print(f"Erro ao criar a coluna {col}: {e}")
                 db.session.rollback()
+
+    # RECUPERAÇÃO AUTOMÁTICA: Define 'Ativo' para qualquer registro sem status
+    try:
+        db.session.execute(text("UPDATE jogadores SET status = 'Ativo' WHERE status IS NULL OR status = ''"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     try:
         db.session.execute(text('SELECT tipo_evento FROM config_atividades LIMIT 1'))
@@ -744,7 +751,6 @@ with app.app_context():
             db.session.add(ConfigAtividade(nome_xml=atv, pontos_padrao=1, tipo_evento=tipo))
         db.session.commit()
 
-    # MIGRATION: Garante que o registro da Régua Mega existe no banco de dados
     try:
         regua = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
         if not regua:
