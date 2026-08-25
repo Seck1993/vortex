@@ -148,8 +148,8 @@
         .item-card { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); padding: 15px; margin-top: 15px; text-align: left; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--neon-cyan); }
 
         /* NOVA ROLETA CANVAS */
-        .roleta-container { position: relative; width: 350px; height: 350px; margin: 20px auto; display: flex; justify-content: center; align-items: center;}
-        .roleta-canvas-wrapper { width: 100%; height: 100%; border-radius: 50%; border: 6px solid #111; box-shadow: 0 0 30px rgba(0, 243, 255, 0.5); overflow: hidden; transform: rotate(0deg); }
+        .roleta-container { position: relative; width: 400px; height: 400px; margin: 20px auto; display: flex; justify-content: center; align-items: center;}
+        .roleta-canvas-wrapper { width: 100%; height: 100%; border-radius: 50%; border: 8px solid #111; box-shadow: 0 0 35px rgba(0, 243, 255, 0.5); overflow: hidden; transform: rotate(0deg); }
         .roleta-ponteiro { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid var(--neon-red); z-index: 10; filter: drop-shadow(0 0 10px var(--neon-red)); }
 
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -753,8 +753,7 @@
             <div class="roleta-container">
                 <div class="roleta-ponteiro"></div>
                 <div id="wrapperCanvas" class="roleta-canvas-wrapper">
-                    <!-- O Canvas onde o Javascript vai desenhar as fatias perfeitamente -->
-                    <canvas id="canvasRoleta" width="350" height="350"></canvas>
+                    <canvas id="canvasRoleta" width="400" height="400"></canvas>
                 </div>
             </div>
 
@@ -954,19 +953,30 @@
             window.location.reload();
         }
 
-        /* --- LÓGICA DA ROLETA CANVAS (PARA EVENTOS) --- */
+        /* --- LÓGICA DA ROLETA CANVAS (Otimizada sem lag no BD) --- */
+        let dadosSorteioAtual = null;
+
         async function prepararRoletaItem(itemId, nomeItem) {
             const btn = event.target;
             btn.innerText = "Processando..."; btn.disabled = true;
 
             try {
-                const response = await fetch('/api/realizar-sorteio-item', {
+                // Etapa 1: Puxa o resultado do sorteio instantâneo da Memória RAM (sem gravar no BD)
+                const response = await fetch('/api/simular-sorteio-item', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ item_id: itemId })
                 });
                 const data = await response.json();
                 
                 if (response.ok) {
+                    // Armazena os dados para uso posterior quando o admin clicar em "Concluir"
+                    dadosSorteioAtual = {
+                        item_id: itemId,
+                        vencedor_id: data.vencedor_id,
+                        vencedor_nome: data.vencedor_nome,
+                        is_staff: data.is_staff,
+                        pontos_apostados: data.pontos_apostados
+                    };
                     iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem);
                 } else {
                     alert(data.erro);
@@ -985,13 +995,21 @@
             const labelVencedor = document.getElementById('roletaVencedorLabel');
             const btnFechar = document.getElementById('btnFecharRoletaVisual');
             
-            // Reseta visual da animação anterior
             wrapper.style.transition = 'none';
             wrapper.style.transform = 'rotate(0deg)';
             labelVencedor.style.display = 'none';
             btnFechar.style.display = 'none';
 
-            // Desenhar a Roleta no Canvas
+            // Altera o onclick do botão de concluir para chamar a Etapa 2 de gravação
+            btnFechar.onclick = async () => {
+                btnFechar.innerText = "Salvando..."; btnFechar.disabled = true;
+                await fetch('/api/confirmar-sorteio-item', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dadosSorteioAtual)
+                });
+                window.location.reload();
+            };
+
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const radius = Math.min(centerX, centerY) - 2;
@@ -999,7 +1017,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const cores = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#00f3ff', '#bc13fe', '#ffaa00', '#ff003c', '#10b981'];
-            let startAngle = -Math.PI / 2; // Começa no Topo
+            let startAngle = -Math.PI / 2; 
             let colorIndex = 0;
             
             let startWinDeg = 0;
@@ -1010,7 +1028,6 @@
                 const p = parseFloat(porcentagem);
                 if (p <= 0) continue;
 
-                // Capturar graus para matemática da animação
                 if (nome === vencedorNome) {
                     startWinDeg = currentDegAcumulado;
                     endWinDeg = currentDegAcumulado + ((p / 100) * 360);
@@ -1020,7 +1037,6 @@
                 const sliceAngle = (p / 100) * 2 * Math.PI;
                 const endAngle = startAngle + sliceAngle;
 
-                // Desenha Fatia
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
                 ctx.arc(centerX, centerY, radius, startAngle, endAngle);
@@ -1028,48 +1044,48 @@
                 ctx.fillStyle = cores[colorIndex % cores.length];
                 ctx.fill();
                 
-                // Bordas escuras
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.strokeStyle = '#111';
                 ctx.stroke();
 
-                // Desenha Nome do Player dentro da Fatia
                 ctx.save();
                 ctx.translate(centerX, centerY);
                 ctx.rotate(startAngle + sliceAngle / 2);
                 ctx.textAlign = "right";
+                
+                // Trunca e ajusta a fonte para caber na fatia
+                let textNome = nome.length > 15 ? nome.substring(0, 15) + "..." : nome;
+                let textoFinal = `${textNome} (${p.toFixed(1)}%)`;
+                
                 ctx.fillStyle = "#fff";
                 ctx.font = "bold 16px 'Rajdhani'";
                 ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1;
                 
-                let textNome = nome.length > 15 ? nome.substring(0, 15) + "..." : nome;
-                ctx.fillText(`${textNome} (${p.toFixed(1)}%)`, radius - 20, 5);
+                // Escreve bem na borda encostada
+                ctx.fillText(textoFinal, radius - 15, 5);
                 ctx.restore();
 
                 startAngle = endAngle;
                 colorIndex++;
             }
 
-            // Iniciar o Giro após breve delay pro CSS processar o reset
             setTimeout(() => {
-                // Sorteia um ponto de parada seguro dentro da fatia vencedora (longe das bordas)
                 const margin = (endWinDeg - startWinDeg) * 0.1;
                 const winDeg = startWinDeg + margin + (Math.random() * ((endWinDeg - startWinDeg) - (margin * 2)));
                 
-                // Lógica de Rotação
                 const rotacaoParaTopo = 360 - winDeg;
-                const voltasCompletas = 360 * 12; // 12 voltas
+                const voltasCompletas = 360 * 12; 
                 const rotacaoFinal = voltasCompletas + rotacaoParaTopo;
 
-                wrapper.style.transition = 'transform 6s cubic-bezier(0.2, 0, 0, 1)'; // Desaceleração dramática
+                wrapper.style.transition = 'transform 6s cubic-bezier(0.2, 0, 0, 1)'; 
                 wrapper.style.transform = `rotate(${rotacaoFinal}deg)`;
 
-                // Libera Botões e Vencedor após acabar a animação
                 setTimeout(() => {
                     labelVencedor.innerText = "🏆 " + vencedorNome + " 🏆";
                     labelVencedor.style.display = 'block';
                     btnFechar.style.display = 'block';
                 }, 6200);
+
             }, 100);
         }
 
