@@ -1,4 +1,5 @@
 import os
+import time
 import random
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
@@ -45,6 +46,7 @@ class EventoSorteio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(100), default="SORTEIO HOJE AS 20:00")
     ativo = db.Column(db.Boolean, default=True)
+    prazo_encerramento = db.Column(db.String(50), nullable=True) # Recebe o timestamp do timer
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     itens = db.relationship('EventoItem', backref='evento', cascade="all, delete-orphan", lazy=True)
 
@@ -185,6 +187,7 @@ def index():
         evento_data = {
             'id': evento_ativo.id,
             'titulo': evento_ativo.titulo,
+            'prazo_encerramento': evento_ativo.prazo_encerramento,
             'itens': itens_data
         }
 
@@ -230,7 +233,7 @@ def admin_required():
 def login_required():
     return session.get('logged_in')
 
-# ================= ROTAS DO BANNER E APOSTAS (OTIMIZADAS) =================
+# ================= ROTAS DO BANNER, APOSTAS E SORTEIO OTIMIZADO =================
 
 @app.route('/api/publicar-banner', methods=['POST'])
 def publicar_banner():
@@ -239,7 +242,10 @@ def publicar_banner():
     
     EventoSorteio.query.filter_by(ativo=True).update({'ativo': False})
     
-    novo_evento = EventoSorteio(titulo=dados.get('titulo', 'SORTEIO HOJE AS 20:00'))
+    novo_evento = EventoSorteio(
+        titulo=dados.get('titulo', 'SORTEIO HOJE AS 20:00'),
+        prazo_encerramento=str(dados.get('prazo', ''))
+    )
     db.session.add(novo_evento)
     db.session.flush()
 
@@ -266,14 +272,23 @@ def apostar_item():
 
     if pontos <= 0: return jsonify({"erro": "Pontos inválidos"}), 400
 
+    # VERIFICAÇÃO DE PRAZO DO CRONÔMETRO
+    evento = EventoSorteio.query.filter_by(ativo=True).first()
+    if evento and evento.prazo_encerramento:
+        try:
+            if int(time.time() * 1000) > int(evento.prazo_encerramento):
+                return jsonify({"erro": "O prazo limite para apostas foi encerrado!"}), 400
+        except Exception:
+            pass
+
     item = db.session.get(EventoItem, item_id)
     if not item or item.sorteado: return jsonify({"erro": "Item inválido ou já sorteado"}), 400
 
-    # VALIDAÇÃO DE SALDO DISPONÍVEL
+    # VALIDAÇÃO DO SALDO DE PONTOS REAIS
     pts_brutos = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id).scalar() or 0
     pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador_id).scalar() or 0
     
-    # Soma de pontos retidos em outras apostas ativas
+    # Soma de pontos que o jogador já apostou em outros itens do evento atual que ainda não rolaram
     apostas_ativas = db.session.query(func.sum(ApostaSorteio.pontos)).join(EventoItem).filter(
         ApostaSorteio.jogador_id == jogador_id,
         EventoItem.sorteado == False
@@ -282,6 +297,7 @@ def apostar_item():
     aposta_existente = ApostaSorteio.query.filter_by(item_id=item_id, jogador_id=jogador_id).first()
     aposta_atual = aposta_existente.pontos if aposta_existente else 0
 
+    # O saldo disponível desconta as penalidades e TODAS as apostas ativas, mas estorna a aposta atual no mesmo item (se for edição)
     pontos_disponiveis = (pts_brutos - pens) - apostas_ativas + aposta_atual
 
     if pontos > pontos_disponiveis:
@@ -305,7 +321,7 @@ def remover_aposta(id):
     return jsonify({"mensagem": "Aposta removida."}), 200
 
 
-# ROTA 1 DO SORTEIO: FAZ A MATEMÁTICA NA MEMÓRIA E DEVOLVE RÁPIDO (TIRA O LAG)
+# ROTA ZERO-LAG: Calcula o vencedor instantaneamente na memória RAM
 @app.route('/api/simular-sorteio-item', methods=['POST'])
 def simular_sorteio_item():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -323,12 +339,13 @@ def simular_sorteio_item():
     
     total_pontos = sum(ap.pontos for ap in apostas)
 
-    # Regra da Staff: Fixa em 15% 
+    # Regra Imutável: 15% fixo para a Staff de forma bruta
     fatias['Staff (Administração)'] = 15.0
     candidatos.append({"id": None, "nome": 'Staff (Administração)', "pontos_apostados": 0, "is_staff": True})
     pesos.append(15.0)
 
-    # Os 85% restantes são distribuídos proporcionalmente à quantidade de pontos
+    # Os 85% restantes da roleta são divididos baseando-se no peso de aposta do jogador frente ao montante total 
+    # Com isso, se houver 10 pontos na mesa, cada ponto vale 8.5%
     for ap in apostas:
         porcentagem = (ap.pontos / total_pontos) * 85.0 if total_pontos > 0 else 0
         fatias[ap.jogador.nome] = porcentagem
@@ -337,7 +354,6 @@ def simular_sorteio_item():
 
     vencedor = random.choices(candidatos, weights=pesos, k=1)[0]
     
-    # IMPORTANTE: Nenhum db.session.commit() é feito aqui para a roleta girar instantaneamente na tela
     return jsonify({
         "vencedor_nome": vencedor['nome'],
         "vencedor_id": vencedor['id'],
@@ -347,7 +363,7 @@ def simular_sorteio_item():
     }), 200
 
 
-# ROTA 2 DO SORTEIO: QUANDO A ROLETA TERMINA, ELE SALVA NO BANCO O DESCONTO
+# ROTA CONFIRMAÇÃO: Registra o fim do evento e desconta os pontos SÓ DE QUEM VENCEU
 @app.route('/api/confirmar-sorteio-item', methods=['POST'])
 def confirmar_sorteio_item():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -364,7 +380,6 @@ def confirmar_sorteio_item():
     item.sorteado = True
     item.vencedor_nome = vencedor_nome
     
-    # Apenas o Vencedor tem seus pontos descontados
     if not is_staff and vencedor_id:
         novo_sorteio = SorteioHistorico(
             jogador_id=vencedor_id, 
@@ -761,7 +776,6 @@ def salvar_configuracoes():
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
 
-# === ROTA DO SORTEIO DA ABA MEME PERMANECE INTACTA ===
 @app.route('/api/realizar-sorteio-meme', methods=['POST'])
 def realizar_sorteio_meme():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -846,6 +860,13 @@ def deletar_historico(id):
 
 with app.app_context():
     db.create_all()
+
+    # MIGRATION AUTOMÁTICA DA COLUNA DO TIMER
+    try:
+        db.session.execute(text("ALTER TABLE evento_sorteio ADD COLUMN prazo_encerramento VARCHAR(50)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     colunas_jogadores = {
         'status': "VARCHAR(20) DEFAULT 'Ativo'",
