@@ -108,7 +108,7 @@
         }
         .input-edit:focus { border-color: var(--neon-green); box-shadow: 0 0 10px rgba(0, 255, 102, 0.4); background: rgba(0, 255, 102, 0.05); }
         .edit-pontos { color: var(--neon-green); font-size: 20px; font-weight: 700; text-align: center; border-color: rgba(0, 255, 102, 0.3);}
-        
+
         /* Adicione isto para arrumar o fundo das listas suspensas */
         .input-edit option {
             background-color: #0a0a0f; /* Fundo escuro do painel */
@@ -294,6 +294,7 @@
                     <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         
+                        <!-- NOME DO JOGADOR -->
                         <td style="text-align: left;">
                             {% if session.get('logged_in') and user_role == 'admin' %}
                                 <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')">
@@ -393,6 +394,7 @@
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         <td style="font-weight: 700; font-size: 20px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
                         
+                        <!-- CLASSE -->
                         <td>
                             {% if session.get('logged_in') %}
                             <select class="input-edit edit-classe" style="width: 140px;" onchange="this.closest('tr').classList.add('linha-modificada'); filtrarTabelaClasses();">
@@ -412,6 +414,7 @@
                             {% endif %}
                         </td>
 
+                        <!-- MARCAÇÕES DOS MILESTONES -->
                         {% if session.get('logged_in') %}
                             <td><input type="checkbox" class="check-s4" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_4 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
                             <td><input type="checkbox" class="check-s5" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_5 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
@@ -449,6 +452,7 @@
         </div>
     </div>
 
+    <!-- ABAS RESTANTES -->
     <div id="abaSorteio" class="tab-content">
         <div class="table-container" style="border-left-color: var(--neon-orange);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -962,7 +966,12 @@
 
         async function salvarNovoEvento() {
             const titulo = document.getElementById('tituloEvento').value;
-            const minutos = document.getElementById('prazoEvento').value;
+            const minutosInput = document.getElementById('prazoEvento').value;
+            const minutos = parseInt(minutosInput) || 60; // Define 60 min se estiver vazio
+            
+            // O frontend gera o Timestamp do prazo para o servidor salvar.
+            const prazoTimestamp = Date.now() + (minutos * 60000);
+
             let itens = [];
             document.querySelectorAll('.item-nome-novo').forEach((input, i) => {
                 const maxPts = document.querySelectorAll('.item-pontos-novo')[i].value;
@@ -972,7 +981,7 @@
 
             const response = await fetch('/api/publicar-banner', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ titulo: titulo, minutos: minutos, itens: itens })
+                body: JSON.stringify({ titulo: titulo, prazo: prazoTimestamp, itens: itens })
             });
             if(response.ok) window.location.reload();
         }
@@ -1015,7 +1024,7 @@
 
         /* --- LÓGICA DA ROLETA CANVAS MULTIPLAYER E RESPONSIVA --- */
         let dadosSorteioAtual = null;
-        let roletaIsSpinning = false; // Controle para evitar duplos giros via Polling
+        let roletaIsSpinning = false;
 
         // Polling para os membros pegarem o sorteio rodando (Zero Delay Sincronizado)
         async function pollSorteioAoVivo() {
@@ -1121,7 +1130,6 @@
 
             for (const [nome, dataFat] of Object.entries(visualFatias)) {
                 
-                // Pega os graus baseados na matemática visual que inflamos (Para que a agulha caia no lugar certo desenhado)
                 let fatiaVisualDeg = (dataFat.visualP / totalVisual) * 360;
 
                 if (nome === vencedorNome) {
@@ -1153,14 +1161,12 @@
                 ctx.textAlign = "right";
                 
                 let textNome = nome.length > 15 ? nome.substring(0, 15) + "..." : nome;
-                // Exibe a porcentagem REAL e verdadeira que veio do banco, e não a inflada.
                 let textoFinal = `${textNome} (${dataFat.realP.toFixed(1)}%)`;
                 
                 ctx.fillStyle = "#fff";
                 ctx.font = "bold 16px 'Rajdhani'";
                 ctx.shadowColor = "rgba(0,0,0,1)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
                 
-                // Contorno agressivo no texto para não sumir em fatias da mesma cor
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = "#000";
                 ctx.strokeText(textoFinal, radius - 15, 5);
@@ -1172,8 +1178,6 @@
                 colorIndex++;
             }
 
-            // O Timer de Giro Fixo padronizado garante que, não importa o delay de 2 seg de quem receber via polling, 
-            // a roleta vai cair suavemente e perfeitamente pro vencedor na tela deles.
             setTimeout(() => {
                 const margin = (endWinDeg - startWinDeg) * 0.1;
                 const winDeg = startWinDeg + margin + (Math.random() * ((endWinDeg - startWinDeg) - (margin * 2)));
