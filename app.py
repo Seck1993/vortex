@@ -59,8 +59,8 @@ class EventoItem(db.Model):
     max_pontos = db.Column(db.Float, default=100.0)
     sorteado = db.Column(db.Boolean, default=False)
     vencedor_nome = db.Column(db.String(100), nullable=True)
-    em_andamento = db.Column(db.Boolean, default=False) # Adicionado para Sincronizar Multiplayer
-    dados_roleta_json = db.Column(db.Text, nullable=True) # Adicionado para Sincronizar Multiplayer
+    em_andamento = db.Column(db.Boolean, default=False)
+    dados_roleta_json = db.Column(db.Text, nullable=True)
     apostas = db.relationship('ApostaSorteio', backref='item', cascade="all, delete-orphan", lazy=True)
 
 class ApostaSorteio(db.Model):
@@ -190,7 +190,7 @@ def index():
         evento_data = {
             'id': evento_ativo.id,
             'titulo': evento_ativo.titulo,
-            'prazo_encerramento': evento_ativo.prazo_encerramento,
+            'prazo_encerramento': evento_ativo.prazo_encerramento or "",
             'itens': itens_data
         }
 
@@ -245,9 +245,11 @@ def publicar_banner():
     
     EventoSorteio.query.filter_by(ativo=True).update({'ativo': False})
     
+    prazo_str = str(dados.get('prazo', '')).strip()
+    
     novo_evento = EventoSorteio(
         titulo=dados.get('titulo', 'SORTEIO HOJE AS 20:00'),
-        prazo_encerramento=str(dados.get('prazo', ''))
+        prazo_encerramento=prazo_str
     )
     db.session.add(novo_evento)
     db.session.flush()
@@ -275,23 +277,44 @@ def apostar_item():
 
     if pontos <= 0: return jsonify({"erro": "Pontos inválidos"}), 400
 
-    # VERIFICAÇÃO DE PRAZO DO CRONÔMETRO
+    # 1. VERIFICAÇÃO DE PRAZO DO CRONÔMETRO
     evento = EventoSorteio.query.filter_by(ativo=True).first()
     if evento and evento.prazo_encerramento:
         try:
-            if int(time.time() * 1000) > int(evento.prazo_encerramento):
+            prazo_ms = int(float(evento.prazo_encerramento))
+            if int(time.time() * 1000) > prazo_ms:
                 return jsonify({"erro": "O prazo limite para apostas foi encerrado!"}), 400
         except Exception:
             pass
 
     item = db.session.get(EventoItem, item_id)
-    if not item or item.sorteado: return jsonify({"erro": "Item inválido ou já sorteado"}), 400
+    if not item or item.sorteado or item.em_andamento: return jsonify({"erro": "Item inválido ou já finalizado/em sorteio."}), 400
 
-    # VALIDAÇÃO DO SALDO DE PONTOS REAIS
-    pts_brutos = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id).scalar() or 0
+    # 2. VALIDAÇÃO DE REGRA DE NEGÓCIO: MÍNIMO 90% DE PARTICIPAÇÃO SEMANAL
+    jogador_alvo = db.session.get(Jogador, jogador_id)
+    if not jogador_alvo: return jsonify({"erro": "Jogador não encontrado."}), 404
+
+    # Busca a pontuação do SECK para obter o teto de 100%
+    jogador_seck = Jogador.query.filter(func.upper(Jogador.nome) == 'SECK').first()
+    pts_seck = 0
+    if jogador_seck:
+        pts_seck = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_seck.id).scalar() or 0
+
+    pts_brutos_jogador = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id).scalar() or 0
+
+    if pts_seck > 0:
+        participacao_jogador = (pts_brutos_jogador / pts_seck) * 100.0
+    else:
+        participacao_jogador = 0.0
+
+    if participacao_jogador < 90.0:
+        return jsonify({
+            "erro": f"Acesso bloqueado! Apenas membros com no mínimo 90% de participação semanal podem apostar. Sua participação atual é de {participacao_jogador:.1f}%."
+        }), 400
+
+    # 3. VALIDAÇÃO DO SALDO DE PONTOS REAIS
     pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador_id).scalar() or 0
     
-    # Soma de pontos que o jogador já apostou em outros itens do evento atual que ainda não rolaram
     apostas_ativas = db.session.query(func.sum(ApostaSorteio.pontos)).join(EventoItem).filter(
         ApostaSorteio.jogador_id == jogador_id,
         EventoItem.sorteado == False
@@ -300,8 +323,7 @@ def apostar_item():
     aposta_existente = ApostaSorteio.query.filter_by(item_id=item_id, jogador_id=jogador_id).first()
     aposta_atual = aposta_existente.pontos if aposta_existente else 0
 
-    # O saldo disponível desconta as penalidades e TODAS as apostas ativas, mas estorna a aposta atual no mesmo item (se for edição)
-    pontos_disponiveis = (pts_brutos - pens) - apostas_ativas + aposta_atual
+    pontos_disponiveis = (pts_brutos_jogador - pens) - apostas_ativas + aposta_atual
 
     if pontos > pontos_disponiveis:
         return jsonify({"erro": f"Saldo insuficiente! Você possui apenas {pontos_disponiveis:.0f} pts reais livres para apostar."}), 400
@@ -342,13 +364,12 @@ def simular_sorteio_item():
     
     total_pontos = sum(ap.pontos for ap in apostas)
 
-    # Regra Imutável: 15% fixo para a Staff de forma bruta
+    # Regra Imutável: 15% fixo para a Staff
     fatias['Staff (Administração)'] = 15.0
     candidatos.append({"id": None, "nome": 'Staff (Administração)', "pontos_apostados": 0, "is_staff": True})
     pesos.append(15.0)
 
-    # Os 85% restantes da roleta são divididos baseando-se no peso de aposta do jogador frente ao montante total 
-    # Com isso, se houver 10 pontos na mesa, cada ponto vale 8.5%
+    # Os 85% restantes da roleta são divididos de forma proporcional ao total apostado
     for ap in apostas:
         porcentagem = (ap.pontos / total_pontos) * 85.0 if total_pontos > 0 else 0
         fatias[ap.jogador.nome] = porcentagem
@@ -357,7 +378,6 @@ def simular_sorteio_item():
 
     vencedor = random.choices(candidatos, weights=pesos, k=1)[0]
 
-    # Prepara o JSON para ser lido pelos outros jogadores
     dados_roleta = {
         "item_id": item.id,
         "nome_item": item.nome_item,
@@ -369,7 +389,6 @@ def simular_sorteio_item():
         "timestamp_inicio": int(time.time() * 1000)
     }
 
-    # Ativa o modo ao vivo na Database
     item.em_andamento = True
     item.dados_roleta_json = json.dumps(dados_roleta)
     db.session.commit()
@@ -404,7 +423,7 @@ def confirmar_sorteio_item():
     if not item or item.sorteado: return jsonify({"erro": "Erro: Item já finalizado."}), 400
 
     item.sorteado = True
-    item.em_andamento = False # Encerra o ao vivo para os outros jogadores
+    item.em_andamento = False
     item.vencedor_nome = vencedor_nome
     
     if not is_staff and vencedor_id:
