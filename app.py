@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import random
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
@@ -58,6 +59,8 @@ class EventoItem(db.Model):
     max_pontos = db.Column(db.Float, default=100.0)
     sorteado = db.Column(db.Boolean, default=False)
     vencedor_nome = db.Column(db.String(100), nullable=True)
+    em_andamento = db.Column(db.Boolean, default=False) # Adicionado para Sincronizar Multiplayer
+    dados_roleta_json = db.Column(db.Text, nullable=True) # Adicionado para Sincronizar Multiplayer
     apostas = db.relationship('ApostaSorteio', backref='item', cascade="all, delete-orphan", lazy=True)
 
 class ApostaSorteio(db.Model):
@@ -353,14 +356,37 @@ def simular_sorteio_item():
         pesos.append(porcentagem)
 
     vencedor = random.choices(candidatos, weights=pesos, k=1)[0]
-    
-    return jsonify({
+
+    # Prepara o JSON para ser lido pelos outros jogadores
+    dados_roleta = {
+        "item_id": item.id,
+        "nome_item": item.nome_item,
         "vencedor_nome": vencedor['nome'],
         "vencedor_id": vencedor['id'],
         "pontos_apostados": vencedor['pontos_apostados'],
         "is_staff": vencedor['is_staff'],
-        "fatias": fatias
-    }), 200
+        "fatias": fatias,
+        "timestamp_inicio": int(time.time() * 1000)
+    }
+
+    # Ativa o modo ao vivo na Database
+    item.em_andamento = True
+    item.dados_roleta_json = json.dumps(dados_roleta)
+    db.session.commit()
+    
+    return jsonify(dados_roleta), 200
+
+# ROTA PARA JOGADORES ASSISTIREM AO VIVO
+@app.route('/api/status-sorteio-ao-vivo', methods=['GET'])
+def status_sorteio_ao_vivo():
+    if not login_required(): return jsonify({"ativo": False}), 401
+    
+    item_em_sorteio = EventoItem.query.filter_by(em_andamento=True).first()
+    if item_em_sorteio and item_em_sorteio.dados_roleta_json:
+        dados = json.loads(item_em_sorteio.dados_roleta_json)
+        return jsonify({"ativo": True, "dados": dados}), 200
+        
+    return jsonify({"ativo": False}), 200
 
 
 # ROTA CONFIRMAÇÃO: Registra o fim do evento e desconta os pontos SÓ DE QUEM VENCEU
@@ -378,6 +404,7 @@ def confirmar_sorteio_item():
     if not item or item.sorteado: return jsonify({"erro": "Erro: Item já finalizado."}), 400
 
     item.sorteado = True
+    item.em_andamento = False # Encerra o ao vivo para os outros jogadores
     item.vencedor_nome = vencedor_nome
     
     if not is_staff and vencedor_id:
@@ -861,9 +888,21 @@ def deletar_historico(id):
 with app.app_context():
     db.create_all()
 
-    # MIGRATION AUTOMÁTICA DA COLUNA DO TIMER
+    # MIGRATION AUTOMÁTICA DA COLUNA DO TIMER E MULTIPLAYER
     try:
         db.session.execute(text("ALTER TABLE evento_sorteio ADD COLUMN prazo_encerramento VARCHAR(50)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        db.session.execute(text("ALTER TABLE evento_item ADD COLUMN em_andamento BOOLEAN DEFAULT FALSE"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        db.session.execute(text("ALTER TABLE evento_item ADD COLUMN dados_roleta_json TEXT"))
         db.session.commit()
     except Exception:
         db.session.rollback()
