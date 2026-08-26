@@ -108,7 +108,7 @@
         }
         .input-edit:focus { border-color: var(--neon-green); box-shadow: 0 0 10px rgba(0, 255, 102, 0.4); background: rgba(0, 255, 102, 0.05); }
         .edit-pontos { color: var(--neon-green); font-size: 20px; font-weight: 700; text-align: center; border-color: rgba(0, 255, 102, 0.3);}
-
+        
         /* Adicione isto para arrumar o fundo das listas suspensas */
         .input-edit option {
             background-color: #0a0a0f; /* Fundo escuro do painel */
@@ -148,10 +148,11 @@
         .mega-glow { background-color: rgba(255, 215, 0, 0.08) !important; box-shadow: inset 5px 0 0 var(--gold-mega) !important; }
         .mega-clone { background-color: rgba(255, 215, 0, 0.1) !important; border-left: 3px solid var(--gold-mega) !important; }
 
-        /* NOVO BANNER DO EVENTO */
-        .banner-evento { background: rgba(255, 170, 0, 0.08); border: 2px solid var(--neon-orange); border-radius: 8px; padding: 25px; margin-bottom: 25px; box-shadow: 0 0 20px rgba(255, 170, 0, 0.2); text-align: center;}
-        .banner-evento h2 { color: var(--neon-orange); font-size: 32px; text-shadow: 0 0 15px rgba(255,170,0,0.6); margin-bottom: 20px;}
+        /* NOVO BANNER DO EVENTO E TIMER */
+        .banner-evento { background: rgba(255, 170, 0, 0.08); border: 2px solid var(--neon-orange); border-radius: 8px; padding: 25px; margin-bottom: 25px; box-shadow: 0 0 20px rgba(255, 170, 0, 0.2); text-align: center; position: relative;}
+        .banner-evento h2 { color: var(--neon-orange); font-size: 32px; text-shadow: 0 0 15px rgba(255,170,0,0.6); margin-bottom: 10px;}
         .item-card { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); padding: 15px; margin-top: 15px; text-align: left; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--neon-cyan); }
+        .timer-display { font-size: 40px; font-family: monospace; font-weight: bold; color: var(--neon-green); text-shadow: 0 0 15px rgba(0,255,102,0.5); letter-spacing: 5px; margin-bottom: 15px;}
 
         /* NOVA ROLETA CANVAS */
         .roleta-container { position: relative; width: 400px; height: 400px; margin: 20px auto; display: flex; justify-content: center; align-items: center;}
@@ -184,7 +185,13 @@
     <!-- BANNER DE EVENTO ATIVO -->
     {% if evento %}
     <div class="banner-evento">
+        <button class="btn btn-outline" style="position: absolute; top: 20px; right: 20px;" onclick="abrirModal('modalTutorial')">📖 Como Funciona</button>
+        
         <h2>📢 {{ evento.titulo }}</h2>
+        
+        <!-- CRONÔMETRO DIGITAL -->
+        <div class="timer-display" data-prazo="{{ evento.prazo_encerramento }}">--:--:--</div>
+
         <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER!</p>
         
         {% for item in evento.itens %}
@@ -211,7 +218,8 @@
             <div style="display: flex; gap: 10px; flex-direction: column;">
                 {% if not item.sorteado %}
                     {% if session.get('logged_in') %}
-                        <button class="btn" onclick="abrirModalAposta({{ item.id }}, '{{ item.nome_item }}', {{ item.max_pontos }})">➕ Apostar</button>
+                        <!-- Classe btn-apostar adicionada para ser oculta pelo cronômetro -->
+                        <button class="btn btn-apostar" onclick="abrirModalAposta({{ item.id }}, '{{ item.nome_item }}', {{ item.max_pontos }})">➕ Apostar</button>
                     {% endif %}
                     {% if user_role == 'admin' %}
                         <button class="btn btn-warning" onclick="prepararRoletaItem({{ item.id }}, '{{ item.nome_item }}')">🎲 Girar Roleta</button>
@@ -286,7 +294,6 @@
                     <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         
-                        <!-- NOME DO JOGADOR -->
                         <td style="text-align: left;">
                             {% if session.get('logged_in') and user_role == 'admin' %}
                                 <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')">
@@ -386,7 +393,6 @@
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                         <td style="font-weight: 700; font-size: 20px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
                         
-                        <!-- CLASSE -->
                         <td>
                             {% if session.get('logged_in') %}
                             <select class="input-edit edit-classe" style="width: 140px;" onchange="this.closest('tr').classList.add('linha-modificada'); filtrarTabelaClasses();">
@@ -406,7 +412,6 @@
                             {% endif %}
                         </td>
 
-                        <!-- MARCAÇÕES DOS MILESTONES -->
                         {% if session.get('logged_in') %}
                             <td><input type="checkbox" class="check-s4" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_4 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
                             <td><input type="checkbox" class="check-s5" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_5 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
@@ -444,7 +449,6 @@
         </div>
     </div>
 
-    <!-- ABAS RESTANTES -->
     <div id="abaSorteio" class="tab-content">
         <div class="table-container" style="border-left-color: var(--neon-orange);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -560,7 +564,6 @@
     </div>
 
     {% if user_role == 'admin' %}
-    
     <div id="abaConfig" class="tab-content">
         <div style="background: rgba(0,0,0,0.6); padding: 25px; border: 1px solid var(--neon-purple); border-radius: 6px; margin-bottom: 25px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 25px rgba(188, 19, 254, 0.1);">
             <div>
@@ -645,8 +648,7 @@
     </div>
     {% endif %} 
     
-    <!-- MODALS -->
-
+    <!-- MODALS GERAIS -->
     <div id="modalLogin" class="modal-overlay">
         <div class="modal-content" style="width: 450px; text-align: center; border-color: var(--neon-red); padding: 35px;">
             <h2 style="margin-top: 0; color: var(--neon-red); text-shadow: 0 0 10px rgba(255,0,60,0.5);">Acesso Restrito</h2>
@@ -655,6 +657,25 @@
             <div style="display: flex; gap: 15px; justify-content: center;">
                 <button class="btn" style="background: transparent; border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalLogin')">Abortar</button>
                 <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="fazerLogin()">Autenticar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DO TUTORIAL DE SORTEIO -->
+    <div id="modalTutorial" class="modal-overlay" style="z-index: 130;">
+        <div class="modal-content" style="border-color: var(--neon-cyan); width: 600px;">
+            <h2 style="color: var(--neon-cyan); margin-top:0;">📖 Como Funciona o Sorteio?</h2>
+            <div style="color: #fff; font-size: 16px; line-height: 1.5; text-align: left;">
+                <p>O sistema de sorteio foi desenvolvido para ser 100% justo e transparente. Veja as regras processadas diretamente pelo servidor:</p>
+                <ul style="padding-left: 20px; color: var(--text-muted);">
+                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-orange);">Aposta Segura:</strong> Você só perde os pontos que apostar <b>SE VOCÊ VENCER</b> o item. Se perder o sorteio, seus pontos continuam intactos.</li>
+                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Limite de Saldo:</strong> O sistema bloqueia apostas que ultrapassem o seu saldo real (descontando penalidades e pontos já retidos em outras apostas ativas da semana).</li>
+                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-purple);">Taxa Fixa da Staff:</strong> Exatos 15% de probabilidade em todos os itens são reservados fixamente para a Staff (Administração).</li>
+                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-cyan);">Valorização Flexível (Os 85% restantes):</strong> Não importa se os jogadores apostaram 10 ou 10.000 pontos no total. Os 85% de chance são divididos na roleta sempre de forma proporcional ao "peso" da sua aposta. <br><br><i>Exemplo: Se a mesa toda tiver apenas 10 pontos apostados no total por todos, e você botou 1 ponto, seu 1 ponto valerá incríveis 8,5% de chance de vitória!</i></li>
+                </ul>
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="fecharModal('modalTutorial')">Entendi</button>
             </div>
         </div>
     </div>
@@ -737,6 +758,9 @@
             <label style="color: #fff; font-weight: bold;">Título do Banner:</label>
             <input type="text" id="tituloEvento" class="input-edit" value="SORTEIO HOJE AS 20:00" style="width: 100%; margin-bottom: 20px; text-align: left;">
             
+            <label style="color: #fff; font-weight: bold;">Duração do Sorteio (Minutos):</label>
+            <input type="number" id="prazoEvento" class="input-edit" placeholder="Ex: 60 (Minutos para encerramento)" value="60" style="width: 100%; margin-bottom: 20px; text-align: left;">
+            
             <h3 style="color: var(--neon-cyan);">Adicionar Itens</h3>
             <div id="listaItensCriacao" style="background: rgba(0,0,0,0.4); padding: 15px; border: 1px dashed var(--glass-border); margin-bottom: 20px;">
                 <!-- Campos dinâmicos entram aqui -->
@@ -750,8 +774,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- NOVA ROLETA CANVAS (PARA EVENTOS DE PONTOS) -->
+    <!-- NOVA ROLETA CANVAS (MULTIPLAYER E RESPONSIVA) -->
     <div id="modalRoletaItem" class="modal-overlay" style="z-index: 120;">
         <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 600px; padding: 20px;">
             <h2 id="tituloRoletaVisual" style="color: var(--neon-orange); font-size: 26px; margin-top:0; text-shadow: 0 0 15px rgba(255,170,0,0.5);">SORTEIO EM ANDAMENTO</h2>
@@ -765,10 +790,9 @@
 
             <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
             
-            <button id="btnFecharRoletaVisual" onclick="window.location.reload()" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;">Concluir (Pontos Descontados)</button>
+            <button id="btnFecharRoletaVisual" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;"></button>
         </div>
     </div>
-    {% endif %}
 
     <!-- MODAL DE APOSTA (MEMBROS) -->
     <div id="modalAposta" class="modal-overlay" style="z-index: 110;">
@@ -808,9 +832,38 @@
     </div>
 
     <script>
+        const IS_ADMIN = {{ 'true' if user_role == 'admin' else 'false' }};
+
         function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
         function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
         function fecharModalEAtualizar() { window.location.reload(); }
+
+        /* --- CRONÔMETRO LOGIC --- */
+        function atualizarCronometros() {
+            const timerDisplays = document.querySelectorAll('.timer-display');
+            timerDisplays.forEach(display => {
+                const prazo = parseInt(display.getAttribute('data-prazo'));
+                if (!prazo) return;
+                
+                const agora = Date.now();
+                const diff = prazo - agora;
+
+                if (diff <= 0) {
+                    display.innerText = "ENCERRADO";
+                    display.style.color = "var(--neon-red)";
+                    // Esconde botões de aposta para evitar cliques
+                    document.querySelectorAll('.btn-apostar').forEach(b => b.style.display = 'none');
+                } else {
+                    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const min = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seg = Math.floor((diff % (1000 * 60)) / 1000);
+                    display.innerText = `${horas.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+                }
+            });
+        }
+        setInterval(atualizarCronometros, 1000);
+        document.addEventListener('DOMContentLoaded', atualizarCronometros);
+
 
         async function fazerLogin() {
             const senha = document.getElementById('senhaAdmin').value;
@@ -909,6 +962,7 @@
 
         async function salvarNovoEvento() {
             const titulo = document.getElementById('tituloEvento').value;
+            const minutos = document.getElementById('prazoEvento').value;
             let itens = [];
             document.querySelectorAll('.item-nome-novo').forEach((input, i) => {
                 const maxPts = document.querySelectorAll('.item-pontos-novo')[i].value;
@@ -918,7 +972,7 @@
 
             const response = await fetch('/api/publicar-banner', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ titulo: titulo, itens: itens })
+                body: JSON.stringify({ titulo: titulo, minutos: minutos, itens: itens })
             });
             if(response.ok) window.location.reload();
         }
@@ -959,15 +1013,36 @@
             window.location.reload();
         }
 
-        /* --- LÓGICA DA ROLETA CANVAS (Otimizada sem lag no BD) --- */
+        /* --- LÓGICA DA ROLETA CANVAS MULTIPLAYER E RESPONSIVA --- */
         let dadosSorteioAtual = null;
+        let roletaIsSpinning = false; // Controle para evitar duplos giros via Polling
+
+        // Polling para os membros pegarem o sorteio rodando (Zero Delay Sincronizado)
+        async function pollSorteioAoVivo() {
+            if (roletaIsSpinning) return;
+            try {
+                let res = await fetch('/api/status-sorteio-ao-vivo');
+                if (res.ok) {
+                    let data = await res.json();
+                    if (data.ativo && !roletaIsSpinning) {
+                        dadosSorteioAtual = data.dados;
+                        iniciarAnimacaoRoletaCanvas(dadosSorteioAtual.fatias, dadosSorteioAtual.vencedor_nome, dadosSorteioAtual.nome_item);
+                    }
+                }
+            } catch(e) {}
+        }
+        
+        // Ativa o radar pra quem ta logado (A cada 2 segundos e meio ele varre o BD sem lagar)
+        {% if session.get('logged_in') %}
+            setInterval(pollSorteioAoVivo, 2500);
+        {% endif %}
+
 
         async function prepararRoletaItem(itemId, nomeItem) {
             const btn = event.target;
             btn.innerText = "Processando..."; btn.disabled = true;
 
             try {
-                // Etapa 1: Puxa o resultado do sorteio instantâneo da Memória RAM (sem gravar no BD)
                 const response = await fetch('/api/simular-sorteio-item', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ item_id: itemId })
@@ -975,14 +1050,7 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    // Armazena os dados para uso posterior quando o admin clicar em "Concluir"
-                    dadosSorteioAtual = {
-                        item_id: itemId,
-                        vencedor_id: data.vencedor_id,
-                        vencedor_nome: data.vencedor_nome,
-                        is_staff: data.is_staff,
-                        pontos_apostados: data.pontos_apostados
-                    };
+                    dadosSorteioAtual = data;
                     iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem);
                 } else {
                     alert(data.erro);
@@ -992,6 +1060,7 @@
         }
 
         function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
+            roletaIsSpinning = true;
             document.getElementById('tituloRoletaVisual').innerText = "SORTEANDO: " + nomeItem.toUpperCase();
             abrirModal('modalRoletaItem');
             
@@ -1006,15 +1075,21 @@
             labelVencedor.style.display = 'none';
             btnFechar.style.display = 'none';
 
-            // Altera o onclick do botão de concluir para chamar a Etapa 2 de gravação
-            btnFechar.onclick = async () => {
-                btnFechar.innerText = "Salvando..."; btnFechar.disabled = true;
-                await fetch('/api/confirmar-sorteio-item', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(dadosSorteioAtual)
-                });
-                window.location.reload();
-            };
+            // Comportamento do botão final baseado se o cara é Admin ou Membro
+            if (IS_ADMIN) {
+                btnFechar.innerText = "Concluir (Pontos Descontados)";
+                btnFechar.onclick = async () => {
+                    btnFechar.innerText = "Salvando..."; btnFechar.disabled = true;
+                    await fetch('/api/confirmar-sorteio-item', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(dadosSorteioAtual)
+                    });
+                    window.location.reload();
+                };
+            } else {
+                btnFechar.innerText = "Sorteio Finalizado - Fechar";
+                btnFechar.onclick = () => { window.location.reload(); };
+            }
 
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
@@ -1023,26 +1098,42 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const cores = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#00f3ff', '#bc13fe', '#ffaa00', '#ff003c', '#10b981'];
-            let startAngle = -Math.PI / 2; 
             let colorIndex = 0;
             
+            // TRUQUE VISUAL: Expandimos as fatias que são muito finas para que o texto possa ser lido nitidamente. 
+            // A matemática real de chances do backend não é afetada.
+            let visualFatias = {};
+            let totalVisual = 0;
+            for (const [nome, porcentagem] of Object.entries(fatias)) {
+                let p = parseFloat(porcentagem);
+                if (p <= 0) continue;
+                
+                // Mínimo de 4% de abertura visual na roleta (apenas para não espremer o texto)
+                let visualP = Math.max(p, 4.0); 
+                visualFatias[nome] = { realP: p, visualP: visualP };
+                totalVisual += visualP;
+            }
+
+            let startAngle = -Math.PI / 2; 
+            let currentDegAcumulado = 0;
             let startWinDeg = 0;
             let endWinDeg = 0;
-            let currentDegAcumulado = 0;
 
-            for (const [nome, porcentagem] of Object.entries(fatias)) {
-                const p = parseFloat(porcentagem);
-                if (p <= 0) continue;
+            for (const [nome, dataFat] of Object.entries(visualFatias)) {
+                
+                // Pega os graus baseados na matemática visual que inflamos (Para que a agulha caia no lugar certo desenhado)
+                let fatiaVisualDeg = (dataFat.visualP / totalVisual) * 360;
 
                 if (nome === vencedorNome) {
                     startWinDeg = currentDegAcumulado;
-                    endWinDeg = currentDegAcumulado + ((p / 100) * 360);
+                    endWinDeg = currentDegAcumulado + fatiaVisualDeg;
                 }
-                currentDegAcumulado += ((p / 100) * 360);
+                currentDegAcumulado += fatiaVisualDeg;
 
-                const sliceAngle = (p / 100) * 2 * Math.PI;
+                const sliceAngle = (dataFat.visualP / totalVisual) * 2 * Math.PI;
                 const endAngle = startAngle + sliceAngle;
 
+                // Desenha Fatia
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
                 ctx.arc(centerX, centerY, radius, startAngle, endAngle);
@@ -1050,31 +1141,39 @@
                 ctx.fillStyle = cores[colorIndex % cores.length];
                 ctx.fill();
                 
-                ctx.lineWidth = 3;
+                // Bordas escuras super definidas
+                ctx.lineWidth = 4;
                 ctx.strokeStyle = '#111';
                 ctx.stroke();
 
+                // Desenha Nome
                 ctx.save();
                 ctx.translate(centerX, centerY);
                 ctx.rotate(startAngle + sliceAngle / 2);
                 ctx.textAlign = "right";
                 
-                // Trunca e ajusta a fonte para caber na fatia
                 let textNome = nome.length > 15 ? nome.substring(0, 15) + "..." : nome;
-                let textoFinal = `${textNome} (${p.toFixed(1)}%)`;
+                // Exibe a porcentagem REAL e verdadeira que veio do banco, e não a inflada.
+                let textoFinal = `${textNome} (${dataFat.realP.toFixed(1)}%)`;
                 
                 ctx.fillStyle = "#fff";
                 ctx.font = "bold 16px 'Rajdhani'";
-                ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1;
+                ctx.shadowColor = "rgba(0,0,0,1)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
                 
-                // Escreve bem na borda encostada
+                // Contorno agressivo no texto para não sumir em fatias da mesma cor
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "#000";
+                ctx.strokeText(textoFinal, radius - 15, 5);
                 ctx.fillText(textoFinal, radius - 15, 5);
+                
                 ctx.restore();
 
                 startAngle = endAngle;
                 colorIndex++;
             }
 
+            // O Timer de Giro Fixo padronizado garante que, não importa o delay de 2 seg de quem receber via polling, 
+            // a roleta vai cair suavemente e perfeitamente pro vencedor na tela deles.
             setTimeout(() => {
                 const margin = (endWinDeg - startWinDeg) * 0.1;
                 const winDeg = startWinDeg + margin + (Math.random() * ((endWinDeg - startWinDeg) - (margin * 2)));
