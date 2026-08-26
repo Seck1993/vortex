@@ -59,8 +59,8 @@ class EventoItem(db.Model):
     max_pontos = db.Column(db.Float, default=100.0)
     sorteado = db.Column(db.Boolean, default=False)
     vencedor_nome = db.Column(db.String(100), nullable=True)
-    em_andamento = db.Column(db.Boolean, default=False)
-    dados_roleta_json = db.Column(db.Text, nullable=True)
+    em_andamento = db.Column(db.Boolean, default=False) # Adicionado para Sincronizar Multiplayer
+    dados_roleta_json = db.Column(db.Text, nullable=True) # Adicionado para Sincronizar Multiplayer
     apostas = db.relationship('ApostaSorteio', backref='item', cascade="all, delete-orphan", lazy=True)
 
 class ApostaSorteio(db.Model):
@@ -243,7 +243,14 @@ def publicar_banner():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     dados = request.get_json()
     
-    EventoSorteio.query.filter_by(ativo=True).update({'ativo': False})
+    # REPARO: Antes de publicar um novo, devolve os pontos de eventos anteriores (se houver)
+    eventos_ativos = EventoSorteio.query.filter_by(ativo=True).all()
+    for evt in eventos_ativos:
+        evt.ativo = False
+        for item in evt.itens:
+            if not item.sorteado:
+                # Remove apostas pendentes para estornar os pontos
+                ApostaSorteio.query.filter_by(item_id=item.id).delete()
     
     prazo_str = str(dados.get('prazo', '')).strip()
     
@@ -263,9 +270,17 @@ def publicar_banner():
 @app.route('/api/encerrar-banner', methods=['POST'])
 def encerrar_banner():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    EventoSorteio.query.filter_by(ativo=True).update({'ativo': False})
+    
+    # REPARO: Desativa e apaga todas as apostas dos itens que ficaram sem sorteio (Estorno)
+    eventos_ativos = EventoSorteio.query.filter_by(ativo=True).all()
+    for evt in eventos_ativos:
+        evt.ativo = False
+        for item in evt.itens:
+            if not item.sorteado:
+                ApostaSorteio.query.filter_by(item_id=item.id).delete()
+                
     db.session.commit()
-    return jsonify({"mensagem": "Evento encerrado e banner removido."}), 200
+    return jsonify({"mensagem": "Evento encerrado. Pontos estornados aos jogadores!"}), 200
 
 @app.route('/api/apostar-item', methods=['POST'])
 def apostar_item():
@@ -315,9 +330,11 @@ def apostar_item():
     # 3. VALIDAÇÃO DO SALDO DE PONTOS REAIS
     pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador_id).scalar() or 0
     
-    apostas_ativas = db.session.query(func.sum(ApostaSorteio.pontos)).join(EventoItem).filter(
+    # REPARO DA TRAVA: Só considera apostas ativas se o evento realmente estiver ativo
+    apostas_ativas = db.session.query(func.sum(ApostaSorteio.pontos)).join(EventoItem).join(EventoSorteio).filter(
         ApostaSorteio.jogador_id == jogador_id,
-        EventoItem.sorteado == False
+        EventoItem.sorteado == False,
+        EventoSorteio.ativo == True
     ).scalar() or 0
 
     aposta_existente = ApostaSorteio.query.filter_by(item_id=item_id, jogador_id=jogador_id).first()
