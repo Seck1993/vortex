@@ -757,13 +757,15 @@ def editar_jogadores():
                 if user_role == 'admin':
                     if 'alts' in item and item['alts'] is not None:
                         alts_string = item.get('alts', '')
+                        # Limpa os alts atuais deste jogador
                         PersonagemSecundario.query.filter_by(jogador_id=jogador.id).delete()
                         if alts_string:
                             novos_alts = [n.strip() for n in alts_string.split(',') if n.strip()]
                             for n_alt in novos_alts:
-                                existente = PersonagemSecundario.query.filter_by(nome_alt=n_alt).first()
-                                if not existente:
-                                    db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
+                                # Remove o alt de QUALQUER outro jogador que o possua (Evita registro fantasma)
+                                PersonagemSecundario.query.filter_by(nome_alt=n_alt).delete()
+                                # Cadastra o alt para o jogador atual
+                                db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
 
                     if 'eventos' in item:
                         for atv_nome, novo_valor in item['eventos'].items():
