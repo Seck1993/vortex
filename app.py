@@ -74,11 +74,15 @@ class ApostaSorteio(db.Model):
 
 @app.route('/')
 def index():
-    configuracoes = ConfigAtividade.query.filter(ConfigAtividade.nome_xml != 'REGUA_MEGA').order_by(ConfigAtividade.id.asc()).all()
+    configuracoes = ConfigAtividade.query.filter(ConfigAtividade.nome_xml.notin_(['REGUA_MEGA', 'REGUA_TITA'])).order_by(ConfigAtividade.id.asc()).all()
     tipos_eventos = {c.nome_xml: c.tipo_evento for c in configuracoes}
 
+    # Puxa os valores das réguas
     config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
     cp_mega = config_mega.pontos_padrao if config_mega else 100000
+
+    config_tita = ConfigAtividade.query.filter_by(nome_xml='REGUA_TITA').first()
+    cp_tita = config_tita.pontos_padrao if config_tita else 50000
 
     pontos_brutos = db.session.query(
         Pontuacao.jogador_id, 
@@ -205,6 +209,7 @@ def index():
         soma_total_pontos=soma_total_pontos,
         user_role=user_role,
         cp_mega=cp_mega,
+        cp_tita=cp_tita,
         evento=evento_data
     )
 
@@ -456,21 +461,30 @@ def confirmar_sorteio_item():
 
 # ================= AS DEMAIS ROTAS =================
 
-@app.route('/api/salvar-regua-mega', methods=['POST'])
-def salvar_regua_mega():
+@app.route('/api/salvar-regua', methods=['POST'])
+def salvar_regua():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     dados = request.get_json()
-    novo_cp = dados.get('cp_mega')
+    novo_cp_mega = dados.get('cp_mega')
+    novo_cp_tita = dados.get('cp_tita')
 
     try:
+        # Salva Régua Mega
         config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
         if not config_mega:
-            config_mega = ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=int(novo_cp), tipo_evento='sistema', is_ativa=False)
-            db.session.add(config_mega)
+            db.session.add(ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=int(novo_cp_mega), tipo_evento='sistema', is_ativa=False))
         else:
-            config_mega.pontos_padrao = int(novo_cp)
+            config_mega.pontos_padrao = int(novo_cp_mega)
+
+        # Salva Régua Titã
+        config_tita = ConfigAtividade.query.filter_by(nome_xml='REGUA_TITA').first()
+        if not config_tita:
+            db.session.add(ConfigAtividade(nome_xml='REGUA_TITA', pontos_padrao=int(novo_cp_tita), tipo_evento='sistema', is_ativa=False))
+        else:
+            config_tita.pontos_padrao = int(novo_cp_tita)
+
         db.session.commit()
-        return jsonify({"mensagem": "Régua Mega atualizada globalmente!"}), 200
+        return jsonify({"mensagem": "Réguas atualizadas globalmente!"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"erro": str(e)}), 500
@@ -492,8 +506,8 @@ def importar_xml():
     arquivo.save(caminho)
 
     try:
-        todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.filter(ConfigAtividade.nome_xml != 'REGUA_MEGA').order_by(ConfigAtividade.id.asc()).all()]
-        configs = ConfigAtividade.query.filter(ConfigAtividade.is_ativa==True, ConfigAtividade.nome_xml != 'REGUA_MEGA').all()
+        todas_atividades_db = [c.nome_xml for c in ConfigAtividade.query.filter(ConfigAtividade.nome_xml.notin_(['REGUA_MEGA', 'REGUA_TITA'])).order_by(ConfigAtividade.id.asc()).all()]
+        configs = ConfigAtividade.query.filter(ConfigAtividade.is_ativa==True, ConfigAtividade.nome_xml.notin_(['REGUA_MEGA', 'REGUA_TITA'])).all()
         mapa_configs = {c.nome_xml: c.pontos_padrao for c in configs}
 
         dados_extraidos, hash_arquivo = analisar_xml_guilda(caminho, mapa_configs)
@@ -926,7 +940,7 @@ def deletar_historico(id):
 with app.app_context():
     db.create_all()
 
-    # MIGRATION AUTOMÁTICA DA COLUNA DO TIMER E MULTIPLAYER
+    # MIGRATION: Garante as colunas Titã e o Timer
     try:
         db.session.execute(text("ALTER TABLE evento_sorteio ADD COLUMN prazo_encerramento VARCHAR(50)"))
         db.session.commit()
@@ -1008,7 +1022,16 @@ with app.app_context():
         except Exception:
             db.session.rollback()
 
-    if not ConfigAtividade.query.first():
+    # MIGRATION: Garante as duas Réguas Especiais
+    if not ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first():
+        db.session.add(ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=100000, tipo_evento='sistema', is_ativa=False))
+        db.session.commit()
+        
+    if not ConfigAtividade.query.filter_by(nome_xml='REGUA_TITA').first():
+        db.session.add(ConfigAtividade(nome_xml='REGUA_TITA', pontos_padrao=50000, tipo_evento='sistema', is_ativa=False))
+        db.session.commit()
+
+    if not ConfigAtividade.query.filter(ConfigAtividade.nome_xml.notin_(['REGUA_MEGA', 'REGUA_TITA'])).first():
         atividades_iniciais = [
             ('Verificado', 'diario'), ('Doar', 'diario'), ('Atividade da Guilda', 'diario'), 
             ('Raid de Guilda', 'semanal'), ('Expedição da Guilda', 'semanal'), 
@@ -1018,14 +1041,6 @@ with app.app_context():
         for atv, tipo in atividades_iniciais:
             db.session.add(ConfigAtividade(nome_xml=atv, pontos_padrao=1, tipo_evento=tipo))
         db.session.commit()
-
-    try:
-        regua = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
-        if not regua:
-            db.session.add(ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=100000, tipo_evento='sistema', is_ativa=False))
-            db.session.commit()
-    except Exception:
-        db.session.rollback()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
