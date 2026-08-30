@@ -113,7 +113,7 @@ def index():
         # Separação visual das colunas
         if atv == 'BlackSkull':
             mapa_pontos[pid]['blackskull'] += pts
-        elif atv in ['Edição via Painel', 'Ajuste Manual']:
+        elif atv in ['Edição via Painel', 'Ajuste Manual', 'Ajuste Geral']:
             mapa_pontos[pid]['ajustes'] += pts
         else:
             mapa_pontos[pid]['atividades'][atv] = mapa_pontos[pid]['atividades'].get(atv, 0) + pts
@@ -155,7 +155,7 @@ def index():
                 participacao = round((total_semanal_jogador / pontuacao_seck_semanal) * 100, 2)
                 pontos_diamante = 0
         else:
-            # Corrigido: Se o SECK tem 0, a participação de todos é 0% para bloquear a roleta de fato.
+            # Se o SECK tem 0, a participação de todos é 0% para bloquear a roleta de fato.
             participacao = 0.0
             pontos_diamante = 0
 
@@ -266,7 +266,7 @@ def nova_semana():
     db.session.commit()
     return jsonify({"mensagem": f"Semana {config_semana.pontos_padrao} iniciada com sucesso!"}), 200
 
-# ================= ROTAS DO BANNER, APOSTAS E SORTEIO OTIMIZADO =================
+# ================= ROTAS DO BANNER E APOSTAS =================
 
 @app.route('/api/publicar-banner', methods=['POST'])
 def publicar_banner():
@@ -331,7 +331,7 @@ def apostar_item():
     item = db.session.get(EventoItem, item_id)
     if not item or item.sorteado or item.em_andamento: return jsonify({"erro": "Item inválido ou já finalizado/em sorteio."}), 400
 
-    # VALIDAÇÃO: MÍNIMO 90% DE PARTICIPAÇÃO NA SEMANA ATUAL
+    # VALIDAÇÃO DE REGRA DE NEGÓCIO: MÍNIMO 90% DE PARTICIPAÇÃO NA SEMANA ATUAL
     jogador_alvo = db.session.get(Jogador, jogador_id)
     if not jogador_alvo: return jsonify({"erro": "Jogador não encontrado."}), 404
 
@@ -350,7 +350,7 @@ def apostar_item():
 
     if participacao_jogador < 90.0:
         return jsonify({
-            "erro": f"Acesso bloqueado! Apenas membros com no mínimo 90% de participação semanal podem apostar. Sua participação atual é de {participacao_jogador:.1f}%."
+            "erro": f"Acesso bloqueado! Sua participação na semana atual é {participacao_jogador:.1f}%. (Mínimo exigido: 90%)."
         }), 400
 
     # VALIDAÇÃO DO SALDO DE PONTOS REAIS
@@ -387,6 +387,7 @@ def remover_aposta(id):
         db.session.delete(aposta)
         db.session.commit()
     return jsonify({"mensagem": "Aposta removida."}), 200
+
 
 @app.route('/api/simular-sorteio-item', methods=['POST'])
 def simular_sorteio_item():
@@ -444,6 +445,7 @@ def status_sorteio_ao_vivo():
         return jsonify({"ativo": True, "dados": dados}), 200
         
     return jsonify({"ativo": False}), 200
+
 
 @app.route('/api/confirmar-sorteio-item', methods=['POST'])
 def confirmar_sorteio_item():
@@ -524,6 +526,7 @@ def importar_xml():
 
         dados_extraidos, hash_arquivo = analisar_xml_guilda(caminho, mapa_configs)
 
+        # Identifica a semana ativa para salvar o Hash
         config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
         semana_ativa_numero = config_semana.pontos_padrao if config_semana else 0
         semana_ativa_str = f"Semana {semana_ativa_numero}" if semana_ativa_numero > 0 else "Acumulativo"
@@ -573,6 +576,7 @@ def confirmar_importacao():
     guilda_alvo = dados.get('guilda_alvo', 'vortex')
     eventos_selecionados = dados.get('eventos_selecionados', []) 
     
+    # A injeção agora é carimbada com a SEMANA ATIVA
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
     semana_ativa_numero = config_semana.pontos_padrao if config_semana else 0
     semana_fixa = f"Semana {semana_ativa_numero}" if semana_ativa_numero > 0 else "Acumulativo"
@@ -604,19 +608,31 @@ def confirmar_importacao():
                 else:
                     jogador.status = 'Ativo'
 
+                # --- CÁLCULO DE DIFERENÇA (DELTA) PARA RESOLVER A INFLAÇÃO DE PONTOS ---
                 for atv in j_data['detalhes']:
                     nome_atividade = atv['atividade']
                     if nome_atividade not in eventos_selecionados:
                         continue
 
-                    novo_ponto = Pontuacao(
+                    # Verifica quanto o jogador já tem no total histórico daquela atividade
+                    pts_atuais = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
                         jogador_id=jogador.id,
-                        semana=semana_fixa,
-                        atividade=nome_atividade,
-                        pontos=atv['pontos'],
-                        importacao_id=nova_importacao.id
-                    )
-                    db.session.add(novo_ponto)
+                        atividade=nome_atividade
+                    ).scalar() or 0
+                    
+                    novo_valor_xml = int(atv['pontos'])
+                    diferenca = novo_valor_xml - pts_atuais
+
+                    # Somente insere se o jogador ganhou pontos novos desde a última leitura
+                    if diferenca > 0:
+                        novo_ponto = Pontuacao(
+                            jogador_id=jogador.id,
+                            semana=semana_fixa,
+                            atividade=nome_atividade,
+                            pontos=diferenca,
+                            importacao_id=nova_importacao.id
+                        )
+                        db.session.add(novo_ponto)
             
             if len(nomes_importados) > 0:
                 todos_jogadores = Jogador.query.all()
@@ -631,22 +647,31 @@ def confirmar_importacao():
                 nome_xml = j_data['nome_xml'].lower().strip()
                 if nome_xml in alts_map:
                     jogador_id = alts_map[nome_xml]
-                    total_pts = sum(
-                        a['pontos'] for a in j_data['detalhes'] 
+                    
+                    total_xml_bs = sum(
+                        int(a['pontos']) for a in j_data['detalhes'] 
                         if a['atividade'] in eventos_permitidos_bs and a['atividade'] in eventos_selecionados
                     )
-                    if total_pts > 0:
+                    
+                    pts_atuais_bs = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
+                        jogador_id=jogador_id,
+                        atividade="BlackSkull"
+                    ).scalar() or 0
+                    
+                    diferenca_bs = total_xml_bs - pts_atuais_bs
+
+                    if diferenca_bs > 0:
                         novo_ponto = Pontuacao(
                             jogador_id=jogador_id,
                             semana=semana_fixa,
                             atividade="BlackSkull",
-                            pontos=total_pts,
+                            pontos=diferenca_bs,
                             importacao_id=nova_importacao.id
                         )
                         db.session.add(novo_ponto)
 
         db.session.commit()
-        return jsonify({"mensagem": "Importação de Pontos concluída!"}), 200
+        return jsonify({"mensagem": "Importação de Pontos concluída com base na Diferença (Delta)!"}), 200
 
     except Exception as e:
         db.session.rollback() 
@@ -698,6 +723,7 @@ def importar_excel():
                 jogador.poder_combate = int(poder_str)
             jogadores_atualizados += 1
 
+        # O Excel não gera pontos, apenas atualiza status e CP, então não interfere no cálculo semanal
         hash_arquivo = "EXCEL_" + str(datetime.utcnow().timestamp())
         nova_importacao = ImportacaoXML(semana="Acumulativo", hash_arquivo=hash_arquivo, admin_responsavel="admin", nome_personalizado="Atualização de Atributos", tipo_arquivo="excel")
         db.session.add(nova_importacao)
@@ -780,6 +806,7 @@ def editar_jogadores():
                                 PersonagemSecundario.query.filter_by(nome_alt=n_alt).delete()
                                 db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
 
+                    # Edições manuais nas tabelas vão para a Semana Atual para beneficiar o jogador
                     if 'eventos' in item:
                         for atv_nome, novo_valor in item['eventos'].items():
                             novo_valor = int(novo_valor)
@@ -806,7 +833,7 @@ def editar_jogadores():
                         if diferenca_total != 0:
                             ajuste = Pontuacao(
                                 jogador_id=jogador.id,
-                                semana="Ajuste Geral", 
+                                semana="Ajuste Geral", # Este não conta pra semana ativa para não quebrar os 90%
                                 atividade="Ajuste Manual",
                                 pontos=diferenca_total,
                                 motivo_ajuste="Ajuste direto do total na tabela"
