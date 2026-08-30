@@ -18,7 +18,7 @@
             --glass-border: rgba(0, 243, 255, 0.2);
             --purple-primary: var(--neon-cyan); 
             --gold-mega: #ffd700;
-            --blue-tita: #00a8ff; /* Nova cor para os Titãs */
+            --blue-tita: #00a8ff;
         }
 
         body {
@@ -48,6 +48,7 @@
             margin: 0; display: flex; align-items: center; gap: 10px;
         }
         .header h1::before { content: "⚡"; font-size: 26px; filter: hue-rotate(180deg); }
+        .semana-badge { font-size: 20px; color: var(--neon-purple); background: rgba(188, 19, 254, 0.1); border: 1px solid var(--neon-purple); padding: 5px 15px; border-radius: 4px; box-shadow: 0 0 10px rgba(188, 19, 254, 0.3); margin-left: 15px;}
 
         .table-container { 
             background: var(--bg-panel); padding: 25px; 
@@ -110,7 +111,6 @@
         .input-edit:focus { border-color: var(--neon-green); box-shadow: 0 0 10px rgba(0, 255, 102, 0.4); background: rgba(0, 255, 102, 0.05); }
         .edit-pontos { color: var(--neon-green); font-size: 20px; font-weight: 700; text-align: center; border-color: rgba(0, 255, 102, 0.3);}
 
-        /* Fundo escuro das listas suspensas */
         .input-edit option {
             background-color: #0a0a0f;
             color: var(--neon-cyan);
@@ -144,23 +144,19 @@
             clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
         }
 
-        /* ESTILOS DA LINHA MEGA E CLONES */
         .linha-mega td { padding: 0 !important; background: rgba(0,0,0,0.8) !important; border-bottom: none !important; }
         .mega-glow { background-color: rgba(255, 215, 0, 0.08) !important; box-shadow: inset 5px 0 0 var(--gold-mega) !important; }
         .mega-clone { background-color: rgba(255, 215, 0, 0.1) !important; border-left: 3px solid var(--gold-mega) !important; }
 
-        /* ESTILOS DA LINHA TITÃ E CLONES */
         .linha-tita td { padding: 0 !important; background: rgba(0,0,0,0.8) !important; border-bottom: none !important; }
         .tita-glow { background-color: rgba(0, 168, 255, 0.08) !important; box-shadow: inset 5px 0 0 var(--blue-tita) !important; }
         .tita-clone { background-color: rgba(0, 168, 255, 0.1) !important; border-left: 3px solid var(--blue-tita) !important; }
 
-        /* BANNER DO EVENTO E TIMER */
         .banner-evento { background: rgba(255, 170, 0, 0.08); border: 2px solid var(--neon-orange); border-radius: 8px; padding: 25px; margin-bottom: 25px; box-shadow: 0 0 20px rgba(255, 170, 0, 0.2); text-align: center; position: relative;}
         .banner-evento h2 { color: var(--neon-orange); font-size: 32px; text-shadow: 0 0 15px rgba(255,170,0,0.6); margin-bottom: 10px;}
         .item-card { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); padding: 15px; margin-top: 15px; text-align: left; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--neon-cyan); }
         .timer-display { font-size: 44px; font-family: monospace; font-weight: bold; color: var(--neon-green); text-shadow: 0 0 15px rgba(0,255,102,0.5); letter-spacing: 5px; margin-bottom: 15px;}
 
-        /* ROLETA CANVAS */
         .roleta-container { position: relative; width: 400px; height: 400px; margin: 20px auto; display: flex; justify-content: center; align-items: center;}
         .roleta-canvas-wrapper { width: 100%; height: 100%; border-radius: 50%; border: 8px solid #111; box-shadow: 0 0 35px rgba(0, 243, 255, 0.5); overflow: hidden; transform: rotate(0deg); }
         .roleta-ponteiro { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid var(--neon-red); z-index: 10; filter: drop-shadow(0 0 10px var(--neon-red)); }
@@ -174,7 +170,7 @@
 <body>
 
     <div class="header">
-        <h1>Vortex Command Center</h1>
+        <h1>Vortex Command Center <span class="semana-badge">{{ label_semana }}</span></h1>
         <div style="display: flex; gap: 15px;">
             {% if session.get('logged_in') %}
                 {% if user_role == 'admin' %}
@@ -198,7 +194,7 @@
         <!-- CRONÔMETRO DIGITAL -->
         <div class="timer-display" id="timerDisplay" data-prazo="{{ evento.prazo_encerramento }}">--:--:--</div>
 
-        <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER! (Exige no mínimo 90% de participação semanal).</p>
+        <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER! <strong style="color: var(--neon-orange);">(Exige no mínimo 90% de participação na semana ativa)</strong>.</p>
         
         {% for item in evento.itens %}
         <div class="item-card" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
@@ -289,7 +285,12 @@
     <div id="abaRanking" class="tab-content active">
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>🏆 Classificação Semanal Ativa</h2>
+                <h2 style="margin:0; display:flex; align-items:center; gap: 15px;">
+                    🏆 Classificação {{ label_semana }}
+                    {% if user_role == 'admin' %}
+                        <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange); font-size: 14px; padding: 5px 15px;" onclick="avancarSemana()">⏳ Virar Semana do Jogo</button>
+                    {% endif %}
+                </h2>
                 {% if session.get('logged_in') %}
                 <div style="display: flex; gap: 15px;">
                     <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
@@ -305,9 +306,9 @@
                         <th style="width: 80px;">LVL</th>
                         <th style="width: 120px;">Poder de Combate</th>
                         <th style="font-size: 16px; color: #fff;">PARTICIPAÇÃO SEMANAL</th>
-                        <th style="font-size: 16px; color: var(--gold-mega); text-shadow: 0 0 5px var(--gold-mega);">DIAMANTES</th>
+                        <th style="font-size: 16px; color: var(--gold-mega); text-shadow: 0 0 5px var(--gold-mega);">DIAMANTES DA SEMANA</th>
                         <th style="font-size: 16px; color: var(--neon-red); text-shadow: 0 0 5px var(--neon-red);">PENALIDADES</th>
-                        <th style="font-size: 18px; color: var(--neon-green);">PONTUAÇÃO TOTAL</th>
+                        <th style="font-size: 18px; color: var(--neon-green);">SALDO TOTAL (APOSTAS)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -335,7 +336,7 @@
                             <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 110px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             
-                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
+                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
                             <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
 
@@ -349,7 +350,7 @@
                             <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}</td>
                             <td style="color: #fff; font-size: 20px;">{{ item.jogador.level }}</td>
                             <td style="color: var(--neon-cyan); font-family: monospace; font-size: 20px; font-weight: bold;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</td>
-                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 100 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
+                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
                             <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
                             <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS</td>
@@ -633,11 +634,16 @@
     </div>
 
     <div id="abaLogs" class="tab-content">
-        <div class="table-container">
+        <div class="table-container" style="border-color: var(--neon-orange);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>📁 Logs de Importação de Sistema</h2>
-                <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
+                <h2 style="color: var(--neon-orange); text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);">📁 Logs de Importação (Semana Atual)</h2>
+                
+                <div style="display: flex; gap: 15px;">
+                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="avancarSemana()">⏳ Iniciar Nova Semana</button>
+                    <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
+                </div>
             </div>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Nota: Ao iniciar uma nova semana, os pontos acumulados dos jogadores serão preservados em seus saldos totais, mas a contagem de Participação (90%) e de Diamantes recomeçará do zero para todos.</p>
             <table>
                 <thead>
                     <tr>
@@ -662,7 +668,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ SISTEMA DE LOGS VAZIO ]</td></tr>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUMA IMPORTAÇÃO NESTA SEMANA ]</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -691,8 +697,8 @@
                 <p>O sistema de sorteio foi desenvolvido para ser 100% justo e transparente. Veja as regras processadas diretamente pelo servidor:</p>
                 <ul style="padding-left: 20px; color: var(--text-muted);">
                     <li style="margin-bottom: 10px;"><strong style="color:var(--neon-orange);">Aposta Segura:</strong> Você só perde os pontos que apostar <b>SE VOCÊ VENCER</b> o item. Se perder o sorteio, seus pontos continuam intactos.</li>
-                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Requisito de 90% de Participação:</strong> Para poder apostar em qualquer item, o membro precisa ter no mínimo <b>90% de participação semanal</b> ativa na guilda.</li>
-                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Limite de Saldo:</strong> O sistema bloqueia apostas que ultrapassem o seu saldo real (descontando penalidades e pontos já retidos em outras apostas ativas da semana).</li>
+                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Requisito de 90% de Participação:</strong> Para poder apostar em qualquer item, o membro precisa ter no mínimo <b>90% de participação na Semana Atual</b> ativa na guilda.</li>
+                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Limite de Saldo:</strong> O sistema bloqueia apostas que ultrapassem o seu saldo total real (descontando penalidades e pontos já retidos em outras apostas ativas).</li>
                     <li style="margin-bottom: 10px;"><strong style="color:var(--neon-purple);">Taxa Fixa da Staff:</strong> Exatos 15% de probabilidade em todos os itens são reservados fixamente para a Staff (Administração).</li>
                     <li style="margin-bottom: 10px;"><strong style="color:var(--neon-cyan);">Valorização Flexível (Os 85% restantes):</strong> Não importa se os jogadores apostaram 10 ou 10.000 pontos no total. Os 85% de chance são divididos na roleta sempre de forma proporcional ao "peso" da sua aposta. <br><br><i>Exemplo: Se a mesa toda tiver apenas 10 pontos apostados no total por todos, e você botou 1 ponto, seu 1 ponto valerá incríveis 8,5% de chance de vitória!</i></li>
                 </ul>
@@ -1306,7 +1312,55 @@
             if (response.ok) { window.location.reload(); } 
         }
 
-        /* --- LÓGICA DE IMPORTAÇÃO (XML/EXCEL) --- */
+        /* --- LÓGICA DE IMPORTAÇÃO E ADMIN (NOVA SEMANA) --- */
+        {% if user_role == 'admin' %}
+        
+        async function avancarSemana() {
+            if(!confirm("ATENÇÃO: Isso iniciará uma nova semana no calendário. O cálculo de 90% de presença recomeçará do zero para todos os jogadores. Os pontos já ganhos continuarão guardados no saldo total. Confirma a virada de semana?")) return;
+            
+            try {
+                const response = await fetch('/api/nova-semana', { method: 'POST' });
+                const data = await response.json();
+                if(response.ok) { alert(data.mensagem); window.location.reload(); }
+                else { alert("Erro: " + data.erro); }
+            } catch(e) { alert("Falha na conexão."); }
+        }
+
+        async function salvarReguasGlobais() {
+            const cpMega = document.getElementById('inputMegaCP').value;
+            const cpTita = document.getElementById('inputTitaCP').value;
+            try {
+                const response = await fetch('/api/salvar-regua', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cp_mega: cpMega, cp_tita: cpTita })
+                });
+                const data = await response.json();
+                if (response.ok) { alert(data.mensagem); window.location.reload(); } else { alert("Erro: " + data.erro); }
+            } catch (e) { alert("Falha de rede."); }
+        }
+
+        async function criarEvento() {
+            const payload = { nome: document.getElementById('novoEventoNome').value.trim(), tipo: document.getElementById('novoEventoTipo').value, pontos: document.getElementById('novoEventoPontos').value };
+            if(!payload.nome) return alert("Parâmetro 'Nome' é obrigatório.");
+            const response = await fetch('/api/criar-evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (response.ok) { window.location.reload(); } else { alert('Falha ao criar módulo.'); }
+        }
+
+        async function salvarConfiguracoes() {
+            let configsData = [];
+            document.querySelectorAll('tr[data-config-id]').forEach(linha => { configsData.push({ id: linha.getAttribute('data-config-id'), pontos: linha.querySelector('.conf-pontos').value }); });
+            const response = await fetch('/api/salvar-configuracoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs: configsData }) });
+            if (response.ok) { alert("Matriz atualizada. Cálculo refeito."); window.location.reload(); }
+        }
+
+        async function salvarEdicaoImports() {
+            let importsData = [];
+            document.querySelectorAll('tr[data-import-id]').forEach(linha => { importsData.push({ id: linha.getAttribute('data-import-id'), nome: linha.querySelector('.imp-nome').value }); });
+            const response = await fetch('/api/editar-importacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ importacoes: importsData }) });
+            if (response.ok) { alert("Logs gravados."); window.location.reload(); }
+        }
+        {% endif %}
+
         let dadosImportacaoAtual = []; 
 
         async function enviarXML(e) {
@@ -1466,43 +1520,6 @@
             const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
             if (response.ok) window.location.reload();
         }
-
-        {% if user_role == 'admin' %}
-        /* --- LÓGICA DE CONFIGURAÇÃO MATRIZ E LOGS (ADMIN ONLY) --- */
-        async function salvarReguasGlobais() {
-            const cpMega = document.getElementById('inputMegaCP').value;
-            const cpTita = document.getElementById('inputTitaCP').value;
-            try {
-                const response = await fetch('/api/salvar-regua', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cp_mega: cpMega, cp_tita: cpTita })
-                });
-                const data = await response.json();
-                if (response.ok) { alert(data.mensagem); window.location.reload(); } else { alert("Erro: " + data.erro); }
-            } catch (e) { alert("Falha de rede."); }
-        }
-
-        async function criarEvento() {
-            const payload = { nome: document.getElementById('novoEventoNome').value.trim(), tipo: document.getElementById('novoEventoTipo').value, pontos: document.getElementById('novoEventoPontos').value };
-            if(!payload.nome) return alert("Parâmetro 'Nome' é obrigatório.");
-            const response = await fetch('/api/criar-evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (response.ok) { window.location.reload(); } else { alert('Falha ao criar módulo.'); }
-        }
-
-        async function salvarConfiguracoes() {
-            let configsData = [];
-            document.querySelectorAll('tr[data-config-id]').forEach(linha => { configsData.push({ id: linha.getAttribute('data-config-id'), pontos: linha.querySelector('.conf-pontos').value }); });
-            const response = await fetch('/api/salvar-configuracoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs: configsData }) });
-            if (response.ok) { alert("Matriz atualizada. Cálculo refeito."); window.location.reload(); }
-        }
-
-        async function salvarEdicaoImports() {
-            let importsData = [];
-            document.querySelectorAll('tr[data-import-id]').forEach(linha => { importsData.push({ id: linha.getAttribute('data-import-id'), nome: linha.querySelector('.imp-nome').value }); });
-            const response = await fetch('/api/editar-importacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ importacoes: importsData }) });
-            if (response.ok) { alert("Logs gravados."); window.location.reload(); }
-        }
-        {% endif %}
 
         {% endif %}
     </script>
