@@ -170,7 +170,7 @@
 <body>
 
     <div class="header">
-        <h1>Vortex Command Center <span class="semana-badge">Semana {{ semana_ativa_numero }}</span></h1>
+        <h1>Vortex Command Center <span class="semana-badge">{{ label_semana }}</span></h1>
         <div style="display: flex; gap: 15px;">
             {% if session.get('logged_in') %}
                 {% if user_role == 'admin' %}
@@ -191,6 +191,7 @@
         
         <h2>📢 {{ evento.titulo }}</h2>
         
+        <!-- CRONÔMETRO DIGITAL -->
         <div class="timer-display" id="timerDisplay" data-prazo="{{ evento.prazo_encerramento }}">--:--:--</div>
 
         <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER! <strong style="color: var(--neon-orange);">(Exige no mínimo 90% de participação na semana ativa)</strong>.</p>
@@ -284,7 +285,12 @@
     <div id="abaRanking" class="tab-content active">
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>🏆 Classificação da Semana {{ semana_ativa_numero }}</h2>
+                <h2 style="margin:0; display:flex; align-items:center; gap: 15px;">
+                    🏆 Classificação {{ label_semana }}
+                    {% if user_role == 'admin' %}
+                        <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange); font-size: 14px; padding: 5px 15px;" onclick="avancarSemana()">⏳ Virar Semana do Jogo</button>
+                    {% endif %}
+                </h2>
                 {% if session.get('logged_in') %}
                 <div style="display: flex; gap: 15px;">
                     <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
@@ -628,16 +634,11 @@
     </div>
 
     <div id="abaLogs" class="tab-content">
-        <div class="table-container" style="border-color: var(--neon-orange);">
+        <div class="table-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: var(--neon-orange); text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);">📁 Logs de Importação (Semana Atual)</h2>
-                
-                <div style="display: flex; gap: 15px;">
-                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="avancarSemana()">⏳ Iniciar Nova Semana</button>
-                    <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
-                </div>
+                <h2>📁 Logs de Importação de Sistema</h2>
+                <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
             </div>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Nota: Ao iniciar uma nova semana, os pontos acumulados dos jogadores serão preservados em seus saldos totais, mas a contagem de Participação (90%) e de Diamantes recomeçará do zero para todos.</p>
             <table>
                 <thead>
                     <tr>
@@ -662,7 +663,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUMA IMPORTAÇÃO NESTA SEMANA ]</td></tr>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ SISTEMA DE LOGS VAZIO ]</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
