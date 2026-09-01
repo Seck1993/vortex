@@ -101,6 +101,7 @@ def index():
         if pid not in mapa_pontos:
             mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0}
         
+        # Tudo vai para o saldo total do jogador
         mapa_pontos[pid]['total_bruto'] += pts
         mapa_pontos[pid]['total_final'] += pts
 
@@ -127,7 +128,6 @@ def index():
     ).all()
     
     # === CÁLCULO DA "MODA" (TETO DE 100%) ===
-    # Encontra a pontuação mais repetida da semana (o Topo Justo)
     frequencias = {}
     for j in jogadores:
         pts_semana = mapa_pontos.get(j.id, {}).get('total_semanal', 0)
@@ -136,7 +136,7 @@ def index():
     
     pontuacao_base_semanal = 0
     if frequencias:
-        # Pega a pontuação com maior frequência. Se houver empate, pega a maior pontuação entre elas.
+        # Pega a pontuação com maior frequência
         pontuacao_base_semanal = max(frequencias.keys(), key=lambda k: (frequencias[k], k))
 
     ranking = []
@@ -179,7 +179,9 @@ def index():
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
-    importacoes = ImportacaoXML.query.order_by(ImportacaoXML.data_importacao.desc()).all()
+    
+    # Importações da semana ativa
+    importacoes = ImportacaoXML.query.filter_by(semana=semana_ativa_str).order_by(ImportacaoXML.data_importacao.desc()).all()
     
     total_jogadores = len(jogadores)
     user_role = session.get('role', 'guest')
@@ -259,7 +261,7 @@ def nova_semana():
     
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
     if not config_semana:
-        config_semana = ConfigAtividade(nome_xml='SEMANA_ATIVA', pontos_padrao=2, tipo_evento='sistema', is_ativa=False)
+        config_semana = ConfigAtividade(nome_xml='SEMANA_ATIVA', pontos_padrao=1, tipo_evento='sistema', is_ativa=False)
         db.session.add(config_semana)
     else:
         config_semana.pontos_padrao += 1
@@ -339,7 +341,7 @@ def apostar_item():
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
     semana_ativa_str = f"Semana {config_semana.pontos_padrao}" if config_semana else "Semana 1"
 
-    # Recalcula a Moda (Base de 100%) da Semana Atual
+    # Recalcula a Moda Semanal
     pontos_semanais_todos = db.session.query(
         Pontuacao.jogador_id, func.sum(Pontuacao.pontos)
     ).filter_by(semana=semana_ativa_str).group_by(Pontuacao.jogador_id).all()
@@ -621,12 +623,12 @@ def confirmar_importacao():
                     
                     pts_atuais = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
                         jogador_id=jogador.id,
+                        semana=semana_fixa,
                         atividade=nome_atividade
                     ).scalar() or 0
                     
                     diferenca = novo_valor_xml - pts_atuais
 
-                    # Adiciona apenas os pontos ganhos novos na semana ativa
                     if diferenca > 0:
                         novo_ponto = Pontuacao(
                             jogador_id=jogador.id,
@@ -658,6 +660,7 @@ def confirmar_importacao():
                     
                     pts_atuais_bs = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
                         jogador_id=jogador_id,
+                        semana=semana_fixa,
                         atividade="BlackSkull"
                     ).scalar() or 0
                     
@@ -674,7 +677,7 @@ def confirmar_importacao():
                         db.session.add(novo_ponto)
 
         db.session.commit()
-        return jsonify({"mensagem": "Importação de Pontos concluída com base na Diferença (Delta)!"}), 200
+        return jsonify({"mensagem": "Importação de Pontos concluída com base na Diferença!"}), 200
 
     except Exception as e:
         db.session.rollback() 
@@ -777,8 +780,7 @@ def editar_jogadores():
     user_role = session.get('role')
     
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
-    semana_ativa_numero = config_semana.pontos_padrao if config_semana else 1
-    semana_ativa_str = f"Semana {semana_ativa_numero}"
+    semana_ativa_str = f"Semana {config_semana.pontos_padrao}" if config_semana else "Semana 1"
 
     try:
         for item in jogadores_data:
@@ -967,7 +969,6 @@ def deletar_historico(id):
 with app.app_context():
     db.create_all()
 
-    # MIGRATION DA CONFIGURAÇÃO DA SEMANA
     try:
         if not ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first():
             db.session.add(ConfigAtividade(nome_xml='SEMANA_ATIVA', pontos_padrao=1, tipo_evento='sistema', is_ativa=False))
@@ -1056,7 +1057,6 @@ with app.app_context():
         except Exception:
             db.session.rollback()
 
-    # MIGRATION: Garante as duas Réguas Especiais
     if not ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first():
         db.session.add(ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=100000, tipo_evento='sistema', is_ativa=False))
         db.session.commit()
