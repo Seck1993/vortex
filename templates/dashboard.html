@@ -51,7 +51,6 @@
         .header h1::before { content: "⚡"; font-size: 26px; filter: hue-rotate(180deg); }
         .semana-badge { font-size: 20px; color: var(--neon-purple); background: rgba(188, 19, 254, 0.1); border: 1px solid var(--neon-purple); padding: 5px 15px; border-radius: 4px; box-shadow: 0 0 10px rgba(188, 19, 254, 0.3); margin-left: 15px;}
 
-        /* Estilização do Google Translate */
         #google_translate_element select {
             background: rgba(0,0,0,0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan);
             padding: 8px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 14px; outline: none;
@@ -59,7 +58,7 @@
         .goog-te-gadget-icon { display: none; }
         .goog-te-gadget-simple { background-color: transparent !important; border: none !important; padding: 0 !important; }
         .goog-te-gadget-simple span { color: var(--text-light) !important; font-family: 'Rajdhani', sans-serif !important; }
-        body { top: 0 !important; } /* Previne a barra superior do Google de empurrar o layout */
+        body { top: 0 !important; } 
         .skiptranslate iframe { display: none !important; }
 
         .table-container { 
@@ -497,7 +496,7 @@
                         <th style="text-align: left;">Receptor</th>
                         <th>Espólio (Item)</th>
                         <th>Dedução de Pontos</th>
-                        {% if user_role == 'admin' %th style="border-right: none;">Comandos</th>{% endif %}
+                        {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
