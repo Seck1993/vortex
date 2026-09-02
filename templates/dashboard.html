@@ -174,7 +174,6 @@
         ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--neon-cyan); }
 
-        /* NOVA ESTILIZAÇÃO - ABA CLASSES E STICKY HEADER */
         .table-scroll-fixed {
             max-height: 65vh;
             overflow-y: auto;
@@ -189,7 +188,7 @@
         .table-scroll-fixed thead th {
             position: sticky;
             top: 0;
-            background-color: #0c0c12; /* Fundo opaco para que as linhas passem por baixo limpas */
+            background-color: #0c0c12; 
             z-index: 10;
             box-shadow: 0 2px 10px rgba(0,0,0,0.8);
         }
@@ -241,7 +240,18 @@
         {% for item in evento.itens %}
         <div class="item-card" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
             <div>
-                <h3 style="color: #fff; margin: 0; font-size: 22px;">{{ item.nome_item }}</h3>
+                <!-- NOME DO ITEM COM TAG DE RESTRIÇÃO -->
+                <h3 style="color: #fff; margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;">
+                    {{ item.nome_item }}
+                    {% if item.restricao == 'Mega' %}
+                        <span style="font-size: 14px; background: rgba(255, 215, 0, 0.1); color: var(--gold-mega); padding: 3px 8px; border: 1px solid var(--gold-mega); border-radius: 4px;">Somente Megas ⭐</span>
+                    {% elif item.restricao == 'Titã' %}
+                        <span style="font-size: 14px; background: rgba(0, 168, 255, 0.1); color: var(--blue-tita); padding: 3px 8px; border: 1px solid var(--blue-tita); border-radius: 4px;">Titãs e Megas ⚔️</span>
+                    {% else %}
+                        <span style="font-size: 14px; background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); padding: 3px 8px; border: 1px solid var(--neon-cyan); border-radius: 4px;">Livre para Todos</span>
+                    {% endif %}
+                </h3>
+                
                 <p style="margin: 5px 0 0 0; color: var(--neon-cyan); font-weight: bold;">Probabilidade Máxima: {{ item.max_pontos }} PTS = 100%</p>
                 <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">Total depositado pelos membros: {{ item.total_apostado }} PTS</p>
                 
@@ -1134,12 +1144,18 @@
         function adicionarCampoItem() {
             const container = document.getElementById('listaItensCriacao');
             const index = container.children.length + 1;
-            container.innerHTML += `
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            const html = `
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
                     <input type="text" class="input-edit item-nome-novo" placeholder="Nome do Item ${index}" style="flex: 2; text-align: left;">
+                    <select class="input-edit item-restricao-novo" style="flex: 1;">
+                        <option value="Todos">Todos</option>
+                        <option value="Titã">Apenas Titãs+</option>
+                        <option value="Mega">Apenas Megas</option>
+                    </select>
                     <input type="number" class="input-edit item-pontos-novo" placeholder="Pontos (100%)" value="100" style="flex: 1;">
                 </div>
             `;
+            container.insertAdjacentHTML('beforeend', html);
         }
 
         async function salvarNovoEvento() {
@@ -1152,7 +1168,8 @@
             let itens = [];
             document.querySelectorAll('.item-nome-novo').forEach((input, i) => {
                 const maxPts = document.querySelectorAll('.item-pontos-novo')[i].value;
-                if(input.value.trim()) itens.push({ nome: input.value, max_pontos: maxPts });
+                const restricao = document.querySelectorAll('.item-restricao-novo')[i].value;
+                if(input.value.trim()) itens.push({ nome: input.value, max_pontos: maxPts, restricao: restricao });
             });
             if (itens.length === 0) return alert("Adicione pelo menos um item!");
 
