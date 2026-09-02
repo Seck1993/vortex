@@ -54,9 +54,9 @@ class ImportacaoXML(db.Model):
 class Pontuacao(db.Model):
     __tablename__ = 'pontuacoes'
     id = db.Column(db.Integer, primary_key=True)
-    jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'), nullable=False)
-    semana = db.Column(db.String(50), nullable=False, default="Acumulativo")
-    atividade = db.Column(db.String(100), nullable=False)
+    jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'), nullable=False, index=True)
+    semana = db.Column(db.String(50), nullable=False, default="Acumulativo", index=True)
+    atividade = db.Column(db.String(100), nullable=False, index=True)
     pontos = db.Column(db.Integer, nullable=False)
     
     importacao_id = db.Column(db.Integer, db.ForeignKey('importacoes.id'), nullable=True)

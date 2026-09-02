@@ -21,6 +21,28 @@ app.config['SECRET_KEY'] = 'chave_super_secreta_vortex'
 
 db.init_app(app)
 
+
+def calcular_pontuacao_base_semanal(pontos_semanais):
+    """Calcula a 'moda' (valor mais frequente; empate resolvido pelo maior valor)
+    de uma coleção de totais de pontos semanais por jogador. Usada como teto de
+    100% de participação. Extraída para uso único em index() e apostar_item(),
+    que antes duplicavam esta lógica de negócio central."""
+    frequencias = {}
+    for pts in pontos_semanais:
+        if pts > 0:
+            frequencias[pts] = frequencias.get(pts, 0) + 1
+    if not frequencias:
+        return 0
+    return max(frequencias.keys(), key=lambda k: (frequencias[k], k))
+
+
+def erro_interno(e):
+    """Loga o stack trace no servidor e devolve uma mensagem genérica ao cliente,
+    evitando vazar detalhes internos (stack trace / mensagens do SQLAlchemy)."""
+    app.logger.exception("Erro interno em rota da API")
+    return jsonify({"erro": "Erro interno no servidor. Tente novamente ou contate o administrador."}), 500
+
+
 class SorteioHistorico(db.Model):
     __tablename__ = 'sorteios'
     id = db.Column(db.Integer, primary_key=True)
@@ -127,15 +149,9 @@ def index():
     ).all()
     
     # === CÁLCULO DA "MODA" (TETO DE 100%) ===
-    frequencias = {}
-    for j in jogadores:
-        pts_semana = mapa_pontos.get(j.id, {}).get('total_semanal', 0)
-        if pts_semana > 0:
-            frequencias[pts_semana] = frequencias.get(pts_semana, 0) + 1
-    
-    pontuacao_base_semanal = 0
-    if frequencias:
-        pontuacao_base_semanal = max(frequencias.keys(), key=lambda k: (frequencias[k], k))
+    pontuacao_base_semanal = calcular_pontuacao_base_semanal(
+        mapa_pontos.get(j.id, {}).get('total_semanal', 0) for j in jogadores
+    )
 
     ranking = []
     soma_total_pontos = 0
@@ -359,12 +375,7 @@ def apostar_item():
         Pontuacao.jogador_id, func.sum(Pontuacao.pontos)
     ).filter_by(semana=semana_ativa_str).group_by(Pontuacao.jogador_id).all()
 
-    frequencias = {}
-    for pid, pts in pontos_semanais_todos:
-        if pts > 0:
-            frequencias[pts] = frequencias.get(pts, 0) + 1
-    
-    pontuacao_base_semanal = max(frequencias.keys(), key=lambda k: (frequencias[k], k)) if frequencias else 0
+    pontuacao_base_semanal = calcular_pontuacao_base_semanal(pts for _, pts in pontos_semanais_todos)
     pts_jogador_semana = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id, semana=semana_ativa_str).scalar() or 0
 
     participacao_jogador = (pts_jogador_semana / pontuacao_base_semanal) * 100.0 if pontuacao_base_semanal > 0 else 0.0
@@ -522,7 +533,7 @@ def salvar_regua():
         return jsonify({"mensagem": "Réguas atualizadas globalmente!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/importar', methods=['POST'])
 def importar_xml():
@@ -582,7 +593,7 @@ def importar_xml():
     except Exception as e:
         if os.path.exists(caminho):
             os.remove(caminho)
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/confirmar', methods=['POST'])
 def confirmar_importacao():
@@ -692,7 +703,7 @@ def confirmar_importacao():
 
     except Exception as e:
         db.session.rollback() 
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/importar-excel', methods=['POST'])
 def importar_excel():
@@ -750,7 +761,7 @@ def importar_excel():
     except Exception as e:
         if os.path.exists(caminho): os.remove(caminho)
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-importacao', methods=['POST'])
 def editar_importacao():
@@ -765,7 +776,7 @@ def editar_importacao():
         return jsonify({"mensagem": "Nomes de upload atualizados com sucesso!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/deletar-importacao/<int:id>', methods=['DELETE'])
 def deletar_importacao(id):
@@ -780,7 +791,7 @@ def deletar_importacao(id):
         return jsonify({"erro": "Registro não encontrado."}), 404
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-jogadores', methods=['POST'])
 def editar_jogadores():
@@ -858,7 +869,7 @@ def editar_jogadores():
         return jsonify({"mensagem": "Modificações salvas com sucesso!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/criar-evento', methods=['POST'])
 def criar_evento():
@@ -893,7 +904,7 @@ def salvar_configuracoes():
         return jsonify({"mensagem": "Matriz atualizada!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/realizar-sorteio-meme', methods=['POST'])
 def realizar_sorteio_meme():
@@ -914,7 +925,7 @@ def realizar_sorteio_meme():
         return jsonify({"vencedor_nome": vencedor.nome, "vencedor_id": vencedor.id, "item": item_sorteado}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-historico-meme', methods=['POST'])
 def editar_historico_meme():
@@ -930,7 +941,7 @@ def editar_historico_meme():
         return jsonify({"mensagem": "Registros gravados!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/deletar-historico-meme/<int:id>', methods=['DELETE'])
 def deletar_historico_meme(id):
@@ -944,7 +955,7 @@ def deletar_historico_meme(id):
         return jsonify({"erro": "Não encontrado."}), 404
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-historico', methods=['POST'])
 def editar_historico():
@@ -961,7 +972,7 @@ def editar_historico():
         return jsonify({"mensagem": "Registros gravados!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/deletar-historico/<int:id>', methods=['DELETE'])
 def deletar_historico(id):
@@ -975,7 +986,7 @@ def deletar_historico(id):
         return jsonify({"erro": "Não encontrado."}), 404
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 with app.app_context():
     db.create_all()
@@ -1105,5 +1116,17 @@ with app.app_context():
             db.session.add(ConfigAtividade(nome_xml=atv, pontos_padrao=1, tipo_evento=tipo))
         db.session.commit()
 
+    # Índices para as colunas de Pontuacao mais usadas em filtros/GROUP BY.
+    # CREATE INDEX IF NOT EXISTS é suportado tanto pelo SQLite quanto pelo PostgreSQL,
+    # e é necessário aqui porque db.create_all() não retroaplica índices a tabelas já existentes.
+    try:
+        db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_jogador_id ON pontuacoes (jogador_id)"))
+        db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_semana ON pontuacoes (semana)"))
+        db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_atividade ON pontuacoes (atividade)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(debug=debug_mode, port=5000)
