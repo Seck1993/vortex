@@ -57,6 +57,7 @@ class EventoItem(db.Model):
     evento_id = db.Column(db.Integer, db.ForeignKey('evento_sorteio.id'))
     nome_item = db.Column(db.String(100), nullable=False)
     max_pontos = db.Column(db.Float, default=100.0)
+    restricao = db.Column(db.String(20), default="Todos") # NOVA REGRA DE FAIXA (Todos, Titã, Mega)
     sorteado = db.Column(db.Boolean, default=False)
     vencedor_nome = db.Column(db.String(100), nullable=True)
     em_andamento = db.Column(db.Boolean, default=False) 
@@ -101,15 +102,12 @@ def index():
         if pid not in mapa_pontos:
             mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0}
         
-        # Tudo vai para o saldo total do jogador (histórico da vida dele)
         mapa_pontos[pid]['total_bruto'] += pts
         mapa_pontos[pid]['total_final'] += pts
 
-        # MAS apenas os pontos DESTA semana contam para a participação dos 90%
         if sem == semana_ativa_str:
             mapa_pontos[pid]['total_semanal'] += pts
 
-        # Separação visual das colunas
         if atv == 'BlackSkull':
             mapa_pontos[pid]['blackskull'] += pts
         elif atv in ['Edição via Painel', 'Ajuste Manual', 'Ajuste Geral']:
@@ -128,8 +126,7 @@ def index():
         db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')
     ).all()
     
-    # === O NOVO CÁLCULO DE 100% (MODA ESTATÍSTICA) ===
-    # Encontra a pontuação que a maioria da guilda tirou nesta semana
+    # === CÁLCULO DA "MODA" (TETO DE 100%) ===
     frequencias = {}
     for j in jogadores:
         pts_semana = mapa_pontos.get(j.id, {}).get('total_semanal', 0)
@@ -138,7 +135,6 @@ def index():
     
     pontuacao_base_semanal = 0
     if frequencias:
-        # Pega a pontuação com maior frequência (o agrupamento de players que foi em tudo)
         pontuacao_base_semanal = max(frequencias.keys(), key=lambda k: (frequencias[k], k))
 
     ranking = []
@@ -150,7 +146,6 @@ def index():
         total_semanal_jogador = p_data['total_semanal']
         total_final = p_data['total_final']
         
-        # A Participação baseada na maioria
         if pontuacao_base_semanal > 0:
             if total_semanal_jogador >= pontuacao_base_semanal:
                 participacao = 100.0
@@ -181,14 +176,14 @@ def index():
 
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
-    
-    # Importações desta semana apenas
     importacoes = ImportacaoXML.query.filter_by(semana=semana_ativa_str).order_by(ImportacaoXML.data_importacao.desc()).all()
     
     total_jogadores = len(jogadores)
     user_role = session.get('role', 'guest')
 
+    # Dados do Evento Ativo (Banner)
     evento_ativo = EventoSorteio.query.filter_by(ativo=True).order_by(EventoSorteio.id.desc()).first()
+    
     evento_data = None
     if evento_ativo:
         itens_data = []
@@ -198,6 +193,7 @@ def index():
                 'id': item.id,
                 'nome_item': item.nome_item,
                 'max_pontos': item.max_pontos,
+                'restricao': item.restricao, # Passa a restrição para a Tela
                 'sorteado': item.sorteado,
                 'vencedor_nome': item.vencedor_nome,
                 'apostas': apostas,
@@ -293,7 +289,12 @@ def publicar_banner():
     db.session.flush()
 
     for item in dados.get('itens', []):
-        db.session.add(EventoItem(evento_id=novo_evento.id, nome_item=item['nome'], max_pontos=float(item['max_pontos'])))
+        db.session.add(EventoItem(
+            evento_id=novo_evento.id, 
+            nome_item=item['nome'], 
+            max_pontos=float(item['max_pontos']),
+            restricao=item.get('restricao', 'Todos') # Recebe a Restrição
+        ))
     
     db.session.commit()
     return jsonify({"mensagem": "Evento de sorteio publicado!"}), 200
@@ -334,14 +335,26 @@ def apostar_item():
     item = db.session.get(EventoItem, item_id)
     if not item or item.sorteado or item.em_andamento: return jsonify({"erro": "Item inválido ou já finalizado/em sorteio."}), 400
 
-    # VALIDAÇÃO DE REGRA DE NEGÓCIO: MÍNIMO 90% DE PARTICIPAÇÃO NA SEMANA ATUAL
     jogador_alvo = db.session.get(Jogador, jogador_id)
     if not jogador_alvo: return jsonify({"erro": "Jogador não encontrado."}), 404
 
+    # === CHECAGEM DE RESTRIÇÃO DE FAIXA (MEGA / TITÃ) ===
+    config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
+    cp_mega = config_mega.pontos_padrao if config_mega else 100000
+
+    config_tita = ConfigAtividade.query.filter_by(nome_xml='REGUA_TITA').first()
+    cp_tita = config_tita.pontos_padrao if config_tita else 50000
+
+    if item.restricao == 'Mega' and jogador_alvo.poder_combate < cp_mega:
+        return jsonify({"erro": f"Acesso negado! Este item é exclusivo para a faixa MEGA (CP Mínimo exigido: {cp_mega:,})."}), 400
+
+    if item.restricao == 'Titã' and jogador_alvo.poder_combate < cp_tita:
+        return jsonify({"erro": f"Acesso negado! Este item é exclusivo para as faixas Titã e Mega (CP Mínimo exigido: {cp_tita:,})."}), 400
+
+    # VALIDAÇÃO DE REGRA DE NEGÓCIO: MÍNIMO 90% DE PARTICIPAÇÃO NA SEMANA ATUAL
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
     semana_ativa_str = f"Semana {config_semana.pontos_padrao}" if config_semana else "Semana 1"
 
-    # Recalcula a Moda Semanal
     pontos_semanais_todos = db.session.query(
         Pontuacao.jogador_id, func.sum(Pontuacao.pontos)
     ).filter_by(semana=semana_ativa_str).group_by(Pontuacao.jogador_id).all()
@@ -361,7 +374,7 @@ def apostar_item():
             "erro": f"Acesso bloqueado! Sua participação na semana atual é {participacao_jogador:.1f}%. (Mínimo exigido: 90%)."
         }), 400
 
-    # VALIDAÇÃO DO SALDO DE PONTOS REAIS HISTÓRICOS (SALDO DA VIDA DO JOGADOR)
+    # VALIDAÇÃO DO SALDO DE PONTOS REAIS
     pts_brutos_jogador = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id).scalar() or 0
     pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador_id).scalar() or 0
     
@@ -582,7 +595,6 @@ def confirmar_importacao():
     guilda_alvo = dados.get('guilda_alvo', 'vortex')
     eventos_selecionados = dados.get('eventos_selecionados', []) 
     
-    # A injeção agora é carimbada com a SEMANA ATIVA
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
     semana_fixa = f"Semana {config_semana.pontos_padrao}" if config_semana else "Semana 1"
 
@@ -613,7 +625,6 @@ def confirmar_importacao():
                 else:
                     jogador.status = 'Ativo'
 
-                # === CÁLCULO DE DIFERENÇA (DELTA) CORRIGIDO ===
                 for atv in j_data['detalhes']:
                     nome_atividade = atv['atividade']
                     if nome_atividade not in eventos_selecionados:
@@ -621,15 +632,14 @@ def confirmar_importacao():
 
                     novo_valor_xml = int(atv['pontos'])
                     
-                    # Busca os pontos TOTAIS DE TODA A VIDA do jogador naquela atividade para subtrair do XML
                     pts_atuais = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
                         jogador_id=jogador.id,
+                        semana=semana_fixa,
                         atividade=nome_atividade
                     ).scalar() or 0
                     
                     diferenca = novo_valor_xml - pts_atuais
 
-                    # Insere apenas os pontos GANHOS NESTA LEITURA com a tag da Semana Atual
                     if diferenca > 0:
                         novo_ponto = Pontuacao(
                             jogador_id=jogador.id,
@@ -661,6 +671,7 @@ def confirmar_importacao():
                     
                     pts_atuais_bs = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
                         jogador_id=jogador_id,
+                        semana=semana_fixa,
                         atividade="BlackSkull"
                     ).scalar() or 0
                     
@@ -810,7 +821,6 @@ def editar_jogadores():
                                 PersonagemSecundario.query.filter_by(nome_alt=n_alt).delete()
                                 db.session.add(PersonagemSecundario(jogador_id=jogador.id, nome_alt=n_alt))
 
-                    # Edições manuais nas tabelas vão para a Semana Atual
                     if 'eventos' in item:
                         for atv_nome, novo_valor in item['eventos'].items():
                             novo_valor = int(novo_valor)
@@ -970,7 +980,12 @@ def deletar_historico(id):
 with app.app_context():
     db.create_all()
 
-    # MIGRATION DA CONFIGURAÇÃO DA SEMANA
+    try:
+        db.session.execute(text("ALTER TABLE evento_item ADD COLUMN restricao VARCHAR(20) DEFAULT 'Todos'"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     try:
         if not ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first():
             db.session.add(ConfigAtividade(nome_xml='SEMANA_ATIVA', pontos_padrao=1, tipo_evento='sistema', is_ativa=False))
@@ -978,7 +993,6 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
-    # MIGRATION DA COLUNA SEMANA NAS TABELAS
     try:
         db.session.execute(text("ALTER TABLE pontuacoes ADD COLUMN semana VARCHAR(50) DEFAULT 'Acumulativo'"))
         db.session.commit()
@@ -1072,7 +1086,6 @@ with app.app_context():
         except Exception:
             db.session.rollback()
 
-    # MIGRATION: Garante as duas Réguas Especiais
     if not ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first():
         db.session.add(ConfigAtividade(nome_xml='REGUA_MEGA', pontos_padrao=100000, tipo_evento='sistema', is_ativa=False))
         db.session.commit()
