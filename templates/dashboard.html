@@ -16,29 +16,29 @@
             --text-light: #e0e6ed;
             --text-muted: #6b7a90;
             --glass-border: rgba(0, 243, 255, 0.2);
-            --purple-primary: var(--neon-cyan); 
+            --purple-primary: var(--neon-cyan);
             --gold-mega: #ffd700;
             --blue-tita: #00a8ff;
         }
 
         body {
             background-color: var(--bg-dark);
-            background-image: 
+            background-image:
                 linear-gradient(rgba(0, 243, 255, 0.04) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 243, 255, 0.04) 1px, transparent 1px);
             background-size: 40px 40px;
             background-attachment: fixed;
             color: var(--text-light);
             font-family: 'Rajdhani', sans-serif;
-            margin: 0; 
-            padding: 15px; 
+            margin: 0;
+            padding: 15px;
             overflow-x: hidden;
         }
 
         h1, h2, h3 { text-transform: uppercase; letter-spacing: 2px; margin-top: 0; }
 
-        .header { 
-            display: flex; justify-content: space-between; align-items: center; 
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 20px; border-bottom: 1px solid var(--glass-border);
             padding-bottom: 10px; box-shadow: 0 10px 20px -10px rgba(0, 243, 255, 0.1);
             flex-wrap: wrap; gap: 15px;
@@ -58,62 +58,62 @@
         .goog-te-gadget-icon { display: none; }
         .goog-te-gadget-simple { background-color: transparent !important; border: none !important; padding: 0 !important; }
         .goog-te-gadget-simple span { color: var(--text-light) !important; font-family: 'Rajdhani', sans-serif !important; }
-        body { top: 0 !important; } 
+        body { top: 0 !important; }
         .skiptranslate iframe { display: none !important; }
 
-        .table-container { 
-            background: var(--bg-panel); padding: 25px; 
+        .table-container {
+            background: var(--bg-panel); padding: 25px;
             border: 1px solid var(--glass-border); border-left: 5px solid var(--neon-purple);
             backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-            margin-bottom: 20px; overflow-x: auto; 
+            margin-bottom: 20px; overflow-x: auto;
         }
         .table-container h2 { color: #fff; text-shadow: 0 0 12px var(--neon-purple); display: flex; align-items: center; gap: 10px; font-size: 24px; margin-bottom: 20px;}
-        
+
         table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: center; }
-        
-        th { 
-            padding: 15px 10px; 
-            border-bottom: 2px solid rgba(0, 243, 255, 0.3); 
-            border-right: 1px solid rgba(0, 243, 255, 0.15); 
-            color: var(--neon-cyan); font-size: 16px; text-transform: uppercase; 
-            letter-spacing: 1px; background: rgba(0, 243, 255, 0.05); 
+
+        th {
+            padding: 15px 10px;
+            border-bottom: 2px solid rgba(0, 243, 255, 0.3);
+            border-right: 1px solid rgba(0, 243, 255, 0.15);
+            color: var(--neon-cyan); font-size: 16px; text-transform: uppercase;
+            letter-spacing: 1px; background: rgba(0, 243, 255, 0.05);
             white-space: nowrap; vertical-align: middle; font-weight: 700;
         }
-        td { 
-            padding: 15px 10px; 
-            border-bottom: 1px solid rgba(0, 243, 255, 0.15); 
+        td {
+            padding: 15px 10px;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.15);
             border-right: 1px solid rgba(0, 243, 255, 0.15);
             font-size: 18px; transition: 0.2s; white-space: nowrap; vertical-align: middle;
         }
         th:last-child, td:last-child { border-right: none; }
-        td:nth-child(2), td:nth-child(3) { text-align: left; } 
+        td:nth-child(2), td:nth-child(3) { text-align: left; }
         tbody tr { transition: 0.2s; }
         tbody tr:hover { background: rgba(0, 243, 255, 0.1); }
         tbody tr:hover td { border-bottom-color: var(--neon-cyan); }
-        
+
         tr.linha-modificada td { background-color: rgba(0, 255, 102, 0.05); }
 
-        .btn { 
-            background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); 
-            padding: 10px 22px; border: 1px solid var(--neon-cyan); 
+        .btn {
+            background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan);
+            padding: 10px 22px; border: 1px solid var(--neon-cyan);
             cursor: pointer; transition: all 0.3s ease; font-weight: 700;
             font-family: 'Rajdhani', sans-serif; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;
             clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
         }
         .btn:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); }
-        
+
         .btn-success { border-color: var(--neon-green); color: var(--neon-green); background: rgba(0, 255, 102, 0.1); }
         .btn-success:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 15px var(--neon-green); }
-        
+
         .btn-warning { border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 170, 0, 0.1); }
         .btn-warning:hover { background: var(--neon-orange); color: #000; box-shadow: 0 0 15px var(--neon-orange); }
-        
+
         .btn-outline { border-color: var(--neon-purple); color: var(--neon-purple); background: rgba(188, 19, 254, 0.1); }
         .btn-outline:hover { background: var(--neon-purple); color: #fff; box-shadow: 0 0 15px var(--neon-purple); }
 
         .btn-danger { background: transparent; border: none; font-size: 18px; cursor: pointer; transition: 0.2s; filter: drop-shadow(0 0 5px var(--neon-red));}
         .btn-danger:hover { transform: scale(1.3); }
-        
+
         .input-edit {
             background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); color: var(--neon-cyan);
             padding: 8px 10px; border-radius: 4px; font-size: 16px; outline: none; transition: all 0.3s ease;
@@ -123,10 +123,10 @@
         .edit-pontos { color: var(--neon-green); font-size: 20px; font-weight: 700; text-align: center; border-color: rgba(0, 255, 102, 0.3);}
 
         .input-edit option { background-color: #0a0a0f; color: var(--neon-cyan); }
-        
+
         .tabs { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0px;}
-        .tab-btn { 
-            background: transparent; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; 
+        .tab-btn {
+            background: transparent; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer;
             padding: 12px 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
             font-family: 'Rajdhani', sans-serif; transition: 0.3s; position: relative;
         }
@@ -138,16 +138,16 @@
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .roleta-box { 
-            font-size: 42px; font-weight: 700; color: #fff; text-align: center; padding: 40px; 
-            border: 2px solid var(--neon-orange); border-radius: 6px; background: rgba(255, 170, 0, 0.05); 
+        .roleta-box {
+            font-size: 42px; font-weight: 700; color: #fff; text-align: center; padding: 40px;
+            border: 2px solid var(--neon-orange); border-radius: 6px; background: rgba(255, 170, 0, 0.05);
             margin: 25px 0; overflow: hidden; box-shadow: 0 0 40px rgba(255, 170, 0, 0.2), inset 0 0 25px rgba(255, 170, 0, 0.1);
             text-transform: uppercase; letter-spacing: 2px;
         }
 
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 100; justify-content: center; align-items: center;}
         .modal-content {
-            background: var(--bg-panel); border: 2px solid var(--neon-cyan); width: 650px; padding: 35px; 
+            background: var(--bg-panel); border: 2px solid var(--neon-cyan); width: 650px; padding: 35px;
             box-shadow: 0 0 60px rgba(0, 243, 255, 0.2); max-height: 90vh; overflow-y: auto; position: relative;
             clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
         }
@@ -188,7 +188,7 @@
         .table-scroll-fixed thead th {
             position: sticky;
             top: 0;
-            background-color: #0c0c12; 
+            background-color: #0c0c12;
             z-index: 10;
             box-shadow: 0 2px 10px rgba(0,0,0,0.8);
         }
@@ -199,17 +199,48 @@
         .banner-mega { border-color: var(--gold-mega); box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
         .banner-mega .icone { font-size: 32px; filter: drop-shadow(0 0 5px var(--gold-mega)); }
         .banner-mega .nome { color: var(--gold-mega); font-size: 22px; font-weight: bold; }
-        
+
         .banner-tita { border-color: var(--blue-tita); box-shadow: 0 0 15px rgba(0, 168, 255, 0.2); }
         .banner-tita .icone { font-size: 32px; filter: drop-shadow(0 0 5px var(--blue-tita)); }
         .banner-tita .nome { color: var(--blue-tita); font-size: 22px; font-weight: bold; }
-        
+
         .banner-destaque .classe { color: #fff; font-size: 16px; margin: 2px 0; }
         .banner-destaque .cp { color: var(--neon-green); font-family: monospace; font-size: 18px; font-weight: bold;}
+
+        /* --- SISTEMA DE TOASTS --- */
+        .toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 999;
+            display: flex; flex-direction: column; gap: 12px;
+            pointer-events: none; max-width: 380px;
+        }
+        .toast {
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(15, 15, 25, 0.95); backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border); border-left: 4px solid var(--neon-cyan);
+            padding: 14px 18px; border-radius: 6px; color: var(--text-light);
+            font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            opacity: 0; transform: translateX(40px); transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: auto;
+        }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast-icon { font-size: 20px; flex-shrink: 0; }
+        .toast-msg { flex: 1; line-height: 1.3; }
+        .toast-sucesso { border-left-color: var(--neon-green); }
+        .toast-sucesso .toast-icon { color: var(--neon-green); }
+        .toast-erro { border-left-color: var(--neon-red); }
+        .toast-erro .toast-icon { color: var(--neon-red); }
+        .toast-aviso { border-left-color: var(--neon-orange); }
+        .toast-aviso .toast-icon { color: var(--neon-orange); }
+        .toast-info { border-left-color: var(--neon-cyan); }
+        .toast-info .toast-icon { color: var(--neon-cyan); }
     </style>
 </head>
 <body>
 
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <div id="app-root">
     <div class="header">
         <h1>Vortex Command Center <span class="semana-badge">{{ label_semana }}</span></h1>
         <div style="display: flex; gap: 15px; align-items: center;">
@@ -230,13 +261,13 @@
     {% if evento %}
     <div class="banner-evento">
         <button class="btn btn-outline" style="position: absolute; top: 20px; right: 20px;" onclick="abrirModal('modalTutorial')">📖 Como Funciona</button>
-        
+
         <h2>📢 {{ evento.titulo }}</h2>
-        
+
         <div class="timer-display" id="timerDisplay" data-prazo="{{ evento.prazo_encerramento }}">--:--:--</div>
 
         <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER! <strong style="color: var(--neon-orange);">(Exige no mínimo 90% de participação na semana ativa)</strong>.</p>
-        
+
         {% for item in evento.itens %}
         <div class="item-card" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
             <div>
@@ -251,10 +282,10 @@
                         <span style="font-size: 14px; background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); padding: 3px 8px; border: 1px solid var(--neon-cyan); border-radius: 4px;">Livre para Todos</span>
                     {% endif %}
                 </h3>
-                
+
                 <p style="margin: 5px 0 0 0; color: var(--neon-cyan); font-weight: bold;">Probabilidade Máxima: {{ item.max_pontos }} PTS = 100%</p>
                 <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">Total depositado pelos membros: {{ item.total_apostado }} PTS</p>
-                
+
                 {% if item.sorteado %}
                     <p style="color: var(--neon-green); font-weight: bold; font-size: 18px; margin-top: 10px;">🏆 Vencedor: {{ item.vencedor_nome }}</p>
                 {% else %}
@@ -268,7 +299,7 @@
                     </div>
                 {% endif %}
             </div>
-            
+
             <div style="display: flex; gap: 10px; flex-direction: column;">
                 {% if not item.sorteado %}
                     {% if session.get('logged_in') %}
@@ -283,7 +314,7 @@
             </div>
         </div>
         {% endfor %}
-        
+
         {% if user_role == 'admin' %}
             <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red); margin-top: 25px;" onclick="encerrarEvento()">✖ Encerrar Evento</button>
         {% endif %}
@@ -295,7 +326,7 @@
         <button class="tab-btn" onclick="trocarAba('abaClasses', this)">Ordem de Classes & Builds</button>
         <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
         <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
-        
+
         {% if user_role == 'admin' %}
             <button class="tab-btn" onclick="trocarAba('abaConfig', this)">Matriz de Pontos</button>
             <button class="tab-btn" onclick="trocarAba('abaLogs', this)">Logs do Sistema</button>
@@ -365,7 +396,7 @@
                     {% for item in ranking %}
                     <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
                         <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
-                        
+
                         <td style="text-align: left;">
                             {% if session.get('logged_in') and user_role == 'admin' %}
                                 <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')">
@@ -375,17 +406,17 @@
                                 </span>
                             {% endif %}
                         </td>
-                        
+
                         {% if session.get('logged_in') %}
                             {% if user_role == 'admin' %}
                                 <td style="text-align: left;"><input type="text" class="input-edit edit-alts" value="{{ item.alts_str }}" placeholder="Alts..." style="width: 150px; text-align: left;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             {% else %}
                                 <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}<input type="hidden" class="edit-alts" value="{{ item.alts_str }}"></td>
                             {% endif %}
-                            
+
                             <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
                             <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 110px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
-                            
+
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
                             <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
@@ -421,7 +452,7 @@
         <div class="table-container" style="border-left-color: var(--neon-cyan); padding-bottom: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); margin: 0;">⚔️ Progressão e Ordem de Poder</h2>
-                
+
                 <div style="display: flex; gap: 20px; align-items: center;">
                     <label style="color: #fff; font-weight: bold; font-size: 16px;">Filtrar Classe:</label>
                     <select id="filtroClasse" class="input-edit" onchange="filtrarTabelaClasses()" style="width: 200px; text-align: left;">
@@ -435,7 +466,7 @@
                         <option value="Arbiter">Arbiter</option>
                         <option value="Demolidor">Demolidor</option>
                     </select>
-                    
+
                     {% if session.get('logged_in') %}
                         <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
                     {% endif %}
@@ -444,7 +475,7 @@
 
             <!-- Banners Exclusivos (Mega/Titã) gerados pelo JS -->
             <div id="containerBannersClasses" style="display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 15px;"></div>
-            
+
             <div class="table-scroll-fixed">
                 <table style="margin-bottom: 0;">
                     <thead>
@@ -468,7 +499,7 @@
                         <tr class="linha-classe" data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate }}">
                             <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
                             <td style="font-weight: 700; font-size: 20px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
-                            
+
                             <td>
                                 {% if session.get('logged_in') %}
                                 <select class="input-edit edit-classe" style="width: 140px;" onchange="this.closest('tr').classList.add('linha-modificada'); filtrarTabelaClasses();">
@@ -511,7 +542,7 @@
                             <td style="color: var(--neon-green); font-family: monospace; font-size: 20px; font-weight: bold; border-right: none;">
                                 {{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}
                             </td>
-                            
+
                             <td style="display: none;">
                                 <input type="hidden" class="edit-alts" value="{{ item.alts_str }}">
                                 <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
@@ -550,7 +581,7 @@
                     <tr data-historico-id="{{ sorteio.id }}">
                         <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
                         <td style="font-weight: bold; color: var(--neon-orange); font-size: 20px; text-align: left;">{{ sorteio.jogador.nome }}</td>
-                        
+
                         {% if user_role == 'admin' %}
                             <td><input type="text" class="input-edit hist-obs" value="{{ sorteio.observacao }}" placeholder="Item concedido" style="width: 90%; text-align: left;"></td>
                             <td><input type="number" class="input-edit hist-penalidade" value="{{ sorteio.penalidade }}" style="width: 100px; color: var(--neon-red); font-weight: bold;"></td>
@@ -692,7 +723,7 @@
         <div class="table-container" style="border-color: var(--neon-orange);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="color: var(--neon-orange); text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);">📁 Logs de Importação (Semana Atual)</h2>
-                
+
                 <div style="display: flex; gap: 15px;">
                     <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="avancarSemana()">⏳ Iniciar Nova Semana</button>
                     <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
@@ -729,8 +760,8 @@
             </table>
         </div>
     </div>
-    {% endif %} 
-    
+    {% endif %}
+
     <!-- MODALS GERAIS -->
     <div id="modalLogin" class="modal-overlay">
         <div class="modal-content" style="width: 450px; text-align: center; border-color: var(--neon-red); padding: 35px;">
@@ -774,7 +805,7 @@
 
             <div style="border: 1px solid rgba(0, 243, 255, 0.3); padding: 20px; border-radius: 6px; margin-bottom: 25px; background: rgba(0, 243, 255, 0.02);">
                 <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px;">1. Injetar Matriz de Pontos (XML)</h3>
-                
+
                 <form id="formImportacao" onsubmit="enviarXML(event)">
                     <div style="margin-bottom: 15px;">
                         <label style="font-size: 14px; color: var(--neon-cyan); font-weight: bold; margin-bottom: 8px; display: block;">Guilda Alvo do XML:</label>
@@ -817,7 +848,7 @@
 
                 <h3 style="margin-top: 0; font-size: 18px; color: var(--neon-cyan);">Resultado do Escaneamento (Jogadores)</h3>
                 <div id="resultadoPreview" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.8); border: 1px solid var(--glass-border); padding: 15px; margin-bottom: 20px; font-size: 15px; font-family: monospace;"></div>
-                
+
                 <form id="formConfirmar" onsubmit="confirmarImportacao(event)">
                     <input type="hidden" id="hashArquivo" name="hash">
                     <div style="margin-bottom: 20px; display: none; background: rgba(255, 170, 0, 0.1); padding: 12px; border-left: 4px solid var(--neon-orange);" id="areaAlertaNovos">
@@ -834,24 +865,24 @@
             </div>
         </div>
     </div>
-    
+
     <!-- MODAL DE CRIAR EVENTO DE SORTEIO (BANNER) -->
     <div id="modalCriarEvento" class="modal-overlay">
         <div class="modal-content">
             <h2 style="color: var(--neon-orange); margin-top: 0;">Configurar Novo Sorteio</h2>
             <label style="color: #fff; font-weight: bold;">Título do Banner:</label>
             <input type="text" id="tituloEvento" class="input-edit" value="SORTEIO HOJE AS 20:00" style="width: 100%; margin-bottom: 20px; text-align: left;">
-            
+
             <label style="color: #fff; font-weight: bold;">Duração do Sorteio (Minutos):</label>
             <input type="number" id="prazoEvento" class="input-edit" placeholder="Ex: 60 (Minutos para encerramento)" value="60" style="width: 100%; margin-bottom: 20px; text-align: left;">
-            
+
             <h3 style="color: var(--neon-cyan);">Adicionar Itens</h3>
             <div id="listaItensCriacao" style="background: rgba(0,0,0,0.4); padding: 15px; border: 1px dashed var(--glass-border); margin-bottom: 20px;">
                 <!-- Campos dinâmicos entram aqui -->
             </div>
-            
+
             <button class="btn" onclick="adicionarCampoItem()">+ Novo Item</button>
-            
+
             <div style="display: flex; justify-content: space-between; margin-top: 30px;">
                 <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCriarEvento')">Cancelar</button>
                 <button class="btn btn-warning" onclick="salvarNovoEvento()">Publicar Banner</button>
@@ -864,7 +895,7 @@
     <div id="modalRoletaItem" class="modal-overlay" style="z-index: 120;">
         <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 600px; padding: 20px;">
             <h2 id="tituloRoletaVisual" style="color: var(--neon-orange); font-size: 26px; margin-top:0; text-shadow: 0 0 15px rgba(255,170,0,0.5);">SORTEIO EM ANDAMENTO</h2>
-            
+
             <div class="roleta-container">
                 <div class="roleta-ponteiro"></div>
                 <div id="wrapperCanvas" class="roleta-canvas-wrapper">
@@ -873,7 +904,7 @@
             </div>
 
             <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
-            
+
             <button id="btnFecharRoletaVisual" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;"></button>
         </div>
     </div>
@@ -884,9 +915,9 @@
             <h2 style="color: var(--neon-cyan); margin-top: 0;">Apostar no Item</h2>
             <p id="labelItemAposta" style="color: #fff; font-size: 18px; font-weight: bold;"></p>
             <p id="labelMaxPontos" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;"></p>
-            
+
             <input type="hidden" id="apostaItemId">
-            
+
             <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Selecione seu Personagem:</label>
             <select id="apostaJogadorId" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
                 <option value="" disabled selected>-- SELECIONE SEU PERSONAGEM --</option>
@@ -894,10 +925,10 @@
                     <option value="{{ item.jogador.id }}">{{ item.jogador.nome }} ({{ item.participacao }}%)</option>
                 {% endfor %}
             </select>
-            
+
             <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Quantos pontos deseja arriscar?</label>
             <input type="number" id="apostaPontos" class="input-edit" placeholder="Ex: 10" style="width: 100%; font-size: 22px; margin-bottom: 25px;">
-            
+
             <div style="display: flex; justify-content: space-between;">
                 <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAposta')">Cancelar</button>
                 <button class="btn btn-success" onclick="confirmarAposta()">Confirmar</button>
@@ -914,6 +945,8 @@
             <div class="roleta-box" style="font-size: 40px; padding: 40px;"><span id="roletaNomeMeme">---</span></div>
             <button id="btnFecharRoletaMeme" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 25px auto 0; font-size: 18px;">Concluir e Registrar</button>
         </div>
+    </div>
+
     </div>
 
     <!-- Script de Tradução do Google -->
@@ -933,7 +966,60 @@
 
         function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
         function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
-        function fecharModalEAtualizar() { window.location.reload(); }
+        function fecharModalEAtualizar() { fecharModal('modalRoletaMeme'); atualizarDados(); }
+
+        /* --- SISTEMA DE TOASTS (substitui alert()) --- */
+        function mostrarToast(mensagem, tipo = 'info', duracao = 4500) {
+            const container = document.getElementById('toastContainer');
+            if (!container) { console.warn(mensagem); return; }
+            const icones = { sucesso: '✓', erro: '✖', aviso: '⚠', info: 'ℹ' };
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${tipo}`;
+            toast.innerHTML = `<span class="toast-icon">${icones[tipo] || icones.info}</span><span class="toast-msg"></span>`;
+            toast.querySelector('.toast-msg').textContent = mensagem;
+            container.appendChild(toast);
+            requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+                setTimeout(() => toast.remove(), 500);
+            }, duracao);
+        }
+
+        /* --- ATUALIZAÇÃO DE DADOS SEM RECARREGAR A PÁGINA --- */
+        async function atualizarDados() {
+            try {
+                const resp = await fetch(window.location.pathname, { cache: 'no-store' });
+                if (!resp.ok) throw new Error('status ' + resp.status);
+                const html = await resp.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const novoRoot = doc.getElementById('app-root');
+                const atualRoot = document.getElementById('app-root');
+                if (!novoRoot || !atualRoot) throw new Error('app-root ausente na resposta');
+
+                // Preserva o widget do Google Translate (não sobrevive a um innerHTML novo)
+                const translateAtual = document.getElementById('google_translate_element');
+                const abaAtivaBtn = document.querySelector('.tab-btn.active');
+                const abaAtivaIndice = abaAtivaBtn ? Array.from(abaAtivaBtn.parentElement.children).indexOf(abaAtivaBtn) : -1;
+                const abaAtivaId = document.querySelector('.tab-content.active') ? document.querySelector('.tab-content.active').id : null;
+
+                atualRoot.innerHTML = novoRoot.innerHTML;
+
+                const translateNovo = document.getElementById('google_translate_element');
+                if (translateAtual && translateNovo) translateNovo.replaceWith(translateAtual);
+
+                // Restaura a aba selecionada e recalcula overlays de CP (Mega/Titã)
+                if (abaAtivaId && abaAtivaIndice >= 0 && document.getElementById(abaAtivaId)) {
+                    const novoBtn = document.querySelectorAll('.tab-btn')[abaAtivaIndice];
+                    if (novoBtn) { trocarAba(abaAtivaId, novoBtn); return; }
+                }
+                aplicarLinhasPoder();
+            } catch (e) {
+                console.error('Falha ao atualizar dados:', e);
+                mostrarToast('Não foi possível atualizar os dados automaticamente. Recarregando...', 'erro');
+                setTimeout(() => window.location.reload(), 1200);
+            }
+        }
 
         /* --- CRONÔMETRO DIGITAL --- */
         function atualizarCronometros() {
@@ -980,23 +1066,23 @@
                 const response = await fetch('/api/login', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: senha })
                 });
-                if (response.ok) { window.location.reload(); } 
-                else { alert('Acesso Negado: Credencial Inválida'); btn.innerText = 'Autenticar'; }
-            } catch (e) { alert('Falha de conexão com o servidor matriz.'); btn.innerText = 'Autenticar'; }
+                if (response.ok) { window.location.reload(); }
+                else { mostrarToast('Acesso Negado: Credencial Inválida', 'erro'); btn.innerText = 'Autenticar'; }
+            } catch (e) { mostrarToast('Falha de conexão com o servidor matriz.', 'erro'); btn.innerText = 'Autenticar'; }
         }
 
         async function fazerLogout() {
             try {
                 const response = await fetch('/api/logout', { method: 'POST' });
                 if (response.ok) { window.location.reload(); }
-            } catch (e) { alert('Erro de conexão'); }
+            } catch (e) { mostrarToast('Erro de conexão', 'erro'); }
         }
 
         /* --- LOGICA DE RÉGUAS MEGA E TITÃ E FILTROS --- */
         function aplicarLinhasPoder() {
             const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
             const cpTita = parseInt(document.getElementById('inputTitaCP').value) || 0;
-            
+
             // Remove clones antigos e reseta brilhos
             document.querySelectorAll('.linha-mega, .mega-clone, .linha-tita, .tita-clone, .banner-destaque').forEach(el => el.remove());
             document.querySelectorAll('tr').forEach(el => el.classList.remove('mega-glow', 'tita-glow'));
@@ -1057,7 +1143,7 @@
             // ================= ABA CLASSES (NOVO VISUAL BANNERS) =================
             const tbodyClasses = document.querySelector(`#abaClasses tbody`);
             const containerBanners = document.getElementById('containerBannersClasses');
-            
+
             if (tbodyClasses && containerBanners) {
                 containerBanners.innerHTML = '';
                 const linhasClasses = Array.from(tbodyClasses.querySelectorAll('tr:not(.linha-vazia)'));
@@ -1066,12 +1152,12 @@
 
                 linhasClasses.forEach(linha => {
                     const cp = parseInt(linha.getAttribute('data-poder')) || 0;
-                    
+
                     const nomeCell = linha.cells[1].innerText.trim();
                     const selectElement = linha.querySelector('.edit-classe');
                     const hiddenClasse = linha.querySelector('input[type="hidden"].edit-classe');
                     const spanClasse = linha.querySelector('span.edit-classe');
-                    
+
                     let classeStr = "Indefinida";
                     if(selectElement) {
                         classeStr = selectElement.options[selectElement.selectedIndex]?.text || "Indefinida";
@@ -1121,7 +1207,7 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(abaId).classList.add('active');
             elementoBtn.classList.add('active');
-            aplicarLinhasPoder(); 
+            aplicarLinhasPoder();
         }
 
         function filtrarTabelaClasses() {
@@ -1162,7 +1248,7 @@
             const titulo = document.getElementById('tituloEvento').value;
             const minutosInput = document.getElementById('prazoEvento').value;
             const minutos = parseInt(minutosInput) || 60;
-            
+
             const prazoTimestamp = Date.now() + (minutos * 60000);
 
             let itens = [];
@@ -1171,19 +1257,21 @@
                 const restricao = document.querySelectorAll('.item-restricao-novo')[i].value;
                 if(input.value.trim()) itens.push({ nome: input.value, max_pontos: maxPts, restricao: restricao });
             });
-            if (itens.length === 0) return alert("Adicione pelo menos um item!");
+            if (itens.length === 0) return mostrarToast("Adicione pelo menos um item!", 'aviso');
 
             const response = await fetch('/api/publicar-banner', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ titulo: titulo, prazo: prazoTimestamp.toString(), itens: itens })
             });
-            if(response.ok) window.location.reload();
+            if(response.ok) { fecharModal('modalCriarEvento'); await atualizarDados(); mostrarToast('Banner de sorteio publicado!', 'sucesso'); }
+            else { mostrarToast('Falha ao publicar o banner.', 'erro'); }
         }
 
         async function encerrarEvento() {
             if(!confirm("Encerrar o banner sumirá com ele da tela. Continuar?")) return;
             await fetch('/api/encerrar-banner', {method: 'POST'});
-            window.location.reload();
+            await atualizarDados();
+            mostrarToast('Evento encerrado. Pontos estornados aos jogadores.', 'info');
         }
 
         function abrirModalAposta(itemId, nomeItem, maxPontos) {
@@ -1191,7 +1279,7 @@
             document.getElementById('labelItemAposta').innerText = nomeItem;
             document.getElementById('labelMaxPontos').innerText = `O custo para ter 100% de chance é de ${maxPontos} pts. (Mínimo de 90% de participação semanal exigido).`;
             document.getElementById('apostaPontos').value = '';
-            
+
             // Reseta a seleção para forçar o usuário a clicar em um nome
             document.getElementById('apostaJogadorId').selectedIndex = 0;
             abrirModal('modalAposta');
@@ -1205,11 +1293,11 @@
 
             // Bloqueia se o cara tentar apostar sem escolher o nome
             if (!jogadorId) {
-                return alert("Por favor, selecione o SEU PERSONAGEM na lista antes de apostar!");
+                return mostrarToast("Por favor, selecione o SEU PERSONAGEM na lista antes de apostar!", 'aviso');
             }
 
             if (pontos <= 0 || pontos === "") {
-                return alert("Insira uma pontuação válida para apostar.");
+                return mostrarToast("Insira uma pontuação válida para apostar.", 'aviso');
             }
 
             // Pega o nome do cara selecionado, cortando fora a " (%)" para a confirmação
@@ -1233,13 +1321,14 @@
                 body: JSON.stringify(payload)
             });
             const data = await response.json();
-            if(response.ok) { window.location.reload(); } else { alert(data.erro); }
+            if(response.ok) { fecharModal('modalAposta'); await atualizarDados(); mostrarToast('Aposta registrada com sucesso!', 'sucesso'); } else { mostrarToast(data.erro, 'erro'); }
         }
 
         async function removerAposta(apostaId) {
             if(!confirm("Remover aposta?")) return;
             await fetch(`/api/remover-aposta/${apostaId}`, {method: 'DELETE'});
-            window.location.reload();
+            await atualizarDados();
+            mostrarToast('Aposta removida.', 'info');
         }
 
         /* --- LÓGICA DA ROLETA CANVAS MULTIPLAYER E RESPONSIVA --- */
@@ -1259,7 +1348,7 @@
                 }
             } catch(e) {}
         }
-        
+
         {% if session.get('logged_in') %}
             setInterval(pollSorteioAoVivo, 2500);
         {% endif %}
@@ -1274,28 +1363,28 @@
                     body: JSON.stringify({ item_id: itemId })
                 });
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     dadosSorteioAtual = data;
                     iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem);
                 } else {
-                    alert(data.erro);
+                    mostrarToast(data.erro, 'erro');
                     btn.innerText = "🎲 Girar Roleta"; btn.disabled = false;
                 }
-            } catch(e) { alert("Erro de rede."); btn.innerText = "🎲 Girar Roleta"; btn.disabled = false;}
+            } catch(e) { mostrarToast("Erro de rede.", 'erro'); btn.innerText = "🎲 Girar Roleta"; btn.disabled = false;}
         }
 
         function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
             roletaIsSpinning = true;
             document.getElementById('tituloRoletaVisual').innerText = "SORTEANDO: " + nomeItem.toUpperCase();
             abrirModal('modalRoletaItem');
-            
+
             const wrapper = document.getElementById('wrapperCanvas');
             const canvas = document.getElementById('canvasRoleta');
             const ctx = canvas.getContext('2d');
             const labelVencedor = document.getElementById('roletaVencedorLabel');
             const btnFechar = document.getElementById('btnFecharRoletaVisual');
-            
+
             wrapper.style.transition = 'none';
             wrapper.style.transform = 'rotate(0deg)';
             labelVencedor.style.display = 'none';
@@ -1309,11 +1398,14 @@
                         method: 'POST', headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(dadosSorteioAtual)
                     });
-                    window.location.reload();
+                    fecharModal('modalRoletaItem');
+                    roletaIsSpinning = false;
+                    await atualizarDados();
+                    mostrarToast('Sorteio finalizado e pontos descontados!', 'sucesso');
                 };
             } else {
                 btnFechar.innerText = "Sorteio Finalizado - Fechar";
-                btnFechar.onclick = () => { window.location.reload(); };
+                btnFechar.onclick = async () => { fecharModal('modalRoletaItem'); roletaIsSpinning = false; await atualizarDados(); };
             }
 
             const centerX = canvas.width / 2;
@@ -1324,19 +1416,19 @@
 
             const cores = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#00f3ff', '#bc13fe', '#ffaa00', '#ff003c', '#10b981'];
             let colorIndex = 0;
-            
+
             let visualFatias = {};
             let totalVisual = 0;
             for (const [nome, porcentagem] of Object.entries(fatias)) {
                 let p = parseFloat(porcentagem);
                 if (p <= 0) continue;
-                
-                let visualP = Math.max(p, 4.0); 
+
+                let visualP = Math.max(p, 4.0);
                 visualFatias[nome] = { realP: p, visualP: visualP };
                 totalVisual += visualP;
             }
 
-            let startAngle = -Math.PI / 2; 
+            let startAngle = -Math.PI / 2;
             let currentDegAcumulado = 0;
             let startWinDeg = 0;
             let endWinDeg = 0;
@@ -1359,7 +1451,7 @@
                 ctx.closePath();
                 ctx.fillStyle = cores[colorIndex % cores.length];
                 ctx.fill();
-                
+
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = '#111';
                 ctx.stroke();
@@ -1368,19 +1460,19 @@
                 ctx.translate(centerX, centerY);
                 ctx.rotate(startAngle + sliceAngle / 2);
                 ctx.textAlign = "right";
-                
+
                 let textNome = nome.length > 15 ? nome.substring(0, 15) + "..." : nome;
                 let textoFinal = `${textNome} (${dataFat.realP.toFixed(1)}%)`;
-                
+
                 ctx.fillStyle = "#fff";
                 ctx.font = "bold 16px 'Rajdhani'";
                 ctx.shadowColor = "rgba(0,0,0,1)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
-                
+
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = "#000";
                 ctx.strokeText(textoFinal, radius - 15, 5);
                 ctx.fillText(textoFinal, radius - 15, 5);
-                
+
                 ctx.restore();
 
                 startAngle = endAngle;
@@ -1390,12 +1482,12 @@
             setTimeout(() => {
                 const margin = (endWinDeg - startWinDeg) * 0.1;
                 const winDeg = startWinDeg + margin + (Math.random() * ((endWinDeg - startWinDeg) - (margin * 2)));
-                
+
                 const rotacaoParaTopo = 360 - winDeg;
-                const voltasCompletas = 360 * 12; 
+                const voltasCompletas = 360 * 12;
                 const rotacaoFinal = voltasCompletas + rotacaoParaTopo;
 
-                wrapper.style.transition = 'transform 6s cubic-bezier(0.2, 0, 0, 1)'; 
+                wrapper.style.transition = 'transform 6s cubic-bezier(0.2, 0, 0, 1)';
                 wrapper.style.transform = `rotate(${rotacaoFinal}deg)`;
 
                 setTimeout(() => {
@@ -1412,7 +1504,7 @@
         /* --- LÓGICA DE EDIÇÃO E HISTÓRICO ORIGINAL --- */
         async function salvarEdicoes() {
             const linhasModificadas = document.querySelectorAll('tr.linha-modificada:not(.mega-clone):not(.tita-clone)');
-            if (linhasModificadas.length === 0) { alert("Nenhuma alteração detectada para ser salva."); return; }
+            if (linhasModificadas.length === 0) { mostrarToast("Nenhuma alteração detectada para ser salva.", 'aviso'); return; }
             let jogadoresData = [];
             linhasModificadas.forEach(linha => {
                 const inNome = linha.querySelector('.edit-nome');
@@ -1446,7 +1538,7 @@
                     constante_4: ckC4 ? ckC4.checked : null,
                     trindade: ckTrin ? ckTrin.checked : null,
                     mestre_tecnica: ckMT ? ckMT.checked : null,
-                    eventos: {} 
+                    eventos: {}
                 });
             });
 
@@ -1454,8 +1546,8 @@
                 const response = await fetch('/api/editar-jogadores', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: jogadoresData })
                 });
-                if (response.ok) { alert("Sincronização concluída apenas para as modificações feitas!"); window.location.reload(); } else { alert('Falha ao gravar alterações.'); }
-            } catch (error) { alert('Erro de rede.'); }
+                if (response.ok) { await atualizarDados(); mostrarToast("Sincronização concluída apenas para as modificações feitas!", 'sucesso'); } else { mostrarToast('Falha ao gravar alterações.', 'erro'); }
+            } catch (error) { mostrarToast('Erro de rede.', 'erro'); }
         }
 
         async function salvarHistorico() {
@@ -1464,27 +1556,27 @@
                 historicoData.push({ id: linha.getAttribute('data-historico-id'), observacao: linha.querySelector('.hist-obs').value, penalidade: linha.querySelector('.hist-penalidade').value });
             });
             const response = await fetch('/api/editar-historico', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData }) });
-            if (response.ok) { alert("Registros atualizados."); window.location.reload(); }
+            if (response.ok) { await atualizarDados(); mostrarToast("Registros atualizados.", 'sucesso'); }
         }
 
         async function deletarHistorico(id) {
             if (!confirm("Aviso: Purgar este registro restaurará os pontos deduzidos do jogador. Confirmar?")) return;
             const response = await fetch(`/api/deletar-historico/${id}`, { method: 'DELETE' });
-            if (response.ok) { window.location.reload(); } 
+            if (response.ok) { await atualizarDados(); mostrarToast('Registro purgado.', 'info'); }
         }
 
         /* --- LÓGICA DE IMPORTAÇÃO E ADMIN (NOVA SEMANA) --- */
         {% if user_role == 'admin' %}
-        
+
         async function avancarSemana() {
             if(!confirm("ATENÇÃO: Isso iniciará uma nova semana no calendário. O cálculo de 90% de presença recomeçará do zero para todos os jogadores. Os pontos já ganhos continuarão guardados no saldo total. Confirma a virada de semana?")) return;
-            
+
             try {
                 const response = await fetch('/api/nova-semana', { method: 'POST' });
                 const data = await response.json();
-                if(response.ok) { alert(data.mensagem); window.location.reload(); }
-                else { alert("Erro: " + data.erro); }
-            } catch(e) { alert("Falha na conexão."); }
+                if(response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); }
+                else { mostrarToast("Erro: " + data.erro, 'erro'); }
+            } catch(e) { mostrarToast("Falha na conexão.", 'erro'); }
         }
 
         async function salvarReguasGlobais() {
@@ -1496,33 +1588,33 @@
                     body: JSON.stringify({ cp_mega: cpMega, cp_tita: cpTita })
                 });
                 const data = await response.json();
-                if (response.ok) { alert(data.mensagem); window.location.reload(); } else { alert("Erro: " + data.erro); }
-            } catch (e) { alert("Falha de rede."); }
+                if (response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast("Erro: " + data.erro, 'erro'); }
+            } catch (e) { mostrarToast("Falha de rede.", 'erro'); }
         }
 
         async function criarEvento() {
             const payload = { nome: document.getElementById('novoEventoNome').value.trim(), tipo: document.getElementById('novoEventoTipo').value, pontos: document.getElementById('novoEventoPontos').value };
-            if(!payload.nome) return alert("Parâmetro 'Nome' é obrigatório.");
+            if(!payload.nome) return mostrarToast("Parâmetro 'Nome' é obrigatório.", 'aviso');
             const response = await fetch('/api/criar-evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (response.ok) { window.location.reload(); } else { alert('Falha ao criar módulo.'); }
+            if (response.ok) { document.getElementById('novoEventoNome').value = ''; await atualizarDados(); mostrarToast('Novo evento injetado com sucesso!', 'sucesso'); } else { mostrarToast('Falha ao criar módulo.', 'erro'); }
         }
 
         async function salvarConfiguracoes() {
             let configsData = [];
             document.querySelectorAll('tr[data-config-id]').forEach(linha => { configsData.push({ id: linha.getAttribute('data-config-id'), pontos: linha.querySelector('.conf-pontos').value }); });
             const response = await fetch('/api/salvar-configuracoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs: configsData }) });
-            if (response.ok) { alert("Matriz atualizada. Cálculo refeito."); window.location.reload(); }
+            if (response.ok) { await atualizarDados(); mostrarToast("Matriz atualizada. Cálculo refeito.", 'sucesso'); }
         }
 
         async function salvarEdicaoImports() {
             let importsData = [];
             document.querySelectorAll('tr[data-import-id]').forEach(linha => { importsData.push({ id: linha.getAttribute('data-import-id'), nome: linha.querySelector('.imp-nome').value }); });
             const response = await fetch('/api/editar-importacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ importacoes: importsData }) });
-            if (response.ok) { alert("Logs gravados."); window.location.reload(); }
+            if (response.ok) { await atualizarDados(); mostrarToast("Logs gravados.", 'sucesso'); }
         }
         {% endif %}
 
-        let dadosImportacaoAtual = []; 
+        let dadosImportacaoAtual = [];
 
         async function enviarXML(e) {
             e.preventDefault();
@@ -1532,8 +1624,8 @@
             try {
                 const response = await fetch('/api/importar', { method: 'POST', body: formData });
                 const data = await response.json();
-                if (response.ok) { mostrarPreview(data.preview, data.hash, data.atividades_encontradas); } else { alert('Falha: ' + data.erro); }
-            } catch (error) { alert('Falha de connection com o servidor matriz.'); } finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
+                if (response.ok) { mostrarPreview(data.preview, data.hash, data.atividades_encontradas); } else { mostrarToast('Falha: ' + data.erro, 'erro'); }
+            } catch (error) { mostrarToast('Falha de conexão com o servidor matriz.', 'erro'); } finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
         }
 
         async function enviarExcel(e) {
@@ -1544,8 +1636,8 @@
             try {
                 const response = await fetch('/api/importar-excel', { method: 'POST', body: formData });
                 const data = await response.json();
-                if (response.ok) { alert(data.mensagem); window.location.reload(); } else { alert('Falha: ' + data.erro); }
-            } catch (error) { alert('Falha de conexão.'); } finally { btnEnviarEx.innerText = 'Sincronizar Atributos'; btnEnviarEx.disabled = false; }
+                if (response.ok) { fecharModal('modalImportacao'); await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast('Falha: ' + data.erro, 'erro'); }
+            } catch (error) { mostrarToast('Falha de conexão.', 'erro'); } finally { btnEnviarEx.innerText = 'Sincronizar Atributos'; btnEnviarEx.disabled = false; }
         }
 
         function mostrarPreview(jogadores, hash, todas_atividades) {
@@ -1557,7 +1649,7 @@
             const containerEventos = document.getElementById('listaEventosEncontrados');
             containerEventos.innerHTML = '';
             const eventosDiariosPadrao = ['Verificado', 'Doar', 'Atividade da Guilda'];
-            
+
             if (todas_atividades && todas_atividades.length > 0) {
                 todas_atividades.forEach(atv => {
                     const isChecked = eventosDiariosPadrao.includes(atv) ? 'checked' : '';
@@ -1581,7 +1673,7 @@
             let temDesconhecido = false;
 
             dadosImportacaoAtual.forEach(j => {
-                let cor = j.encontrado_no_bd ? '#10b981' : '#ff003c'; 
+                let cor = j.encontrado_no_bd ? '#10b981' : '#ff003c';
                 if (!j.encontrado_no_bd) temDesconhecido = true;
                 let labelStatus = j.encontrado_no_bd ? '[OK]' : '[NÃO VINCULADO]';
                 let pontosCalculados = 0;
@@ -1594,10 +1686,10 @@
             });
             html += '</ul>';
             document.getElementById('resultadoPreview').innerHTML = html;
-            
-            if(temDesconhecido && !isBlackSkull) { document.getElementById('areaAlertaNovos').style.display = 'flex'; } 
-            else { 
-                document.getElementById('areaAlertaNovos').style.display = 'none'; 
+
+            if(temDesconhecido && !isBlackSkull) { document.getElementById('areaAlertaNovos').style.display = 'flex'; }
+            else {
+                document.getElementById('areaAlertaNovos').style.display = 'none';
                 if(isBlackSkull && temDesconhecido) document.getElementById('resultadoPreview').innerHTML += '<p style="color: var(--neon-orange); margin-top: 10px; font-size: 13px;">⚠️ Alts "NÃO VINCULADOS" serão ignorados na injeção.</p>';
             }
         }
@@ -1620,14 +1712,14 @@
             try {
                 const response = await fetch('/api/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const data = await response.json();
-                if (response.ok) { alert('Operação bem sucedida: ' + data.mensagem); window.location.reload(); } else { alert('Falha na operação: ' + data.erro); btnConfirmar.innerText = 'Confirmar Injeção de Dados'; btnConfirmar.disabled = false; }
-            } catch (error) { alert('Falha no servidor.'); btnConfirmar.disabled = false; }
+                if (response.ok) { fecharModal('modalImportacao'); await atualizarDados(); mostrarToast('Operação bem sucedida: ' + data.mensagem, 'sucesso'); } else { mostrarToast('Falha na operação: ' + data.erro, 'erro'); btnConfirmar.innerText = 'Confirmar Injeção de Dados'; btnConfirmar.disabled = false; }
+            } catch (error) { mostrarToast('Falha no servidor.', 'erro'); btnConfirmar.disabled = false; }
         }
 
         async function deletarImportacao(id) {
             if (!confirm("Aviso Crítico: Purgar este upload irá DESFAZER TODOS OS PONTOS adicionados por ele. Confirma?")) return;
             const response = await fetch(`/api/deletar-importacao/${id}`, { method: 'DELETE' });
-            if (response.ok) { window.location.reload(); } 
+            if (response.ok) { await atualizarDados(); mostrarToast('Rollback concluído! Importação e pontos desfeitos.', 'info'); }
         }
 
         /* --- LÓGICA DO SORTEIO MEME --- */
@@ -1636,15 +1728,15 @@
         async function abrirRoletaMeme() {
             const checkboxes = document.querySelectorAll('.check-meme:checked');
             const itemInput = document.getElementById('inputItemMeme').value.trim();
-            if (!itemInput) { alert('Parâmetro ausente: Por favor, digite o nome do item a ser sorteado.'); return; }
-            if (checkboxes.length === 0) { alert('Parâmetros insuficientes: Selecione alvos para o sorteio meme.'); return; }
+            if (!itemInput) { mostrarToast('Parâmetro ausente: Por favor, digite o nome do item a ser sorteado.', 'aviso'); return; }
+            if (checkboxes.length === 0) { mostrarToast('Parâmetros insuficientes: Selecione alvos para o sorteio meme.', 'aviso'); return; }
 
             const idsSet = new Set();
             const nomesMap = new Map();
             checkboxes.forEach(cb => { idsSet.add(cb.value); nomesMap.set(cb.value, cb.dataset.nome); });
             const idsSelecionados = Array.from(idsSet);
             const nomesSelecionados = idsSelecionados.map(id => nomesMap.get(id));
-            
+
             const roletaNomeMeme = document.getElementById('roletaNomeMeme');
             const btnFecharRoletaMeme = document.getElementById('btnFecharRoletaMeme');
             document.getElementById('tituloRoletaMeme').innerText = `Sorteando (Meme): ${itemInput.toUpperCase()}`;
@@ -1661,25 +1753,25 @@
                     setTimeout(() => {
                         clearInterval(intervaloAnimacao);
                         roletaNomeMeme.innerText = "🏆 " + data.vencedor_nome + " 🏆";
-                        roletaNomeMeme.style.color = "var(--neon-cyan)"; 
+                        roletaNomeMeme.style.color = "var(--neon-cyan)";
                         roletaNomeMeme.style.textShadow = "0 0 20px rgba(0,243,255,0.8)";
                         btnFecharRoletaMeme.style.display = 'block';
-                    }, 2500); 
-                } else { clearInterval(intervaloAnimacao); alert("Falha: " + data.erro); fecharModal('modalRoletaMeme'); }
-            } catch (error) { clearInterval(intervaloAnimacao); alert('Falha de rede.'); fecharModal('modalRoletaMeme'); }
+                    }, 2500);
+                } else { clearInterval(intervaloAnimacao); mostrarToast("Falha: " + data.erro, 'erro'); fecharModal('modalRoletaMeme'); }
+            } catch (error) { clearInterval(intervaloAnimacao); mostrarToast('Falha de rede.', 'erro'); fecharModal('modalRoletaMeme'); }
         }
 
         async function salvarHistoricoMeme() {
             let historicoData = [];
             document.querySelectorAll('tr[data-historico-meme-id]').forEach(linha => { historicoData.push({ id: linha.getAttribute('data-historico-meme-id'), observacao: linha.querySelector('.hist-meme-obs').value }); });
             const response = await fetch('/api/editar-historico-meme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData }) });
-            if (response.ok) { alert("Registros Meme atualizados."); window.location.reload(); }
+            if (response.ok) { await atualizarDados(); mostrarToast("Registros Meme atualizados.", 'sucesso'); }
         }
 
         async function deletarHistoricoMeme(id) {
             if (!confirm("Aviso: Purgar este registro de sorteio meme. Confirmar?")) return;
             const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
-            if (response.ok) window.location.reload();
+            if (response.ok) { await atualizarDados(); mostrarToast('Registro purgado.', 'info'); }
         }
 
         {% endif %}
