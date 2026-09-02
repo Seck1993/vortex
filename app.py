@@ -22,6 +22,19 @@ app.config['SECRET_KEY'] = 'chave_super_secreta_vortex'
 db.init_app(app)
 
 
+def asset_version(filename):
+    """Retorna a data de modificação do arquivo estático como string, usada
+    como query param de cache-busting (?v=...) nos links/scripts do template."""
+    caminho = os.path.join(app.static_folder, filename)
+    try:
+        return str(int(os.path.getmtime(caminho)))
+    except OSError:
+        return "1"
+
+
+app.jinja_env.globals['asset_version'] = asset_version
+
+
 def calcular_pontuacao_base_semanal(pontos_semanais):
     """Calcula a 'moda' (valor mais frequente; empate resolvido pelo maior valor)
     de uma coleção de totais de pontos semanais por jogador. Usada como teto de
@@ -711,6 +724,8 @@ def importar_excel():
     if 'excel_file' not in request.files: return jsonify({"erro": "Arquivo não enviado."}), 400
 
     arquivo = request.files['excel_file']
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
     caminho = os.path.join(app.config['UPLOAD_FOLDER'], arquivo.filename)
     arquivo.save(caminho)
 
@@ -988,7 +1003,11 @@ def deletar_historico(id):
         db.session.rollback()
         return erro_interno(e)
 
-with app.app_context():
+def inicializar_banco():
+    """Cria as tabelas, aplica migrações leves via ALTER TABLE e semeia dados
+    padrão. Extraída para uma função (em vez de código solto em
+    `with app.app_context():`) para poder ser chamada de novo pelos testes
+    automatizados, que precisam de um banco limpo e semeado a cada teste."""
     db.create_all()
 
     try:
@@ -1126,6 +1145,10 @@ with app.app_context():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+with app.app_context():
+    inicializar_banco()
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
