@@ -34,14 +34,9 @@ set FLASK_DEBUG=1 && python app.py     # Windows
 
 Na primeira execução o banco (`vortex.db`, SQLite local) é criado e semeado automaticamente com a matriz de atividades padrão e as réguas Mega/Titã.
 
-### Senhas de acesso
+### Acesso
 
-Definidas em [app.py](app.py) (`/api/login`):
-
-| Papel  | Senha        |
-|--------|--------------|
-| Admin  | `vortex2026` |
-| Membro | `membro2026` |
+O login (admin/membro) é validado por senha fixa no código (`/api/login` em [app.py](app.py)). Peça as credenciais a quem administra o projeto — não as publique aqui nem em nenhum outro lugar versionado.
 
 ## Estrutura do projeto
 
