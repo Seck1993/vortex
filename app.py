@@ -255,8 +255,8 @@ def index():
 def login():
     dados = request.get_json()
     senha_enviada = dados.get('senha')
-    
-    if senha_enviada == 'vortex2026':  
+
+    if senha_enviada == 'vortex2026':
         session['logged_in'] = True
         session['role'] = 'admin'
         return jsonify({"mensagem": "Autenticado como Administrador"}), 200
@@ -264,7 +264,7 @@ def login():
         session['logged_in'] = True
         session['role'] = 'membro'
         return jsonify({"mensagem": "Autenticado como Membro"}), 200
-        
+
     return jsonify({"erro": "Senha incorreta"}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -437,8 +437,12 @@ def remover_aposta(id):
 @app.route('/api/simular-sorteio-item', methods=['POST'])
 def simular_sorteio_item():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    item_id = request.get_json().get('item_id')
-    
+    dados = request.get_json()
+    item_id = dados.get('item_id')
+    nome_staff = str(dados.get('nome_staff', '')).strip()[:100]
+    if not nome_staff:
+        return jsonify({"erro": "Informe o nome de quem está representando a Staff neste sorteio."}), 400
+
     item = db.session.get(EventoItem, item_id)
     if not item or item.sorteado: return jsonify({"erro": "Item já sorteado."}), 400
 
@@ -448,11 +452,13 @@ def simular_sorteio_item():
     fatias = {}
     candidatos = []
     pesos = []
-    
+
     total_pontos = sum(ap.pontos for ap in apostas)
 
-    fatias['Staff (Administração)'] = 15.0
-    candidatos.append({"id": None, "nome": 'Staff (Administração)', "pontos_apostados": 0, "is_staff": True})
+    # A fatia da Staff é sempre 15% fixos; o nome exibido é definido pelo admin
+    # na hora do sorteio (não vem do login nem de um rótulo genérico fixo).
+    fatias[nome_staff] = 15.0
+    candidatos.append({"id": None, "nome": nome_staff, "pontos_apostados": 0, "is_staff": True})
     pesos.append(15.0)
 
     for ap in apostas:

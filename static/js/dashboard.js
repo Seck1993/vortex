@@ -398,25 +398,47 @@
 
             setInterval(pollSorteioAoVivo, 2500);
 
-        async function prepararRoletaItem(itemId, nomeItem) {
-            const btn = event.target;
-            btn.innerText = "Processando..."; btn.disabled = true;
+        const DELAY_SUSPENSE_ROLETA_MS = 1200;
 
+        function abrirModalStaffRoleta(itemId, nomeItem) {
+            document.getElementById('staffRoletaItemId').value = itemId;
+            document.getElementById('staffRoletaNomeItem').value = nomeItem;
+            document.getElementById('staffRoletaNome').value = '';
+            abrirModal('modalStaffRoleta');
+        }
+
+        async function confirmarStaffEGirarRoleta() {
+            const itemId = document.getElementById('staffRoletaItemId').value;
+            const nomeItem = document.getElementById('staffRoletaNomeItem').value;
+            const nomeStaff = document.getElementById('staffRoletaNome').value.trim();
+
+            if (!nomeStaff) {
+                mostrarToast('Informe o nome de quem está representando a Staff neste sorteio.', 'aviso');
+                return;
+            }
+
+            fecharModal('modalStaffRoleta');
+            await prepararRoletaItem(itemId, nomeItem, nomeStaff);
+        }
+
+        async function prepararRoletaItem(itemId, nomeItem, nomeStaff) {
             try {
                 const response = await fetch('/api/simular-sorteio-item', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ item_id: itemId })
+                    body: JSON.stringify({ item_id: itemId, nome_staff: nomeStaff })
                 });
                 const data = await response.json();
 
                 if (response.ok) {
                     dadosSorteioAtual = data;
-                    iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem);
+                    // Pequeno suspense antes de abrir a roleta; ela já entra girando (sorteio decidido no servidor)
+                    setTimeout(() => {
+                        iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem);
+                    }, DELAY_SUSPENSE_ROLETA_MS);
                 } else {
                     mostrarToast(data.erro, 'erro');
-                    btn.innerText = "🎲 Girar Roleta"; btn.disabled = false;
                 }
-            } catch(e) { mostrarToast("Erro de rede.", 'erro'); btn.innerText = "🎲 Girar Roleta"; btn.disabled = false;}
+            } catch(e) { mostrarToast("Erro de rede.", 'erro'); }
         }
 
         function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {

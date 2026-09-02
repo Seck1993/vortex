@@ -76,7 +76,7 @@
                         <button class="btn btn-apostar" onclick="abrirModalAposta({{ item.id }}, '{{ item.nome_item }}', {{ item.max_pontos }})">➕ Apostar</button>
                     {% endif %}
                     {% if user_role == 'admin' %}
-                        <button class="btn btn-warning" onclick="prepararRoletaItem({{ item.id }}, '{{ item.nome_item }}')">🎲 Girar Roleta</button>
+                        <button class="btn btn-warning" onclick="abrirModalStaffRoleta({{ item.id }}, '{{ item.nome_item }}')">🎲 Girar Roleta</button>
                     {% endif %}
                 {% else %}
                     <span style="color: var(--neon-green); font-weight: bold; font-size: 18px;">[ FINALIZADO ]</span>
@@ -660,6 +660,24 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- MODAL: DEFINIR QUEM REPRESENTA A STAFF NESTE SORTEIO -->
+    <div id="modalStaffRoleta" class="modal-overlay" style="z-index: 125;">
+        <div class="modal-content" style="width: 420px; text-align: center;">
+            <h2 style="color: var(--neon-orange); margin-top: 0;">Quem é a Staff neste sorteio?</h2>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Esse nome aparece na fatia de 15% fixa da roleta, no lugar de um rótulo genérico.</p>
+
+            <input type="hidden" id="staffRoletaItemId">
+            <input type="hidden" id="staffRoletaNomeItem">
+
+            <input type="text" id="staffRoletaNome" class="input-edit" placeholder="Nome da pessoa" style="width: 100%; font-size: 18px; margin-bottom: 25px; text-align: center;">
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalStaffRoleta')">Cancelar</button>
+                <button class="btn btn-warning" onclick="confirmarStaffEGirarRoleta()">Girar Roleta</button>
+            </div>
+        </div>
+    </div>
 
     <!-- NOVA ROLETA CANVAS (MULTIPLAYER E RESPONSIVA) -->
     <div id="modalRoletaItem" class="modal-overlay" style="z-index: 120;">

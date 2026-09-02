@@ -9,6 +9,14 @@ def test_simular_sorteio_exige_admin(membro_client, criar_evento_item):
 
 def test_simular_sorteio_sem_apostas_retorna_400(admin_client, criar_evento_item):
     _, item_id = criar_evento_item()
+    resposta = admin_client.post("/api/simular-sorteio-item", json={"item_id": item_id, "nome_staff": "Zeca"})
+    assert resposta.status_code == 400
+
+
+def test_simular_sorteio_sem_nome_staff_retorna_400(admin_client, criar_jogador, dar_pontos, criar_evento_item):
+    jogador_id = criar_jogador("Fulano")
+    dar_pontos(jogador_id, 100)
+    _, item_id = criar_evento_item()
     resposta = admin_client.post("/api/simular-sorteio-item", json={"item_id": item_id})
     assert resposta.status_code == 400
 
@@ -23,13 +31,14 @@ def test_simular_sorteio_com_apostas_retorna_fatias(app_module, app, membro_clie
     # Mesmo client, trocando a sessão para admin (fixtures admin_client/membro_client
     # compartilham o mesmo cookie jar e não podem ser usadas juntas no mesmo teste)
     membro_client.post("/api/login", json={"senha": "vortex2026"})
-    resposta = membro_client.post("/api/simular-sorteio-item", json={"item_id": item_id})
+    resposta = membro_client.post("/api/simular-sorteio-item", json={"item_id": item_id, "nome_staff": "Zeca"})
     assert resposta.status_code == 200
     dados = resposta.get_json()
 
     assert dados["nome_item"]
-    assert "Staff (Administração)" in dados["fatias"]
-    assert dados["fatias"]["Staff (Administração)"] == 15.0
+    # O nome da fatia da Staff vem do payload (definido pelo admin na hora do sorteio)
+    assert "Zeca" in dados["fatias"]
+    assert dados["fatias"]["Zeca"] == 15.0
     assert dados["fatias"]["Fulano"] == 85.0  # único apostador -> fica com os 85% restantes
 
     with app.app_context():
