@@ -49,13 +49,63 @@ def test_extrai_jogador_com_atividades_marcadas(tmp_path):
     assert isinstance(file_hash, str) and len(file_hash) == 64  # sha256 hexdigest
 
 
-def test_jogador_sem_nenhuma_atividade_marcada_e_omitido(tmp_path):
+def test_jogador_sem_nenhuma_atividade_marcada_ainda_e_retornado(tmp_path):
+    """Quem não pontuou continua na guilda: precisa aparecer no preview, senão
+    é tratado como ausente do export e acaba marcado como inativo."""
     linha = LINHA_TEMPLATE.format(nome="Zero", verificado="¨", doar="¨")
     caminho = _escrever_xml(str(tmp_path), linha)
 
     resultado, _ = analisar_xml_guilda(caminho, {"Verificado": 1, "Doar": 5})
 
-    assert resultado == []
+    assert len(resultado) == 1
+    assert resultado[0]["nome"] == "Zero"
+    assert resultado[0]["atividades"] == []
+
+
+def test_celula_vazia_omitida_com_ss_index_nao_desloca_colunas(tmp_path):
+    """SpreadsheetML omite células vazias e declara ss:Index na próxima.
+    Sem tratar isso, os pontos iam para a atividade errada."""
+    linha = """
+   <Row>
+    <Cell><Data ss:Type="String">Ciclano</Data></Cell>
+    <Cell><Data ss:Type="String">þ</Data></Cell>
+    <Cell ss:Index="3"><Data ss:Type="String">þ</Data></Cell>
+   </Row>
+"""
+    caminho = _escrever_xml(str(tmp_path), linha)
+
+    resultado, _ = analisar_xml_guilda(caminho, {"Verificado": 1, "Doar": 5})
+
+    assert resultado[0]["atividades"] == [
+        {"atividade": "Verificado", "pontos": 1},
+        {"atividade": "Doar", "pontos": 5},
+    ]
+
+
+def test_linha_com_mais_celulas_que_o_cabecalho_nao_quebra(tmp_path):
+    linha = """
+   <Row>
+    <Cell><Data ss:Type="String">Beltrano</Data></Cell>
+    <Cell><Data ss:Type="String">þ</Data></Cell>
+    <Cell><Data ss:Type="String">¨</Data></Cell>
+    <Cell><Data ss:Type="String">coluna extra sem cabecalho</Data></Cell>
+   </Row>
+"""
+    caminho = _escrever_xml(str(tmp_path), linha)
+
+    resultado, _ = analisar_xml_guilda(caminho, {"Verificado": 1, "Doar": 5})
+
+    assert resultado[0]["nome"] == "Beltrano"
+    assert resultado[0]["atividades"] == [{"atividade": "Verificado", "pontos": 1}]
+
+
+def test_nome_do_jogador_vem_sem_espacos_ao_redor(tmp_path):
+    linha = LINHA_TEMPLATE.format(nome="  Espacado  ", verificado="þ", doar="¨")
+    caminho = _escrever_xml(str(tmp_path), linha)
+
+    resultado, _ = analisar_xml_guilda(caminho, {"Verificado": 1})
+
+    assert resultado[0]["nome"] == "Espacado"
 
 
 def test_atividade_nao_configurada_e_ignorada(tmp_path):

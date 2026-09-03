@@ -14,7 +14,23 @@
     <div class="header">
         <h1>Vortex Command Center <span class="semana-badge">{{ label_semana }}</span></h1>
         <div style="display: flex; gap: 15px; align-items: center;">
-            <div id="google_translate_element"></div>
+            <div id="google_translate_element" style="display:none;"></div>
+            <div class="seletor-idioma" id="seletorIdioma">
+                <button type="button" class="seletor-idioma-btn" onclick="toggleSeletorIdioma()">
+                    <span id="bandeiraAtual">🇧🇷</span> <span class="seletor-idioma-seta">▾</span>
+                </button>
+                <div class="seletor-idioma-painel" id="painelIdiomas">
+                    <div class="idioma-opcao" onclick="definirIdioma('pt')"><span>🇧🇷</span> Português</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('en')"><span>🇺🇸</span> English</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('es')"><span>🇪🇸</span> Español</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('fr')"><span>🇫🇷</span> Français</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('ru')"><span>🇷🇺</span> Русский</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('ja')"><span>🇯🇵</span> 日本語</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('ko')"><span>🇰🇷</span> 한국어</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('zh-CN')"><span>🇨🇳</span> 中文</div>
+                    <div class="idioma-opcao" onclick="definirIdioma('tl')"><span>🇵🇭</span> Filipino</div>
+                </div>
+            </div>
             {% if session.get('logged_in') %}
                 {% if user_role == 'admin' %}
                     <button class="btn btn-warning" onclick="abrirModal('modalCriarEvento')">🎟️ Criar Banner de Sorteio</button>
@@ -39,7 +55,7 @@
         <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER! <strong style="color: var(--neon-orange);">(Exige no mínimo 90% de participação na semana ativa)</strong>.</p>
 
         {% for item in evento.itens %}
-        <div class="item-card" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
+        <div class="item-card" data-item-id="{{ item.id }}" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
             <div>
                 <!-- NOME DO ITEM COM TAG DE RESTRIÇÃO -->
                 <h3 style="color: #fff; margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;">
@@ -59,7 +75,7 @@
                 {% if item.sorteado %}
                     <p style="color: var(--neon-green); font-weight: bold; font-size: 18px; margin-top: 10px;">🏆 Vencedor: {{ item.vencedor_nome }}</p>
                 {% else %}
-                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div class="lista-apostas-item" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
                         {% for aposta in item.apostas %}
                             <span style="background: rgba(0,243,255,0.1); border: 1px solid var(--glass-border); padding: 4px 8px; font-size: 14px; border-radius: 4px; color: #fff;">
                                 {{ aposta.jogador_nome }} ({{ aposta.pontos }} pts)
@@ -98,6 +114,7 @@
         <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
 
         {% if user_role == 'admin' %}
+            <button class="tab-btn" onclick="trocarAba('abaMembros', this)">Gerenciar Membros</button>
             <button class="tab-btn" onclick="trocarAba('abaConfig', this)">Matriz de Pontos</button>
             <button class="tab-btn" onclick="trocarAba('abaLogs', this)">Logs do Sistema</button>
         {% endif %}
@@ -142,7 +159,7 @@
                         <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange); font-size: 14px; padding: 5px 15px;" onclick="avancarSemana()">⏳ Virar Semana do Jogo</button>
                     {% endif %}
                 </h2>
-                {% if session.get('logged_in') %}
+                {% if user_role == 'admin' %}
                 <div style="display: flex; gap: 15px;">
                     <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
                 </div>
@@ -160,6 +177,7 @@
                         <th style="font-size: 16px; color: var(--gold-mega); text-shadow: 0 0 5px var(--gold-mega);">DIAMANTES DA SEMANA</th>
                         <th style="font-size: 16px; color: var(--neon-red); text-shadow: 0 0 5px var(--neon-red);">PENALIDADES</th>
                         <th style="font-size: 18px; color: var(--neon-green);">SALDO TOTAL (APOSTAS)</th>
+                        {% if session.get('logged_in') %}<th style="width: 90px;">EDITAR</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody id="bodyRanking">
@@ -184,8 +202,14 @@
                                 <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}<input type="hidden" class="edit-alts" value="{{ item.alts_str }}"></td>
                             {% endif %}
 
-                            <td><input type="number" class="input-edit edit-level" value="{{ item.jogador.level }}" style="width: 60px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
-                            <td><input type="number" class="input-edit edit-poder" value="{{ item.jogador.poder_combate }}" style="width: 110px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
+                            <td>
+                                <span style="color: #fff; font-size: 20px;">{{ item.jogador.level }}</span>
+                                <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
+                            </td>
+                            <td>
+                                <span style="color: var(--neon-cyan); font-family: monospace; font-size: 18px; font-weight: bold;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</span>
+                                <input type="hidden" class="edit-poder" value="{{ item.jogador.poder_combate }}">
+                            </td>
 
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
                             <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
@@ -196,6 +220,8 @@
                             {% else %}
                                 <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS<input type="hidden" class="edit-pontos" value="{{ item.pontos }}"></td>
                             {% endif %}
+
+                            <td><button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarPersonagem({{ item.jogador.id }}, '{{ item.jogador.nome }}', {{ item.jogador.level }}, {{ item.jogador.poder_combate }})">✏️ Editar</button></td>
 
                         {% else %}
                             <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}</td>
@@ -236,10 +262,6 @@
                         <option value="Arbiter">Arbiter</option>
                         <option value="Demolidor">Demolidor</option>
                     </select>
-
-                    {% if session.get('logged_in') %}
-                        <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
-                    {% endif %}
                 </div>
             </div>
 
@@ -262,6 +284,7 @@
                             <th title="Trindade" style="width: 60px; color: #bc13fe;">TRIN</th>
                             <th title="Mestre da Técnica" style="width: 60px; color: #00f3ff;">M.TÉC</th>
                             <th>Poder (CP)</th>
+                            {% if session.get('logged_in') %}<th style="width: 90px;">EDITAR</th>{% endif %}
                         </tr>
                     </thead>
                     <tbody id="bodyClasses">
@@ -271,54 +294,28 @@
                             <td style="font-weight: 700; font-size: 20px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
 
                             <td>
-                                {% if session.get('logged_in') %}
-                                <select class="input-edit edit-classe" style="width: 140px;" onchange="this.closest('tr').classList.add('linha-modificada'); filtrarTabelaClasses();">
-                                    <option value="" {% if not item.jogador.classe %}selected{% endif %}>Sem Classe</option>
-                                    <option value="Punisher" {% if item.jogador.classe == 'Punisher' %}selected{% endif %}>Punisher</option>
-                                    <option value="Phantom" {% if item.jogador.classe == 'Phantom' %}selected{% endif %}>Phantom</option>
-                                    <option value="Enforcer" {% if item.jogador.classe == 'Enforcer' %}selected{% endif %}>Enforcer</option>
-                                    <option value="Psypher" {% if item.jogador.classe == 'Psypher' %}selected{% endif %}>Psypher</option>
-                                    <option value="Dreadnought" {% if item.jogador.classe == 'Dreadnought' %}selected{% endif %}>Dreadnought</option>
-                                    <option value="Technician" {% if item.jogador.classe == 'Technician' %}selected{% endif %}>Technician</option>
-                                    <option value="Arbiter" {% if item.jogador.classe == 'Arbiter' %}selected{% endif %}>Arbiter</option>
-                                    <option value="Demolidor" {% if item.jogador.classe == 'Demolidor' %}selected{% endif %}>Demolidor</option>
-                                </select>
-                                {% else %}
-                                    <span style="color: var(--neon-cyan); font-weight: bold; font-size: 18px;">{{ item.jogador.classe or 'Indefinida' }}</span>
-                                    <input type="hidden" class="edit-classe" value="{{ item.jogador.classe or '' }}">
-                                {% endif %}
+                                <span style="color: var(--neon-cyan); font-weight: bold; font-size: 18px;">{{ item.jogador.classe or 'Indefinida' }}</span>
+                                <input type="hidden" class="edit-classe" value="{{ item.jogador.classe or '' }}">
                             </td>
 
-                            {% if session.get('logged_in') %}
-                                <td><input type="checkbox" class="check-s4" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_4 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
-                                <td><input type="checkbox" class="check-s5" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_5 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
-                                <td><input type="checkbox" class="check-s6" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_6 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
-                                <td><input type="checkbox" class="check-s7" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.skill_7 %}checked{% endif %} style="accent-color: #ffaa00; cursor:pointer; width: 20px; height: 20px;"></td>
-                                <td><input type="checkbox" class="check-c3" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.constante_3 %}checked{% endif %} style="accent-color: #00ff66; cursor:pointer; width: 20px; height: 20px;"></td>
-                                <td><input type="checkbox" class="check-c4" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.constante_4 %}checked{% endif %} style="accent-color: #00ff66; cursor:pointer; width: 20px; height: 20px;"></td>
-                                <td><input type="checkbox" class="check-trin" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.trindade %}checked{% endif %} style="accent-color: #bc13fe; cursor:pointer; width: 20px; height: 20px;"></td>
-                                <td><input type="checkbox" class="check-mt" onchange="this.closest('tr').classList.add('linha-modificada');" {% if item.jogador.mestre_tecnica %}checked{% endif %} style="accent-color: #00f3ff; cursor:pointer; width: 20px; height: 20px;"></td>
-                            {% else %}
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_4 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_5 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_6 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_7 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_3 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_4 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #bc13fe; font-weight: bold; font-size: 22px;">{% if item.jogador.trindade %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #00f3ff; font-weight: bold; font-size: 22px;">{% if item.jogador.mestre_tecnica %}✓{% else %}-{% endif %}</td>
-                            {% endif %}
+                            <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_4 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_5 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_6 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_7 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_3 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_4 %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #bc13fe; font-weight: bold; font-size: 22px;">{% if item.jogador.trindade %}✓{% else %}-{% endif %}</td>
+                            <td style="color: #00f3ff; font-weight: bold; font-size: 22px;">{% if item.jogador.mestre_tecnica %}✓{% else %}-{% endif %}</td>
 
-                            <td style="color: var(--neon-green); font-family: monospace; font-size: 20px; font-weight: bold; border-right: none;">
+                            <td style="color: var(--neon-green); font-family: monospace; font-size: 20px; font-weight: bold; {% if not session.get('logged_in') %}border-right: none;{% endif %}">
                                 {{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}
                             </td>
 
-                            <td style="display: none;">
-                                <input type="hidden" class="edit-alts" value="{{ item.alts_str }}">
-                                <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
-                                <input type="hidden" class="edit-poder" value="{{ item.jogador.poder_combate }}">
-                                <input type="hidden" class="edit-pontos" value="{{ item.pontos }}">
+                            {% if session.get('logged_in') %}
+                            <td style="border-right: none;">
+                                <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarBuild({{ item.jogador.id }}, '{{ item.jogador.nome }}', '{{ item.jogador.classe or '' }}', {{ item.jogador.skill_4|tojson }}, {{ item.jogador.skill_5|tojson }}, {{ item.jogador.skill_6|tojson }}, {{ item.jogador.skill_7|tojson }}, {{ item.jogador.constante_3|tojson }}, {{ item.jogador.constante_4|tojson }}, {{ item.jogador.trindade|tojson }}, {{ item.jogador.mestre_tecnica|tojson }})">✏️ Editar</button>
                             </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -346,9 +343,9 @@
                         {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="bodyHistoricoSorteios">
                     {% for sorteio in historico_sorteios %}
-                    <tr data-historico-id="{{ sorteio.id }}">
+                    <tr class="linha-dado" data-historico-id="{{ sorteio.id }}">
                         <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
                         <td style="font-weight: bold; color: var(--neon-orange); font-size: 20px; text-align: left;">{{ sorteio.jogador.nome }}</td>
 
@@ -368,6 +365,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            <div class="paginacao-controles" id="paginacaoHistoricoSorteios"></div>
         </div>
     </div>
 
@@ -419,9 +417,9 @@
                         {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="bodyHistoricoMeme">
                     {% for sorteio in historico_meme %}
-                    <tr data-historico-meme-id="{{ sorteio.id }}">
+                    <tr class="linha-dado" data-historico-meme-id="{{ sorteio.id }}">
                         <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
                         <td style="font-weight: bold; color: var(--neon-cyan); font-size: 20px; text-align: left;">{{ sorteio.jogador.nome }}</td>
                         <td style="color: #fff; font-weight: bold; font-size: 18px;">{{ sorteio.item_sorteado }}</td>
@@ -439,10 +437,61 @@
                     {% endfor %}
                 </tbody>
             </table>
+            <div class="paginacao-controles" id="paginacaoHistoricoMeme"></div>
         </div>
     </div>
 
     {% if user_role == 'admin' %}
+    <div id="abaMembros" class="tab-content">
+        <div style="background: rgba(0,0,0,0.6); padding: 25px; border: 1px solid var(--neon-green); border-radius: 6px; margin-bottom: 25px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 25px rgba(0, 255, 102, 0.08);">
+            <div style="flex: 1; min-width: 220px;">
+                <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Nome do Membro</label>
+                <input type="text" id="novoJogadorNome" class="input-edit" placeholder="Nome exato do personagem" style="width: 100%; border-color: rgba(0, 255, 102, 0.5); text-align: left;">
+            </div>
+            <div>
+                <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Level</label>
+                <input type="number" id="novoJogadorLevel" class="input-edit" value="1" style="width: 90px; border-color: rgba(0, 255, 102, 0.5);">
+            </div>
+            <div>
+                <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Poder de Combate</label>
+                <input type="number" id="novoJogadorPoder" class="input-edit" value="0" style="width: 140px; border-color: rgba(0, 255, 102, 0.5);">
+            </div>
+            <button class="btn btn-success" onclick="criarJogador()">➕ Cadastrar Membro</button>
+        </div>
+
+        <div class="table-container" style="border-left-color: var(--neon-green);">
+            <h2 style="color: var(--neon-green); text-shadow: 0 0 12px rgba(0, 255, 102, 0.4);">👥 Membros Cadastrados ({{ todos_jogadores|length }})</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Atenção: remover um membro apaga permanentemente todo o histórico dele (pontuações, espólios, sorteios meme e apostas ativas).</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Nome</th>
+                        <th style="width: 80px;">LVL</th>
+                        <th style="width: 140px;">Poder de Combate</th>
+                        <th style="width: 120px;">Status</th>
+                        <th style="width: 100px; border-right: none;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyMembros">
+                    {% for jogador in todos_jogadores %}
+                    <tr class="linha-dado">
+                        <td style="text-align: left; font-weight: 700; font-size: 20px; color: #fff;">{{ jogador.nome }}</td>
+                        <td style="color: #fff; font-size: 18px;">{{ jogador.level }}</td>
+                        <td style="color: var(--neon-cyan); font-family: monospace; font-size: 18px; font-weight: bold;">{{ "{:,.0f}".format(jogador.poder_combate).replace(',', '.') }}</td>
+                        <td style="font-weight: bold; font-size: 16px; color: {% if jogador.status == 'Inativo' %}var(--neon-red){% else %}var(--neon-green){% endif %};">{{ jogador.status or 'Ativo' }}</td>
+                        <td style="border-right: none;"><button class="btn-danger" title="Remover membro e todo o seu histórico" onclick="deletarJogador({{ jogador.id }}, '{{ jogador.nome }}')">✖</button></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUM MEMBRO CADASTRADO ]</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="paginacao-controles" id="paginacaoMembros"></div>
+        </div>
+    </div>
+
     <div id="abaConfig" class="tab-content">
         <div style="background: rgba(0,0,0,0.6); padding: 25px; border: 1px solid var(--neon-purple); border-radius: 6px; margin-bottom: 25px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 25px rgba(188, 19, 254, 0.1);">
             <div>
@@ -661,20 +710,38 @@
     </div>
     {% endif %}
 
-    <!-- MODAL: DEFINIR QUEM REPRESENTA A STAFF NESTE SORTEIO -->
+    <!-- MODAL: GERENCIAR STAFF E CONFERIR PARTICIPANTES ANTES DO SORTEIO -->
     <div id="modalStaffRoleta" class="modal-overlay" style="z-index: 125;">
-        <div class="modal-content" style="width: 420px; text-align: center;">
-            <h2 style="color: var(--neon-orange); margin-top: 0;">Quem é a Staff neste sorteio?</h2>
-            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Esse nome aparece na fatia de 15% fixa da roleta, no lugar de um rótulo genérico.</p>
+        <div class="modal-content" style="width: 560px;">
+            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">Definir Staff do Sorteio</h2>
 
             <input type="hidden" id="staffRoletaItemId">
             <input type="hidden" id="staffRoletaNomeItem">
 
-            <input type="text" id="staffRoletaNome" class="input-edit" placeholder="Nome da pessoa" style="width: 100%; font-size: 18px; margin-bottom: 25px; text-align: center;">
+            <h3 style="color: var(--neon-orange); font-size: 16px; margin-bottom: 10px;">👤 Staff (selecione quem representa a fatia de 15%)</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="novoStaffNome" class="input-edit" placeholder="Nome da nova pessoa" style="flex: 1; text-align: left;">
+                <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="adicionarStaff()">+ Adicionar</button>
+            </div>
+            <div id="listaStaffGerenciamento" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; text-align: left;">
+                {% for staff in staff_membros %}
+                <div class="linha-staff-gerenciamento" data-staff-id="{{ staff.id }}" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                    <input type="radio" name="staffSelecionado" value="{{ staff.nome }}" class="staff-radio" style="width: 18px; height: 18px; accent-color: var(--neon-orange);">
+                    <input type="text" class="input-edit staff-nome-input" value="{{ staff.nome }}" style="flex: 1; text-align: left;">
+                    <button class="btn-danger" title="Remover da Staff" onclick="removerStaff({{ staff.id }})">✖</button>
+                </div>
+                {% else %}
+                <p id="staffVazioMsg" style="color: var(--text-muted); font-size: 14px;">Nenhuma pessoa cadastrada na Staff ainda. Adicione acima.</p>
+                {% endfor %}
+            </div>
+            <button class="btn btn-success" style="margin-bottom: 25px;" onclick="salvarNomesStaff()">💾 Salvar Nomes da Staff</button>
+
+            <h3 style="color: var(--neon-cyan); font-size: 16px; margin-bottom: 10px;">🎮 Jogadores presentes (já apostaram neste item)</h3>
+            <div id="listaJogadoresPresentes" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 25px; color: var(--text-muted); font-size: 14px;"></div>
 
             <div style="display: flex; justify-content: space-between;">
                 <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalStaffRoleta')">Cancelar</button>
-                <button class="btn btn-warning" onclick="confirmarStaffEGirarRoleta()">Girar Roleta</button>
+                <button class="btn btn-warning" onclick="confirmarStaffEGirarRoleta()">🎲 Girar Roleta</button>
             </div>
         </div>
     </div>
@@ -698,6 +765,65 @@
     </div>
 
     <!-- MODAL DE APOSTA (MEMBROS) -->
+    <!-- MODAL: ATUALIZAR LEVEL/PODER DE UM PERSONAGEM (GRAVAÇÃO INDIVIDUAL) -->
+    <div id="modalEditarPersonagem" class="modal-overlay" style="z-index: 116;">
+        <div class="modal-content" style="width: 380px; text-align: center;">
+            <h2 id="tituloEditarPersonagem" style="color: var(--neon-cyan); margin-top: 0;">Atualizar Personagem</h2>
+
+            <input type="hidden" id="editPersonagemId">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Level:</label>
+            <input type="number" id="editPersonagemLevel" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 15px;">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Poder de Combate:</label>
+            <input type="number" id="editPersonagemPoder" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 25px;">
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarPersonagem')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarEdicaoPersonagem()">💾 Atualizar e Gravar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ATUALIZAR CLASSE E SKILLS DE UM PERSONAGEM (GRAVAÇÃO INDIVIDUAL) -->
+    <div id="modalEditarBuild" class="modal-overlay" style="z-index: 116;">
+        <div class="modal-content" style="width: 420px;">
+            <h2 id="tituloEditarBuild" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">Atualizar Build</h2>
+
+            <input type="hidden" id="editBuildId">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Classe:</label>
+            <select id="editBuildClasse" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
+                <option value="">Sem Classe</option>
+                <option value="Punisher">Punisher</option>
+                <option value="Phantom">Phantom</option>
+                <option value="Enforcer">Enforcer</option>
+                <option value="Psypher">Psypher</option>
+                <option value="Dreadnought">Dreadnought</option>
+                <option value="Technician">Technician</option>
+                <option value="Arbiter">Arbiter</option>
+                <option value="Demolidor">Demolidor</option>
+            </select>
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 10px;">Skills e Marcações:</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; text-align: left;">
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS4" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill IV</label>
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS5" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill V</label>
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS6" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VI</label>
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS7" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VII</label>
+                <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC3" style="width: 18px; height: 18px; accent-color: #00ff66;"> Constante 3</label>
+                <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC4" style="width: 18px; height: 18px; accent-color: #00ff66;"> Adaptação a Dor</label>
+                <label style="color: #bc13fe; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildTrin" style="width: 18px; height: 18px; accent-color: #bc13fe;"> Trindade</label>
+                <label style="color: #00f3ff; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildMT" style="width: 18px; height: 18px; accent-color: #00f3ff;"> Mestre da Técnica</label>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarBuild')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarEdicaoBuild()">💾 Atualizar e Gravar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalAposta" class="modal-overlay" style="z-index: 110;">
         <div class="modal-content" style="width: 400px; text-align: center;">
             <h2 style="color: var(--neon-cyan); margin-top: 0;">Apostar no Item</h2>

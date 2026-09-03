@@ -1,10 +1,47 @@
         function googleTranslateElementInit() {
             new google.translate.TranslateElement({
                 pageLanguage: 'pt',
-                includedLanguages: 'en,es,pt',
+                includedLanguages: 'en,es,fr,ru,ja,ko,zh-CN,tl',
                 layout: google.translate.TranslateElement.InlineLayout.SIMPLE
             }, 'google_translate_element');
         }
+
+        /* --- SELETOR DE IDIOMA CUSTOMIZADO (COM BANDEIRAS) --- */
+        const BANDEIRAS_IDIOMA = {
+            pt: '🇧🇷', en: '🇺🇸', es: '🇪🇸', fr: '🇫🇷', ru: '🇷🇺',
+            ja: '🇯🇵', ko: '🇰🇷', 'zh-CN': '🇨🇳', tl: '🇵🇭'
+        };
+
+        function toggleSeletorIdioma() {
+            document.getElementById('painelIdiomas').classList.toggle('aberto');
+        }
+
+        function definirIdioma(codigo) {
+            const dominio = window.location.hostname;
+            if (codigo === 'pt') {
+                document.cookie = 'googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC';
+                document.cookie = 'googtrans=; path=/; domain=' + dominio + '; expires=Thu, 01 Jan 1970 00:00:00 UTC';
+            } else {
+                const valor = '/pt/' + codigo;
+                document.cookie = 'googtrans=' + valor + '; path=/;';
+                document.cookie = 'googtrans=' + valor + '; path=/; domain=' + dominio + ';';
+            }
+            window.location.reload();
+        }
+
+        function aplicarIdiomaAtivoNoBotao() {
+            const match = document.cookie.match(/googtrans=\/pt\/([a-zA-Z-]+)/);
+            const codigo = match ? match[1] : 'pt';
+            const bandeiraEl = document.getElementById('bandeiraAtual');
+            if (bandeiraEl) bandeiraEl.innerText = BANDEIRAS_IDIOMA[codigo] || '🇧🇷';
+        }
+        document.addEventListener('DOMContentLoaded', aplicarIdiomaAtivoNoBotao);
+
+        document.addEventListener('click', (e) => {
+            const seletor = document.getElementById('seletorIdioma');
+            const painel = document.getElementById('painelIdiomas');
+            if (seletor && painel && !seletor.contains(e.target)) painel.classList.remove('aberto');
+        });
 
         function isAdmin() { return document.getElementById('app-root').dataset.isAdmin === 'true'; }
         function isLoggedIn() { return document.getElementById('app-root').dataset.loggedIn === 'true'; }
@@ -54,6 +91,8 @@
 
                 const translateNovo = document.getElementById('google_translate_element');
                 if (translateAtual && translateNovo) translateNovo.replaceWith(translateAtual);
+                aplicarIdiomaAtivoNoBotao();
+                configurarTodasPaginacoes();
 
                 // Restaura a aba selecionada e recalcula overlays de CP (Mega/Titã)
                 if (abaAtivaId && abaAtivaIndice >= 0 && document.getElementById(abaAtivaId)) {
@@ -66,6 +105,19 @@
                 mostrarToast('Não foi possível atualizar os dados automaticamente. Recarregando...', 'erro');
                 setTimeout(() => window.location.reload(), 1200);
             }
+        }
+
+        /* Atualiza só um elemento (por id) a partir do HTML mais recente do servidor,
+           sem tocar no resto da página — usado dentro de modais que precisam continuar
+           abertos (ex: gerenciamento de Staff) enquanto os dados são sincronizados. */
+        async function atualizarElementoParcial(elementId) {
+            const resp = await fetch(window.location.pathname, { cache: 'no-store' });
+            if (!resp.ok) throw new Error('status ' + resp.status);
+            const html = await resp.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const novo = doc.getElementById(elementId);
+            const atual = document.getElementById(elementId);
+            if (novo && atual) atual.innerHTML = novo.innerHTML;
         }
 
         /* --- CRONÔMETRO DIGITAL --- */
@@ -206,7 +258,9 @@
                     const spanClasse = linha.querySelector('span.edit-classe');
 
                     let classeStr = "Indefinida";
-                    if(selectElement) {
+                    // .edit-classe pode ser um <select> (edição inline) ou um <input hidden>
+                    // (exibição somente leitura); só o <select> tem .options.
+                    if(selectElement && selectElement.tagName === 'SELECT') {
                         classeStr = selectElement.options[selectElement.selectedIndex]?.text || "Indefinida";
                     } else if(hiddenClasse) {
                         classeStr = hiddenClasse.value || "Indefinida";
@@ -248,6 +302,50 @@
             }
         }
         document.addEventListener('DOMContentLoaded', () => { aplicarLinhasPoder(); });
+
+        /* --- PAGINAÇÃO (CLIENTE) DAS TABELAS DE HISTÓRICO --- */
+        const ITENS_POR_PAGINA_HISTORICO = 10;
+        const estadoPaginacao = {};
+
+        function configurarPaginacao(tbodyId, controlesId, porPagina = ITENS_POR_PAGINA_HISTORICO) {
+            const tbody = document.getElementById(tbodyId);
+            const controles = document.getElementById(controlesId);
+            if (!tbody || !controles) return;
+
+            const linhas = Array.from(tbody.querySelectorAll('tr.linha-dado'));
+            const totalPaginas = Math.max(1, Math.ceil(linhas.length / porPagina));
+            let paginaAtual = estadoPaginacao[tbodyId] || 1;
+            if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+            estadoPaginacao[tbodyId] = paginaAtual;
+
+            linhas.forEach((tr, i) => {
+                const dentroDaPagina = i >= (paginaAtual - 1) * porPagina && i < paginaAtual * porPagina;
+                tr.style.display = dentroDaPagina ? '' : 'none';
+            });
+
+            if (linhas.length <= porPagina) {
+                controles.innerHTML = '';
+                return;
+            }
+
+            controles.innerHTML = `
+                <button ${paginaAtual === 1 ? 'disabled' : ''} onclick="irParaPagina('${tbodyId}', '${controlesId}', ${paginaAtual - 1}, ${porPagina})">← Anterior</button>
+                <span class="pagina-atual">Página ${paginaAtual} de ${totalPaginas}</span>
+                <button ${paginaAtual === totalPaginas ? 'disabled' : ''} onclick="irParaPagina('${tbodyId}', '${controlesId}', ${paginaAtual + 1}, ${porPagina})">Próxima →</button>
+            `;
+        }
+
+        function irParaPagina(tbodyId, controlesId, pagina, porPagina) {
+            estadoPaginacao[tbodyId] = pagina;
+            configurarPaginacao(tbodyId, controlesId, porPagina);
+        }
+
+        function configurarTodasPaginacoes() {
+            configurarPaginacao('bodyHistoricoSorteios', 'paginacaoHistoricoSorteios');
+            configurarPaginacao('bodyHistoricoMeme', 'paginacaoHistoricoMeme');
+            configurarPaginacao('bodyMembros', 'paginacaoMembros');
+        }
+        document.addEventListener('DOMContentLoaded', configurarTodasPaginacoes);
 
         function trocarAba(abaId, elementoBtn) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -319,6 +417,79 @@
             await fetch('/api/encerrar-banner', {method: 'POST'});
             await atualizarDados();
             mostrarToast('Evento encerrado. Pontos estornados aos jogadores.', 'info');
+        }
+
+        function abrirModalEditarPersonagem(jogadorId, nome, level, poder) {
+            document.getElementById('editPersonagemId').value = jogadorId;
+            document.getElementById('tituloEditarPersonagem').innerText = 'Atualizar: ' + nome;
+            document.getElementById('editPersonagemLevel').value = level;
+            document.getElementById('editPersonagemPoder').value = poder;
+            abrirModal('modalEditarPersonagem');
+        }
+
+        async function salvarEdicaoPersonagem() {
+            const jogadorId = document.getElementById('editPersonagemId').value;
+            const level = document.getElementById('editPersonagemLevel').value;
+            const poder = document.getElementById('editPersonagemPoder').value;
+
+            try {
+                const response = await fetch('/api/editar-jogadores', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jogadores: [{ id: jogadorId, level: level, poder_combate: poder }] })
+                });
+                if (response.ok) {
+                    fecharModal('modalEditarPersonagem');
+                    await atualizarDados();
+                    mostrarToast('Personagem atualizado com sucesso!', 'sucesso');
+                } else {
+                    mostrarToast('Falha ao atualizar personagem.', 'erro');
+                }
+            } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
+        }
+
+        function abrirModalEditarBuild(jogadorId, nome, classe, s4, s5, s6, s7, c3, c4, trin, mt) {
+            document.getElementById('editBuildId').value = jogadorId;
+            document.getElementById('tituloEditarBuild').innerText = 'Atualizar Build: ' + nome;
+            document.getElementById('editBuildClasse').value = classe;
+            document.getElementById('editBuildS4').checked = s4;
+            document.getElementById('editBuildS5').checked = s5;
+            document.getElementById('editBuildS6').checked = s6;
+            document.getElementById('editBuildS7').checked = s7;
+            document.getElementById('editBuildC3').checked = c3;
+            document.getElementById('editBuildC4').checked = c4;
+            document.getElementById('editBuildTrin').checked = trin;
+            document.getElementById('editBuildMT').checked = mt;
+            abrirModal('modalEditarBuild');
+        }
+
+        async function salvarEdicaoBuild() {
+            const jogadorId = document.getElementById('editBuildId').value;
+            const payload = {
+                id: jogadorId,
+                classe: document.getElementById('editBuildClasse').value,
+                skill_4: document.getElementById('editBuildS4').checked,
+                skill_5: document.getElementById('editBuildS5').checked,
+                skill_6: document.getElementById('editBuildS6').checked,
+                skill_7: document.getElementById('editBuildS7').checked,
+                constante_3: document.getElementById('editBuildC3').checked,
+                constante_4: document.getElementById('editBuildC4').checked,
+                trindade: document.getElementById('editBuildTrin').checked,
+                mestre_tecnica: document.getElementById('editBuildMT').checked
+            };
+
+            try {
+                const response = await fetch('/api/editar-jogadores', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jogadores: [payload] })
+                });
+                if (response.ok) {
+                    fecharModal('modalEditarBuild');
+                    await atualizarDados();
+                    mostrarToast('Build atualizada com sucesso!', 'sucesso');
+                } else {
+                    mostrarToast('Falha ao atualizar build.', 'erro');
+                }
+            } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
         }
 
         function abrirModalAposta(itemId, nomeItem, maxPontos) {
@@ -403,22 +574,95 @@
         function abrirModalStaffRoleta(itemId, nomeItem) {
             document.getElementById('staffRoletaItemId').value = itemId;
             document.getElementById('staffRoletaNomeItem').value = nomeItem;
-            document.getElementById('staffRoletaNome').value = '';
+            document.getElementById('novoStaffNome').value = '';
+
+            // Mostra quem já apostou neste item, lendo direto do card já renderizado na tela
+            const card = document.querySelector(`.item-card[data-item-id="${itemId}"]`);
+            const listaPresentes = document.getElementById('listaJogadoresPresentes');
+            listaPresentes.innerHTML = '';
+            const apostas = card ? card.querySelectorAll('.lista-apostas-item > span') : [];
+            if (apostas.length === 0) {
+                listaPresentes.innerHTML = '<span>Nenhum jogador apostou neste item ainda.</span>';
+            } else {
+                apostas.forEach(span => {
+                    const nomeTexto = (span.childNodes[0] ? span.childNodes[0].textContent : span.textContent).trim();
+                    const tag = document.createElement('span');
+                    tag.style.cssText = 'background: rgba(0,243,255,0.1); border: 1px solid var(--glass-border); padding: 4px 8px; border-radius: 4px; color: #fff;';
+                    tag.innerText = nomeTexto;
+                    listaPresentes.appendChild(tag);
+                });
+            }
+
             abrirModal('modalStaffRoleta');
+        }
+
+        async function adicionarStaff() {
+            const input = document.getElementById('novoStaffNome');
+            const nome = input.value.trim();
+            if (!nome) { mostrarToast('Digite um nome antes de adicionar.', 'aviso'); return; }
+
+            try {
+                const response = await fetch('/api/criar-staff', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: nome })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    input.value = '';
+                    await atualizarElementoParcial('listaStaffGerenciamento');
+                    mostrarToast('Pessoa adicionada à Staff!', 'sucesso');
+                } else {
+                    mostrarToast(data.erro, 'erro');
+                }
+            } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
+        }
+
+        async function removerStaff(id) {
+            if (!confirm('Remover esta pessoa da lista de Staff?')) return;
+            try {
+                const response = await fetch(`/api/deletar-staff/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    await atualizarElementoParcial('listaStaffGerenciamento');
+                    mostrarToast('Removido da Staff.', 'info');
+                } else {
+                    const data = await response.json();
+                    mostrarToast(data.erro, 'erro');
+                }
+            } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
+        }
+
+        async function salvarNomesStaff() {
+            const linhas = document.querySelectorAll('#listaStaffGerenciamento .linha-staff-gerenciamento');
+            const staffData = Array.from(linhas).map(linha => ({
+                id: linha.getAttribute('data-staff-id'),
+                nome: linha.querySelector('.staff-nome-input').value
+            }));
+            if (staffData.length === 0) { mostrarToast('Nenhuma pessoa cadastrada para salvar.', 'aviso'); return; }
+
+            try {
+                const response = await fetch('/api/editar-staff', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ staff: staffData })
+                });
+                if (response.ok) {
+                    await atualizarElementoParcial('listaStaffGerenciamento');
+                    mostrarToast('Nomes da Staff atualizados!', 'sucesso');
+                } else {
+                    mostrarToast('Falha ao salvar nomes.', 'erro');
+                }
+            } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
         }
 
         async function confirmarStaffEGirarRoleta() {
             const itemId = document.getElementById('staffRoletaItemId').value;
             const nomeItem = document.getElementById('staffRoletaNomeItem').value;
-            const nomeStaff = document.getElementById('staffRoletaNome').value.trim();
+            const radioSelecionado = document.querySelector('input[name="staffSelecionado"]:checked');
 
-            if (!nomeStaff) {
-                mostrarToast('Informe o nome de quem está representando a Staff neste sorteio.', 'aviso');
+            if (!radioSelecionado) {
+                mostrarToast('Selecione quem da Staff vai representar este sorteio.', 'aviso');
                 return;
             }
 
             fecharModal('modalStaffRoleta');
-            await prepararRoletaItem(itemId, nomeItem, nomeStaff);
+            await prepararRoletaItem(itemId, nomeItem, radioSelecionado.value);
         }
 
         async function prepararRoletaItem(itemId, nomeItem, nomeStaff) {
@@ -655,6 +899,44 @@
                 const data = await response.json();
                 if (response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast("Erro: " + data.erro, 'erro'); }
             } catch (e) { mostrarToast("Falha de rede.", 'erro'); }
+        }
+
+        /* --- GERENCIAMENTO DE MEMBROS (ADMIN) --- */
+        async function criarJogador() {
+            const nome = document.getElementById('novoJogadorNome').value.trim();
+            const level = document.getElementById('novoJogadorLevel').value;
+            const poder = document.getElementById('novoJogadorPoder').value;
+
+            if (!nome) { mostrarToast('Informe o nome do membro.', 'aviso'); return; }
+
+            try {
+                const response = await fetch('/api/criar-jogador', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome: nome, level: level, poder_combate: poder })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    await atualizarDados();
+                    mostrarToast(data.mensagem, 'sucesso');
+                } else {
+                    mostrarToast(data.erro, 'erro');
+                }
+            } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
+        }
+
+        async function deletarJogador(id, nome) {
+            if (!confirm(`Remover "${nome}" permanentemente?\n\nTodo o histórico dele será apagado: pontuações, espólios recebidos, sorteios meme e apostas ativas. Esta ação não pode ser desfeita.`)) return;
+
+            try {
+                const response = await fetch(`/api/deletar-jogador/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (response.ok) {
+                    await atualizarDados();
+                    mostrarToast(data.mensagem, 'info');
+                } else {
+                    mostrarToast(data.erro, 'erro');
+                }
+            } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
         }
 
         async function criarEvento() {

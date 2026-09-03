@@ -4,6 +4,7 @@ import json
 import random
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
+from werkzeug.utils import secure_filename
 from sqlalchemy import func, text
 from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, PersonagemSecundario
 from xml_engine import analisar_xml_guilda
@@ -33,6 +34,19 @@ def asset_version(filename):
 
 
 app.jinja_env.globals['asset_version'] = asset_version
+
+
+def caminho_upload_seguro(arquivo, prefixo_padrao):
+    """Monta o caminho de gravação de um upload dentro de UPLOAD_FOLDER.
+
+    Usa secure_filename para impedir que um nome como '../app.py' escape da
+    pasta de uploads e sobrescreva arquivos do projeto."""
+    nome_seguro = secure_filename(arquivo.filename or '')
+    if not nome_seguro:
+        nome_seguro = f"{prefixo_padrao}_{int(time.time() * 1000)}"
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+    return os.path.join(app.config['UPLOAD_FOLDER'], nome_seguro)
 
 
 def calcular_pontuacao_base_semanal(pontos_semanais):
@@ -106,6 +120,14 @@ class ApostaSorteio(db.Model):
     jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'))
     pontos = db.Column(db.Float, default=0.0)
     jogador = db.relationship('Jogador')
+
+
+class StaffMembro(db.Model):
+    """Cadastro de pessoas que podem representar a fatia fixa de 15% (Staff)
+    nos sorteios de item. Independente do cadastro de Jogadores."""
+    __tablename__ = 'staff_membros'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False, unique=True)
 
 
 @app.route('/')
@@ -210,6 +232,11 @@ def index():
     total_jogadores = len(jogadores)
     user_role = session.get('role', 'guest')
 
+    staff_membros = StaffMembro.query.order_by(StaffMembro.nome.asc()).all()
+
+    # Lista completa (inclusive inativos) para a aba de gerenciamento de membros
+    todos_jogadores = Jogador.query.order_by(Jogador.nome.asc()).all()
+
     # Dados do Evento Ativo (Banner)
     evento_ativo = EventoSorteio.query.filter_by(ativo=True).order_by(EventoSorteio.id.desc()).first()
     
@@ -248,7 +275,9 @@ def index():
         cp_mega=cp_mega,
         cp_tita=cp_tita,
         semana_ativa_numero=semana_ativa_numero,
-        evento=evento_data
+        evento=evento_data,
+        staff_membros=staff_membros,
+        todos_jogadores=todos_jogadores
     )
 
 @app.route('/api/login', methods=['POST'])
@@ -434,6 +463,49 @@ def remover_aposta(id):
     return jsonify({"mensagem": "Aposta removida."}), 200
 
 
+# ================= CADASTRO DE STAFF (para a fatia fixa da roleta) =================
+
+@app.route('/api/criar-staff', methods=['POST'])
+def criar_staff():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    nome = str(request.get_json().get('nome', '')).strip()[:100]
+    if not nome:
+        return jsonify({"erro": "Informe um nome."}), 400
+
+    if StaffMembro.query.filter(func.lower(StaffMembro.nome) == nome.lower()).first():
+        return jsonify({"erro": "Já existe uma pessoa da Staff com esse nome."}), 409
+
+    db.session.add(StaffMembro(nome=nome))
+    db.session.commit()
+    return jsonify({"mensagem": "Pessoa adicionada à Staff!"}), 200
+
+@app.route('/api/editar-staff', methods=['POST'])
+def editar_staff():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    staff_data = request.get_json().get('staff', [])
+    try:
+        for item in staff_data:
+            membro = db.session.get(StaffMembro, item['id'])
+            nome = str(item.get('nome', '')).strip()[:100]
+            if membro and nome:
+                membro.nome = nome
+        db.session.commit()
+        return jsonify({"mensagem": "Nomes da Staff atualizados!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+@app.route('/api/deletar-staff/<int:id>', methods=['DELETE'])
+def deletar_staff(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    membro = db.session.get(StaffMembro, id)
+    if membro:
+        db.session.delete(membro)
+        db.session.commit()
+        return jsonify({"mensagem": "Removido da Staff."}), 200
+    return jsonify({"erro": "Não encontrado."}), 404
+
+
 @app.route('/api/simular-sorteio-item', methods=['POST'])
 def simular_sorteio_item():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -562,12 +634,9 @@ def importar_xml():
         return jsonify({"erro": "Arquivo não enviado."}), 400
 
     arquivo = request.files['xml_file']
-    guilda_alvo = request.form.get('guilda_alvo', 'vortex') 
-    
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-        
-    caminho = os.path.join(app.config['UPLOAD_FOLDER'], arquivo.filename)
+    guilda_alvo = request.form.get('guilda_alvo', 'vortex')
+
+    caminho = caminho_upload_seguro(arquivo, 'importacao')
     arquivo.save(caminho)
 
     try:
@@ -730,9 +799,7 @@ def importar_excel():
     if 'excel_file' not in request.files: return jsonify({"erro": "Arquivo não enviado."}), 400
 
     arquivo = request.files['excel_file']
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-    caminho = os.path.join(app.config['UPLOAD_FOLDER'], arquivo.filename)
+    caminho = caminho_upload_seguro(arquivo, 'atributos')
     arquivo.save(caminho)
 
     try: import openpyxl
@@ -888,6 +955,55 @@ def editar_jogadores():
         
         db.session.commit()
         return jsonify({"mensagem": "Modificações salvas com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+# ================= GERENCIAMENTO DE MEMBROS (ADMIN) =================
+
+@app.route('/api/criar-jogador', methods=['POST'])
+def criar_jogador():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    nome = str(dados.get('nome', '')).strip()[:100]
+
+    if not nome:
+        return jsonify({"erro": "Informe o nome do membro."}), 400
+
+    if Jogador.query.filter(func.lower(Jogador.nome) == nome.lower()).first():
+        return jsonify({"erro": "Já existe um membro cadastrado com esse nome."}), 409
+
+    try:
+        jogador = Jogador(
+            nome=nome,
+            level=int(dados.get('level') or 1),
+            poder_combate=int(dados.get('poder_combate') or 0),
+            status='Ativo'
+        )
+        db.session.add(jogador)
+        db.session.commit()
+        return jsonify({"mensagem": f"Membro '{nome}' cadastrado com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+@app.route('/api/deletar-jogador/<int:id>', methods=['DELETE'])
+def deletar_jogador(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+
+    jogador = db.session.get(Jogador, id)
+    if not jogador:
+        return jsonify({"erro": "Membro não encontrado."}), 404
+
+    try:
+        # Remove o que referencia o jogador e não sai por cascade
+        # (Pontuacao e personagens secundários saem automaticamente).
+        ApostaSorteio.query.filter_by(jogador_id=jogador.id).delete()
+        SorteioHistorico.query.filter_by(jogador_id=jogador.id).delete()
+        SorteioMemeHistorico.query.filter_by(jogador_id=jogador.id).delete()
+        db.session.delete(jogador)
+        db.session.commit()
+        return jsonify({"mensagem": "Membro removido junto com todo o seu histórico."}), 200
     except Exception as e:
         db.session.rollback()
         return erro_interno(e)

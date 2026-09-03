@@ -44,15 +44,47 @@
         .header h1::before { content: "⚡"; font-size: 26px; filter: hue-rotate(180deg); }
         .semana-badge { font-size: 20px; color: var(--neon-purple); background: rgba(188, 19, 254, 0.1); border: 1px solid var(--neon-purple); padding: 5px 15px; border-radius: 4px; box-shadow: 0 0 10px rgba(188, 19, 254, 0.3); margin-left: 15px;}
 
-        #google_translate_element select {
-            background: rgba(0,0,0,0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan);
-            padding: 8px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 14px; outline: none;
-        }
         .goog-te-gadget-icon { display: none; }
         .goog-te-gadget-simple { background-color: transparent !important; border: none !important; padding: 0 !important; }
         .goog-te-gadget-simple span { color: var(--text-light) !important; font-family: 'Rajdhani', sans-serif !important; }
         body { top: 0 !important; }
         .skiptranslate iframe { display: none !important; }
+
+        /* --- SELETOR DE IDIOMA CUSTOMIZADO (COM BANDEIRAS) --- */
+        .seletor-idioma { position: relative; }
+        .seletor-idioma-btn {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan);
+            padding: 8px 14px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-weight: 600;
+            font-size: 20px; cursor: pointer; transition: 0.2s;
+        }
+        .seletor-idioma-btn:hover { background: rgba(0, 243, 255, 0.1); box-shadow: 0 0 10px rgba(0, 243, 255, 0.3); }
+        .seletor-idioma-seta { font-size: 12px; color: var(--neon-cyan); }
+        .seletor-idioma-painel {
+            display: none; position: absolute; top: calc(100% + 8px); left: 0; z-index: 200;
+            background: rgba(10, 10, 15, 0.97); border: 1px solid var(--glass-border); border-radius: 6px;
+            padding: 8px; min-width: 170px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); backdrop-filter: blur(12px);
+        }
+        .seletor-idioma-painel.aberto { display: block; }
+        .idioma-opcao {
+            display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 4px;
+            color: var(--text-light); font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.15s;
+        }
+        .idioma-opcao span { font-size: 18px; }
+        .idioma-opcao:hover { background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); }
+
+        .paginacao-controles {
+            display: flex; justify-content: center; align-items: center; gap: 15px;
+            margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--glass-border);
+        }
+        .paginacao-controles button {
+            background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); color: var(--neon-cyan);
+            padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Rajdhani', sans-serif;
+            font-weight: 600; font-size: 14px; transition: 0.2s;
+        }
+        .paginacao-controles button:hover:not(:disabled) { background: rgba(0,243,255,0.1); border-color: var(--neon-cyan); }
+        .paginacao-controles button:disabled { opacity: 0.35; cursor: not-allowed; }
+        .paginacao-controles .pagina-atual { color: var(--text-light); font-weight: 600; font-size: 14px; }
 
         .table-container {
             background: var(--bg-panel); padding: 25px;

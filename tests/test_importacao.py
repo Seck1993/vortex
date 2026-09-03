@@ -1,5 +1,6 @@
 """Testes de importação de Excel (atributos) e gerenciamento de logs de importação."""
 import io
+import os
 
 import openpyxl
 
@@ -84,3 +85,21 @@ def test_deletar_importacao_desfaz_pontos(app_module, app, admin_client, criar_j
 def test_deletar_importacao_inexistente_retorna_404(admin_client):
     resposta = admin_client.delete("/api/deletar-importacao/99999")
     assert resposta.status_code == 404
+
+
+def test_upload_com_nome_malicioso_nao_escapa_da_pasta(app_module, admin_client, tmp_path):
+    """Um nome como '../app.py' não pode escapar de UPLOAD_FOLDER e
+    sobrescrever arquivos do projeto."""
+    pasta_upload = str(tmp_path / "uploads")
+    app_module.app.config["UPLOAD_FOLDER"] = pasta_upload
+
+    arquivo = _gerar_excel_em_memoria()
+    admin_client.post(
+        "/api/importar-excel",
+        data={"excel_file": (arquivo, "../../app.py")},
+        content_type="multipart/form-data",
+    )
+
+    # Nada foi criado fora da pasta de uploads
+    assert not os.path.exists(str(tmp_path / "app.py"))
+    assert not os.path.exists(str(tmp_path.parent / "app.py"))
