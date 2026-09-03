@@ -1008,6 +1008,29 @@ def deletar_jogador(id):
         db.session.rollback()
         return erro_interno(e)
 
+@app.route('/api/toggle-status-jogador/<int:id>', methods=['POST'])
+def toggle_status_jogador(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+
+    jogador = db.session.get(Jogador, id)
+    if not jogador:
+        return jsonify({"erro": "Membro não encontrado."}), 404
+
+    try:
+        if jogador.status == 'Ativo' or not jogador.status:
+            jogador.status = 'Inativo'
+        else:
+            jogador.status = 'Ativo'
+            
+        db.session.commit()
+        return jsonify({
+            "mensagem": f"Status de {jogador.nome} alterado para {jogador.status}.",
+            "novo_status": jogador.status
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
 @app.route('/api/criar-evento', methods=['POST'])
 def criar_evento():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
