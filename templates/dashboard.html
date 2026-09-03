@@ -469,17 +469,22 @@
                         <th style="width: 80px;">LVL</th>
                         <th style="width: 140px;">Poder de Combate</th>
                         <th style="width: 120px;">Status</th>
-                        <th style="width: 100px; border-right: none;">Ações</th>
+                        <th style="width: 160px; border-right: none;">Ações</th>
                     </tr>
                 </thead>
                 <tbody id="bodyMembros">
                     {% for jogador in todos_jogadores %}
-                    <tr class="linha-dado">
+                    <tr class="linha-dado" style="opacity: {{ '0.5' if jogador.status == 'Inativo' else '1' }};">
                         <td style="text-align: left; font-weight: 700; font-size: 20px; color: #fff;">{{ jogador.nome }}</td>
                         <td style="color: #fff; font-size: 18px;">{{ jogador.level }}</td>
                         <td style="color: var(--neon-cyan); font-family: monospace; font-size: 18px; font-weight: bold;">{{ "{:,.0f}".format(jogador.poder_combate).replace(',', '.') }}</td>
-                        <td style="font-weight: bold; font-size: 16px; color: {% if jogador.status == 'Inativo' %}var(--neon-red){% else %}var(--neon-green){% endif %};">{{ jogador.status or 'Ativo' }}</td>
-                        <td style="border-right: none;"><button class="btn-danger" title="Remover membro e todo o seu histórico" onclick="deletarJogador({{ jogador.id }}, '{{ jogador.nome }}')">✖</button></td>
+                        <td style="font-weight: bold; font-size: 16px; color: {% if jogador.status == 'Inativo' %}var(--neon-red){% else %}var(--neon-green){% endif %};" class="status-cell">{{ jogador.status or 'Ativo' }}</td>
+                        <td style="border-right: none; display: flex; gap: 10px; justify-content: center; padding: 10px;">
+                            <button class="btn btn-outline" style="border-color: {% if jogador.status == 'Inativo' %}var(--neon-green){% else %}var(--neon-orange){% endif %}; color: {% if jogador.status == 'Inativo' %}var(--neon-green){% else %}var(--neon-orange){% endif %}; font-size: 12px; padding: 5px 10px;" onclick="toggleStatusJogador({{ jogador.id }}, this)" title="Alternar status do jogador">
+                                {% if jogador.status == 'Inativo' %}Ativar{% else %}Inativar{% endif %}
+                            </button>
+                            <button class="btn-danger" style="padding: 5px 10px;" title="Remover membro e todo o seu histórico" onclick="deletarJogador({{ jogador.id }}, '{{ jogador.nome }}')">✖</button>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
