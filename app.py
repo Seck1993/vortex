@@ -4,6 +4,7 @@ import json
 import random
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
+from werkzeug.utils import secure_filename
 from sqlalchemy import func, text
 from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, PersonagemSecundario
 from xml_engine import analisar_xml_guilda
@@ -20,6 +21,54 @@ app.config['UPLOAD_FOLDER'] = 'tmp/'
 app.config['SECRET_KEY'] = 'chave_super_secreta_vortex' 
 
 db.init_app(app)
+
+
+def asset_version(filename):
+    """Retorna a data de modificação do arquivo estático como string, usada
+    como query param de cache-busting (?v=...) nos links/scripts do template."""
+    caminho = os.path.join(app.static_folder, filename)
+    try:
+        return str(int(os.path.getmtime(caminho)))
+    except OSError:
+        return "1"
+
+
+app.jinja_env.globals['asset_version'] = asset_version
+
+
+def caminho_upload_seguro(arquivo, prefixo_padrao):
+    """Monta o caminho de gravação de um upload dentro de UPLOAD_FOLDER.
+
+    Usa secure_filename para impedir que um nome como '../app.py' escape da
+    pasta de uploads e sobrescreva arquivos do projeto."""
+    nome_seguro = secure_filename(arquivo.filename or '')
+    if not nome_seguro:
+        nome_seguro = f"{prefixo_padrao}_{int(time.time() * 1000)}"
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+    return os.path.join(app.config['UPLOAD_FOLDER'], nome_seguro)
+
+
+def calcular_pontuacao_base_semanal(pontos_semanais):
+    """Calcula a 'moda' (valor mais frequente; empate resolvido pelo maior valor)
+    de uma coleção de totais de pontos semanais por jogador. Usada como teto de
+    100% de participação. Extraída para uso único em index() e apostar_item(),
+    que antes duplicavam esta lógica de negócio central."""
+    frequencias = {}
+    for pts in pontos_semanais:
+        if pts > 0:
+            frequencias[pts] = frequencias.get(pts, 0) + 1
+    if not frequencias:
+        return 0
+    return max(frequencias.keys(), key=lambda k: (frequencias[k], k))
+
+
+def erro_interno(e):
+    """Loga o stack trace no servidor e devolve uma mensagem genérica ao cliente,
+    evitando vazar detalhes internos (stack trace / mensagens do SQLAlchemy)."""
+    app.logger.exception("Erro interno em rota da API")
+    return jsonify({"erro": "Erro interno no servidor. Tente novamente ou contate o administrador."}), 500
+
 
 class SorteioHistorico(db.Model):
     __tablename__ = 'sorteios'
@@ -71,6 +120,14 @@ class ApostaSorteio(db.Model):
     jogador_id = db.Column(db.Integer, db.ForeignKey('jogadores.id'))
     pontos = db.Column(db.Float, default=0.0)
     jogador = db.relationship('Jogador')
+
+
+class StaffMembro(db.Model):
+    """Cadastro de pessoas que podem representar a fatia fixa de 15% (Staff)
+    nos sorteios de item. Independente do cadastro de Jogadores."""
+    __tablename__ = 'staff_membros'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False, unique=True)
 
 
 @app.route('/')
@@ -127,15 +184,9 @@ def index():
     ).all()
     
     # === CÁLCULO DA "MODA" (TETO DE 100%) ===
-    frequencias = {}
-    for j in jogadores:
-        pts_semana = mapa_pontos.get(j.id, {}).get('total_semanal', 0)
-        if pts_semana > 0:
-            frequencias[pts_semana] = frequencias.get(pts_semana, 0) + 1
-    
-    pontuacao_base_semanal = 0
-    if frequencias:
-        pontuacao_base_semanal = max(frequencias.keys(), key=lambda k: (frequencias[k], k))
+    pontuacao_base_semanal = calcular_pontuacao_base_semanal(
+        mapa_pontos.get(j.id, {}).get('total_semanal', 0) for j in jogadores
+    )
 
     ranking = []
     soma_total_pontos = 0
@@ -181,6 +232,11 @@ def index():
     total_jogadores = len(jogadores)
     user_role = session.get('role', 'guest')
 
+    staff_membros = StaffMembro.query.order_by(StaffMembro.nome.asc()).all()
+
+    # Lista completa (inclusive inativos) para a aba de gerenciamento de membros
+    todos_jogadores = Jogador.query.order_by(Jogador.nome.asc()).all()
+
     # Dados do Evento Ativo (Banner)
     evento_ativo = EventoSorteio.query.filter_by(ativo=True).order_by(EventoSorteio.id.desc()).first()
     
@@ -219,15 +275,17 @@ def index():
         cp_mega=cp_mega,
         cp_tita=cp_tita,
         semana_ativa_numero=semana_ativa_numero,
-        evento=evento_data
+        evento=evento_data,
+        staff_membros=staff_membros,
+        todos_jogadores=todos_jogadores
     )
 
 @app.route('/api/login', methods=['POST'])
 def login():
     dados = request.get_json()
     senha_enviada = dados.get('senha')
-    
-    if senha_enviada == 'vortex2026':  
+
+    if senha_enviada == 'vortex2026':
         session['logged_in'] = True
         session['role'] = 'admin'
         return jsonify({"mensagem": "Autenticado como Administrador"}), 200
@@ -235,7 +293,7 @@ def login():
         session['logged_in'] = True
         session['role'] = 'membro'
         return jsonify({"mensagem": "Autenticado como Membro"}), 200
-        
+
     return jsonify({"erro": "Senha incorreta"}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -359,12 +417,7 @@ def apostar_item():
         Pontuacao.jogador_id, func.sum(Pontuacao.pontos)
     ).filter_by(semana=semana_ativa_str).group_by(Pontuacao.jogador_id).all()
 
-    frequencias = {}
-    for pid, pts in pontos_semanais_todos:
-        if pts > 0:
-            frequencias[pts] = frequencias.get(pts, 0) + 1
-    
-    pontuacao_base_semanal = max(frequencias.keys(), key=lambda k: (frequencias[k], k)) if frequencias else 0
+    pontuacao_base_semanal = calcular_pontuacao_base_semanal(pts for _, pts in pontos_semanais_todos)
     pts_jogador_semana = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id, semana=semana_ativa_str).scalar() or 0
 
     participacao_jogador = (pts_jogador_semana / pontuacao_base_semanal) * 100.0 if pontuacao_base_semanal > 0 else 0.0
@@ -410,11 +463,58 @@ def remover_aposta(id):
     return jsonify({"mensagem": "Aposta removida."}), 200
 
 
+# ================= CADASTRO DE STAFF (para a fatia fixa da roleta) =================
+
+@app.route('/api/criar-staff', methods=['POST'])
+def criar_staff():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    nome = str(request.get_json().get('nome', '')).strip()[:100]
+    if not nome:
+        return jsonify({"erro": "Informe um nome."}), 400
+
+    if StaffMembro.query.filter(func.lower(StaffMembro.nome) == nome.lower()).first():
+        return jsonify({"erro": "Já existe uma pessoa da Staff com esse nome."}), 409
+
+    db.session.add(StaffMembro(nome=nome))
+    db.session.commit()
+    return jsonify({"mensagem": "Pessoa adicionada à Staff!"}), 200
+
+@app.route('/api/editar-staff', methods=['POST'])
+def editar_staff():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    staff_data = request.get_json().get('staff', [])
+    try:
+        for item in staff_data:
+            membro = db.session.get(StaffMembro, item['id'])
+            nome = str(item.get('nome', '')).strip()[:100]
+            if membro and nome:
+                membro.nome = nome
+        db.session.commit()
+        return jsonify({"mensagem": "Nomes da Staff atualizados!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+@app.route('/api/deletar-staff/<int:id>', methods=['DELETE'])
+def deletar_staff(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    membro = db.session.get(StaffMembro, id)
+    if membro:
+        db.session.delete(membro)
+        db.session.commit()
+        return jsonify({"mensagem": "Removido da Staff."}), 200
+    return jsonify({"erro": "Não encontrado."}), 404
+
+
 @app.route('/api/simular-sorteio-item', methods=['POST'])
 def simular_sorteio_item():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    item_id = request.get_json().get('item_id')
-    
+    dados = request.get_json()
+    item_id = dados.get('item_id')
+    nome_staff = str(dados.get('nome_staff', '')).strip()[:100]
+    if not nome_staff:
+        return jsonify({"erro": "Informe o nome de quem está representando a Staff neste sorteio."}), 400
+
     item = db.session.get(EventoItem, item_id)
     if not item or item.sorteado: return jsonify({"erro": "Item já sorteado."}), 400
 
@@ -424,11 +524,13 @@ def simular_sorteio_item():
     fatias = {}
     candidatos = []
     pesos = []
-    
+
     total_pontos = sum(ap.pontos for ap in apostas)
 
-    fatias['Staff (Administração)'] = 15.0
-    candidatos.append({"id": None, "nome": 'Staff (Administração)', "pontos_apostados": 0, "is_staff": True})
+    # A fatia da Staff é sempre 15% fixos; o nome exibido é definido pelo admin
+    # na hora do sorteio (não vem do login nem de um rótulo genérico fixo).
+    fatias[nome_staff] = 15.0
+    candidatos.append({"id": None, "nome": nome_staff, "pontos_apostados": 0, "is_staff": True})
     pesos.append(15.0)
 
     for ap in apostas:
@@ -522,7 +624,7 @@ def salvar_regua():
         return jsonify({"mensagem": "Réguas atualizadas globalmente!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/importar', methods=['POST'])
 def importar_xml():
@@ -532,12 +634,9 @@ def importar_xml():
         return jsonify({"erro": "Arquivo não enviado."}), 400
 
     arquivo = request.files['xml_file']
-    guilda_alvo = request.form.get('guilda_alvo', 'vortex') 
-    
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-        
-    caminho = os.path.join(app.config['UPLOAD_FOLDER'], arquivo.filename)
+    guilda_alvo = request.form.get('guilda_alvo', 'vortex')
+
+    caminho = caminho_upload_seguro(arquivo, 'importacao')
     arquivo.save(caminho)
 
     try:
@@ -582,7 +681,7 @@ def importar_xml():
     except Exception as e:
         if os.path.exists(caminho):
             os.remove(caminho)
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/confirmar', methods=['POST'])
 def confirmar_importacao():
@@ -692,7 +791,7 @@ def confirmar_importacao():
 
     except Exception as e:
         db.session.rollback() 
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/importar-excel', methods=['POST'])
 def importar_excel():
@@ -700,7 +799,7 @@ def importar_excel():
     if 'excel_file' not in request.files: return jsonify({"erro": "Arquivo não enviado."}), 400
 
     arquivo = request.files['excel_file']
-    caminho = os.path.join(app.config['UPLOAD_FOLDER'], arquivo.filename)
+    caminho = caminho_upload_seguro(arquivo, 'atributos')
     arquivo.save(caminho)
 
     try: import openpyxl
@@ -750,7 +849,7 @@ def importar_excel():
     except Exception as e:
         if os.path.exists(caminho): os.remove(caminho)
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-importacao', methods=['POST'])
 def editar_importacao():
@@ -765,7 +864,7 @@ def editar_importacao():
         return jsonify({"mensagem": "Nomes de upload atualizados com sucesso!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/deletar-importacao/<int:id>', methods=['DELETE'])
 def deletar_importacao(id):
@@ -780,7 +879,7 @@ def deletar_importacao(id):
         return jsonify({"erro": "Registro não encontrado."}), 404
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-jogadores', methods=['POST'])
 def editar_jogadores():
@@ -858,7 +957,56 @@ def editar_jogadores():
         return jsonify({"mensagem": "Modificações salvas com sucesso!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
+
+# ================= GERENCIAMENTO DE MEMBROS (ADMIN) =================
+
+@app.route('/api/criar-jogador', methods=['POST'])
+def criar_jogador():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    nome = str(dados.get('nome', '')).strip()[:100]
+
+    if not nome:
+        return jsonify({"erro": "Informe o nome do membro."}), 400
+
+    if Jogador.query.filter(func.lower(Jogador.nome) == nome.lower()).first():
+        return jsonify({"erro": "Já existe um membro cadastrado com esse nome."}), 409
+
+    try:
+        jogador = Jogador(
+            nome=nome,
+            level=int(dados.get('level') or 1),
+            poder_combate=int(dados.get('poder_combate') or 0),
+            status='Ativo'
+        )
+        db.session.add(jogador)
+        db.session.commit()
+        return jsonify({"mensagem": f"Membro '{nome}' cadastrado com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+@app.route('/api/deletar-jogador/<int:id>', methods=['DELETE'])
+def deletar_jogador(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+
+    jogador = db.session.get(Jogador, id)
+    if not jogador:
+        return jsonify({"erro": "Membro não encontrado."}), 404
+
+    try:
+        # Remove o que referencia o jogador e não sai por cascade
+        # (Pontuacao e personagens secundários saem automaticamente).
+        ApostaSorteio.query.filter_by(jogador_id=jogador.id).delete()
+        SorteioHistorico.query.filter_by(jogador_id=jogador.id).delete()
+        SorteioMemeHistorico.query.filter_by(jogador_id=jogador.id).delete()
+        db.session.delete(jogador)
+        db.session.commit()
+        return jsonify({"mensagem": "Membro removido junto com todo o seu histórico."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
 
 @app.route('/api/criar-evento', methods=['POST'])
 def criar_evento():
@@ -893,7 +1041,7 @@ def salvar_configuracoes():
         return jsonify({"mensagem": "Matriz atualizada!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/realizar-sorteio-meme', methods=['POST'])
 def realizar_sorteio_meme():
@@ -914,7 +1062,7 @@ def realizar_sorteio_meme():
         return jsonify({"vencedor_nome": vencedor.nome, "vencedor_id": vencedor.id, "item": item_sorteado}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-historico-meme', methods=['POST'])
 def editar_historico_meme():
@@ -930,7 +1078,7 @@ def editar_historico_meme():
         return jsonify({"mensagem": "Registros gravados!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/deletar-historico-meme/<int:id>', methods=['DELETE'])
 def deletar_historico_meme(id):
@@ -944,7 +1092,7 @@ def deletar_historico_meme(id):
         return jsonify({"erro": "Não encontrado."}), 404
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/editar-historico', methods=['POST'])
 def editar_historico():
@@ -961,7 +1109,7 @@ def editar_historico():
         return jsonify({"mensagem": "Registros gravados!"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
 @app.route('/api/deletar-historico/<int:id>', methods=['DELETE'])
 def deletar_historico(id):
@@ -975,9 +1123,13 @@ def deletar_historico(id):
         return jsonify({"erro": "Não encontrado."}), 404
     except Exception as e:
         db.session.rollback()
-        return jsonify({"erro": str(e)}), 500
+        return erro_interno(e)
 
-with app.app_context():
+def inicializar_banco():
+    """Cria as tabelas, aplica migrações leves via ALTER TABLE e semeia dados
+    padrão. Extraída para uma função (em vez de código solto em
+    `with app.app_context():`) para poder ser chamada de novo pelos testes
+    automatizados, que precisam de um banco limpo e semeado a cada teste."""
     db.create_all()
 
     try:
@@ -1105,5 +1257,21 @@ with app.app_context():
             db.session.add(ConfigAtividade(nome_xml=atv, pontos_padrao=1, tipo_evento=tipo))
         db.session.commit()
 
+    # Índices para as colunas de Pontuacao mais usadas em filtros/GROUP BY.
+    # CREATE INDEX IF NOT EXISTS é suportado tanto pelo SQLite quanto pelo PostgreSQL,
+    # e é necessário aqui porque db.create_all() não retroaplica índices a tabelas já existentes.
+    try:
+        db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_jogador_id ON pontuacoes (jogador_id)"))
+        db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_semana ON pontuacoes (semana)"))
+        db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_atividade ON pontuacoes (atividade)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+with app.app_context():
+    inicializar_banco()
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(debug=debug_mode, port=5000)

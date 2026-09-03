@@ -9,6 +9,7 @@ instance/
 tmp/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Configurações do VS Code
 .vscode/
