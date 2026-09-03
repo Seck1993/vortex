@@ -1,4 +1,4 @@
-        function googleTranslateElementInit() {
+function googleTranslateElementInit() {
             new google.translate.TranslateElement({
                 pageLanguage: 'pt',
                 includedLanguages: 'en,es,fr,ru,ja,ko,zh-CN,tl',
@@ -939,6 +939,29 @@
             } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
         }
 
+        async function toggleStatusJogador(id, btnElement) {
+            const textoOriginal = btnElement.innerText;
+            btnElement.innerText = '...';
+            btnElement.disabled = true;
+
+            try {
+                const response = await fetch(`/api/toggle-status-jogador/${id}`, { method: 'POST' });
+                const data = await response.json();
+                if (response.ok) {
+                    await atualizarDados();
+                    mostrarToast(data.mensagem, 'info');
+                } else {
+                    mostrarToast(data.erro, 'erro');
+                    btnElement.innerText = textoOriginal;
+                    btnElement.disabled = false;
+                }
+            } catch (e) {
+                mostrarToast('Erro de rede.', 'erro');
+                btnElement.innerText = textoOriginal;
+                btnElement.disabled = false;
+            }
+        }
+
         async function criarEvento() {
             const payload = { nome: document.getElementById('novoEventoNome').value.trim(), tipo: document.getElementById('novoEventoTipo').value, pontos: document.getElementById('novoEventoPontos').value };
             if(!payload.nome) return mostrarToast("Parâmetro 'Nome' é obrigatório.", 'aviso');
@@ -1119,4 +1142,3 @@
             const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
             if (response.ok) { await atualizarDados(); mostrarToast('Registro purgado.', 'info'); }
         }
-
