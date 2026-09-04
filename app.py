@@ -1015,6 +1015,42 @@ def toggle_status_jogador(id):
         db.session.rollback()
         return erro_interno(e)
 
+@app.route('/api/abonar-falta', methods=['POST'])
+def abonar_falta():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    
+    dados = request.get_json()
+    jogador_id = dados.get('jogador_id')
+    pontos = int(dados.get('pontos', 0))
+    motivo = dados.get('motivo', 'Abono de Missão (Justificativa)')
+
+    if pontos <= 0:
+        return jsonify({"erro": "A quantidade de pontos para abono deve ser maior que zero."}), 400
+
+    jogador = db.session.get(Jogador, jogador_id)
+    if not jogador:
+        return jsonify({"erro": "Jogador não encontrado."}), 404
+
+    try:
+        config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
+        semana_ativa_str = f"Semana {config_semana.pontos_padrao}" if config_semana else "Semana 1"
+
+        # Injeta os pontos na semana atual com a tag de Abono
+        novo_ponto = Pontuacao(
+            jogador_id=jogador.id,
+            semana=semana_ativa_str,
+            atividade="Abono de Falta",
+            pontos=pontos,
+            motivo_ajuste=motivo
+        )
+        db.session.add(novo_ponto)
+        db.session.commit()
+
+        return jsonify({"mensagem": f"Abono de {pontos} pontos concedido a {jogador.nome}!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
 @app.route('/api/criar-evento', methods=['POST'])
 def criar_evento():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
