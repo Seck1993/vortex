@@ -731,20 +731,12 @@ def confirmar_importacao():
 
                     novo_valor_xml = int(atv['pontos'])
                     
-                    pts_atuais = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
-                        jogador_id=jogador.id,
-                        semana=semana_fixa,
-                        atividade=nome_atividade
-                    ).scalar() or 0
-                    
-                    diferenca = novo_valor_xml - pts_atuais
-
-                    if diferenca > 0:
+                    if novo_valor_xml > 0:
                         novo_ponto = Pontuacao(
                             jogador_id=jogador.id,
                             semana=semana_fixa,
                             atividade=nome_atividade,
-                            pontos=diferenca,
+                            pontos=novo_valor_xml,
                             importacao_id=nova_importacao.id
                         )
                         db.session.add(novo_ponto)
@@ -767,27 +759,19 @@ def confirmar_importacao():
                         int(a['pontos']) for a in j_data['detalhes'] 
                         if a['atividade'] in eventos_permitidos_bs and a['atividade'] in eventos_selecionados
                     )
-                    
-                    pts_atuais_bs = db.session.query(func.sum(Pontuacao.pontos)).filter_by(
-                        jogador_id=jogador_id,
-                        semana=semana_fixa,
-                        atividade="BlackSkull"
-                    ).scalar() or 0
-                    
-                    diferenca_bs = total_xml_bs - pts_atuais_bs
 
-                    if diferenca_bs > 0:
+                    if total_xml_bs > 0:
                         novo_ponto = Pontuacao(
                             jogador_id=jogador_id,
                             semana=semana_fixa,
                             atividade="BlackSkull",
-                            pontos=diferenca_bs,
+                            pontos=total_xml_bs,
                             importacao_id=nova_importacao.id
                         )
                         db.session.add(novo_ponto)
 
         db.session.commit()
-        return jsonify({"mensagem": "Importação concluída com base na Diferença (Delta)!"}), 200
+        return jsonify({"mensagem": "Importação concluída via soma direta!"}), 200
 
     except Exception as e:
         db.session.rollback() 
