@@ -492,6 +492,44 @@ function googleTranslateElementInit() {
             } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
         }
 
+        /* --- ABONO DE FALTAS --- */
+        function abrirModalAbono(jogadorId, nome) {
+            document.getElementById('abonoJogadorId').value = jogadorId;
+            document.getElementById('labelAbonoNome').innerText = nome;
+            document.getElementById('abonoPontos').value = '';
+            document.getElementById('abonoMotivo').value = 'Abono de Missão (Justificativa)';
+            abrirModal('modalAbono');
+        }
+
+        async function confirmarAbono() {
+            const jogadorId = document.getElementById('abonoJogadorId').value;
+            const pontos = document.getElementById('abonoPontos').value;
+            const motivo = document.getElementById('abonoMotivo').value.trim() || 'Abono de Missão (Justificativa)';
+
+            if (!pontos || pontos <= 0) {
+                mostrarToast('Insira uma quantidade válida de pontos para abonar.', 'aviso');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/abonar-falta', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jogador_id: jogadorId, pontos: pontos, motivo: motivo })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    fecharModal('modalAbono');
+                    await atualizarDados();
+                    mostrarToast(data.mensagem, 'sucesso');
+                } else {
+                    mostrarToast(data.erro, 'erro');
+                }
+            } catch (e) { 
+                mostrarToast('Erro de rede.', 'erro'); 
+            }
+        }
+
         function abrirModalAposta(itemId, nomeItem, maxPontos) {
             document.getElementById('apostaItemId').value = itemId;
             document.getElementById('labelItemAposta').innerText = nomeItem;
