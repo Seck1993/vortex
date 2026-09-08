@@ -391,10 +391,13 @@ function googleTranslateElementInit() {
 
         async function salvarNovoEvento() {
             const titulo = document.getElementById('tituloEvento').value;
-            const minutosInput = document.getElementById('prazoEvento').value;
-            const minutos = parseInt(minutosInput) || 60;
+            const horasInput = document.getElementById('prazoEvento').value;
 
-            const prazoTimestamp = Date.now() + (minutos * 60000);
+            let prazoTimestamp = "";
+            if (horasInput !== "sem_limite") {
+                const minutos = parseInt(horasInput) * 60;
+                prazoTimestamp = (Date.now() + (minutos * 60000)).toString();
+            }
 
             let itens = [];
             document.querySelectorAll('.item-nome-novo').forEach((input, i) => {
@@ -406,7 +409,7 @@ function googleTranslateElementInit() {
 
             const response = await fetch('/api/publicar-banner', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ titulo: titulo, prazo: prazoTimestamp.toString(), itens: itens })
+                body: JSON.stringify({ titulo: titulo, prazo: prazoTimestamp, itens: itens })
             });
             if(response.ok) { fecharModal('modalCriarEvento'); await atualizarDados(); mostrarToast('Banner de sorteio publicado!', 'sucesso'); }
             else { mostrarToast('Falha ao publicar o banner.', 'erro'); }
@@ -417,6 +420,31 @@ function googleTranslateElementInit() {
             await fetch('/api/encerrar-banner', {method: 'POST'});
             await atualizarDados();
             mostrarToast('Evento encerrado. Pontos estornados aos jogadores.', 'info');
+        }
+
+        async function confirmarExtensaoTempo() {
+            const horasSelect = document.getElementById('extensaoTempo');
+            if(!horasSelect) return;
+            const horas = horasSelect.value;
+
+            try {
+                const response = await fetch('/api/estender-banner', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ horas: horas })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    fecharModal('modalEstenderTempo');
+                    await atualizarDados();
+                    mostrarToast(data.mensagem, 'sucesso');
+                } else {
+                    mostrarToast('Falha: ' + data.erro, 'erro');
+                }
+            } catch (e) {
+                mostrarToast('Erro de rede.', 'erro');
+            }
         }
 
         function abrirModalEditarPersonagem(jogadorId, nome, level, poder) {
