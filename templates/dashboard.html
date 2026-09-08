@@ -102,7 +102,10 @@
         {% endfor %}
 
         {% if user_role == 'admin' %}
-            <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red); margin-top: 25px;" onclick="encerrarEvento()">✖ Encerrar Evento</button>
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="encerrarEvento()">✖ Encerrar Evento</button>
+                <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="abrirModal('modalEstenderTempo')">⏱️ Aumentar Tempo Limite</button>
+            </div>
         {% endif %}
     </div>
     {% endif %}
@@ -698,8 +701,16 @@
             <label style="color: #fff; font-weight: bold;">Título do Banner:</label>
             <input type="text" id="tituloEvento" class="input-edit" value="SORTEIO HOJE AS 20:00" style="width: 100%; margin-bottom: 20px; text-align: left;">
 
-            <label style="color: #fff; font-weight: bold;">Duração do Sorteio (Minutos):</label>
-            <input type="number" id="prazoEvento" class="input-edit" placeholder="Ex: 60 (Minutos para encerramento)" value="60" style="width: 100%; margin-bottom: 20px; text-align: left;">
+            <label style="color: #fff; font-weight: bold;">Duração do Sorteio:</label>
+            <select id="prazoEvento" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
+                <option value="6">6 Horas</option>
+                <option value="12">12 Horas</option>
+                <option value="18">18 Horas</option>
+                <option value="24" selected>24 Horas (1 Dia)</option>
+                <option value="48">48 Horas (2 Dias)</option>
+                <option value="72">72 Horas (3 Dias)</option>
+                <option value="sem_limite">Sem Limite de Tempo</option>
+            </select>
 
             <h3 style="color: var(--neon-cyan);">Adicionar Itens</h3>
             <div id="listaItensCriacao" style="background: rgba(0,0,0,0.4); padding: 15px; border: 1px dashed var(--glass-border); margin-bottom: 20px;">
@@ -711,6 +722,29 @@
             <div style="display: flex; justify-content: space-between; margin-top: 30px;">
                 <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCriarEvento')">Cancelar</button>
                 <button class="btn btn-warning" onclick="salvarNovoEvento()">Publicar Banner</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA ESTENDER O TEMPO DO BANNER -->
+    <div id="modalEstenderTempo" class="modal-overlay" style="z-index: 125;">
+        <div class="modal-content" style="width: 400px;">
+            <h2 style="color: var(--neon-cyan); margin-top: 0; text-align: center;">⏱️ Aumentar Tempo Limite</h2>
+            <p style="color: var(--text-light); text-align: center; margin-bottom: 20px;">Adicione horas extras ao prazo atual de encerramento do sorteio em andamento.</p>
+
+            <label style="color: #fff; font-weight: bold;">Horas Adicionais:</label>
+            <select id="extensaoTempo" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;">
+                <option value="1">+ 1 Hora</option>
+                <option value="3">+ 3 Horas</option>
+                <option value="6">+ 6 Horas</option>
+                <option value="12">+ 12 Horas</option>
+                <option value="24">+ 24 Horas (1 Dia)</option>
+                <option value="sem_limite">Remover Limite (Infinito)</option>
+            </select>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEstenderTempo')">Cancelar</button>
+                <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="confirmarExtensaoTempo()">Confirmar Adição</button>
             </div>
         </div>
     </div>
