@@ -357,6 +357,40 @@ def publicar_banner():
     db.session.commit()
     return jsonify({"mensagem": "Evento de sorteio publicado!"}), 200
 
+@app.route('/api/estender-banner', methods=['POST'])
+def estender_banner():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    horas_adicionais = dados.get('horas')
+    
+    if horas_adicionais is None:
+        return jsonify({"erro": "Horas não informadas"}), 400
+
+    evento_ativo = EventoSorteio.query.filter_by(ativo=True).first()
+    if not evento_ativo:
+        return jsonify({"erro": "Nenhum banner de sorteio ativo."}), 400
+
+    if horas_adicionais == 'sem_limite':
+        evento_ativo.prazo_encerramento = ""
+        db.session.commit()
+        return jsonify({"mensagem": "Tempo limite removido com sucesso!"}), 200
+        
+    try:
+        horas = int(horas_adicionais)
+        ms_adicionais = horas * 60 * 60 * 1000
+        
+        if evento_ativo.prazo_encerramento:
+            prazo_atual = int(float(evento_ativo.prazo_encerramento))
+        else:
+            prazo_atual = int(time.time() * 1000)
+            
+        evento_ativo.prazo_encerramento = str(prazo_atual + ms_adicionais)
+        db.session.commit()
+        return jsonify({"mensagem": f"Banner estendido em {horas} horas!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
 @app.route('/api/encerrar-banner', methods=['POST'])
 def encerrar_banner():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
