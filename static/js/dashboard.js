@@ -447,6 +447,42 @@ function googleTranslateElementInit() {
             }
         }
 
+        async function salvarNovasSenhas() {
+            const novaAdmin = document.getElementById('inputNovaSenhaAdmin').value;
+            const novaMembro = document.getElementById('inputNovaSenhaMembro').value;
+
+            if (!novaAdmin || !novaMembro) {
+                mostrarToast('Ambos os campos de senha devem ser preenchidos.', 'aviso');
+                return;
+            }
+
+            if (!confirm("ATENÇÃO: Isso desconectará imediatamente todos os usuários ativos, incluindo você. Confirma a alteração?")) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/alterar-senhas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senha_admin: novaAdmin, senha_membro: novaMembro })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    fecharModal('modalSenhas');
+                    mostrarToast(data.mensagem, 'sucesso');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    mostrarToast('Falha: ' + data.erro, 'erro');
+                }
+            } catch (e) {
+                mostrarToast('Erro de rede.', 'erro');
+            }
+        }
+
         function abrirModalEditarPersonagem(jogadorId, nome, level, poder) {
             document.getElementById('editPersonagemId').value = jogadorId;
             document.getElementById('tituloEditarPersonagem').innerText = 'Atualizar: ' + nome;
