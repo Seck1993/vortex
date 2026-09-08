@@ -122,6 +122,13 @@ class ApostaSorteio(db.Model):
     jogador = db.relationship('Jogador')
 
 
+class ConfigSistema(db.Model):
+    """Armazena as configurações globais do sistema, como as senhas de acesso."""
+    __tablename__ = 'config_sistema'
+    chave = db.Column(db.String(50), primary_key=True)
+    valor = db.Column(db.String(255), nullable=False)
+
+
 class StaffMembro(db.Model):
     """Cadastro de pessoas que podem representar a fatia fixa de 15% (Staff)
     nos sorteios de item. Independente do cadastro de Jogadores."""
@@ -285,11 +292,18 @@ def login():
     dados = request.get_json()
     senha_enviada = dados.get('senha')
 
-    if senha_enviada == 'ana2026':
+    # Busca as senhas no DB, ou utiliza as antigas como padrão
+    conf_admin = ConfigSistema.query.filter_by(chave='SENHA_ADMIN').first()
+    senha_admin = conf_admin.valor if conf_admin else 'ana2026'
+
+    conf_membro = ConfigSistema.query.filter_by(chave='SENHA_MEMBRO').first()
+    senha_membro = conf_membro.valor if conf_membro else 'membro2026'
+
+    if senha_enviada == senha_admin:
         session['logged_in'] = True
         session['role'] = 'admin'
         return jsonify({"mensagem": "Autenticado como Administrador"}), 200
-    elif senha_enviada == 'membro2026':
+    elif senha_enviada == senha_membro:
         session['logged_in'] = True
         session['role'] = 'membro'
         return jsonify({"mensagem": "Autenticado como Membro"}), 200
@@ -301,6 +315,41 @@ def logout():
     session.pop('logged_in', None)
     session.pop('role', None)
     return jsonify({"mensagem": "Logout efetuado"}), 200
+
+@app.route('/api/alterar-senhas', methods=['POST'])
+def alterar_senhas():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    
+    dados = request.get_json()
+    nova_admin = str(dados.get('senha_admin', '')).strip()
+    nova_membro = str(dados.get('senha_membro', '')).strip()
+
+    if not nova_admin or not nova_membro:
+        return jsonify({"erro": "As senhas não podem estar vazias."}), 400
+
+    try:
+        conf_admin = ConfigSistema.query.filter_by(chave='SENHA_ADMIN').first()
+        if conf_admin:
+            conf_admin.valor = nova_admin
+        else:
+            db.session.add(ConfigSistema(chave='SENHA_ADMIN', valor=nova_admin))
+            
+        conf_membro = ConfigSistema.query.filter_by(chave='SENHA_MEMBRO').first()
+        if conf_membro:
+            conf_membro.valor = nova_membro
+        else:
+            db.session.add(ConfigSistema(chave='SENHA_MEMBRO', valor=nova_membro))
+
+        db.session.commit()
+
+        # Invalida todas as sessões ativas gerando uma nova secret key para a aplicação
+        app.config['SECRET_KEY'] = os.urandom(24).hex()
+        session.clear()
+
+        return jsonify({"mensagem": "Senhas alteradas! Todos os usuários foram desconectados por segurança."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
 
 def admin_required():
     return session.get('logged_in') and session.get('role') == 'admin'
@@ -1208,6 +1257,15 @@ def inicializar_banco():
     `with app.app_context():`) para poder ser chamada de novo pelos testes
     automatizados, que precisam de um banco limpo e semeado a cada teste."""
     db.create_all()
+
+    try:
+        if not ConfigSistema.query.filter_by(chave='SENHA_ADMIN').first():
+            db.session.add(ConfigSistema(chave='SENHA_ADMIN', valor='ana2026'))
+        if not ConfigSistema.query.filter_by(chave='SENHA_MEMBRO').first():
+            db.session.add(ConfigSistema(chave='SENHA_MEMBRO', valor='membro2026'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     try:
         db.session.execute(text("ALTER TABLE evento_item ADD COLUMN restricao VARCHAR(20) DEFAULT 'Todos'"))
