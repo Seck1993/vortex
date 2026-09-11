@@ -121,13 +121,11 @@ class ApostaSorteio(db.Model):
     pontos = db.Column(db.Float, default=0.0)
     jogador = db.relationship('Jogador')
 
-
 class ConfigSistema(db.Model):
     """Armazena as configurações globais do sistema, como as senhas de acesso."""
     __tablename__ = 'config_sistema'
     chave = db.Column(db.String(50), primary_key=True)
     valor = db.Column(db.String(255), nullable=False)
-
 
 class StaffMembro(db.Model):
     """Cadastro de pessoas que podem representar a fatia fixa de 15% (Staff)
@@ -595,8 +593,6 @@ def simular_sorteio_item():
     dados = request.get_json()
     item_id = dados.get('item_id')
     nome_staff = str(dados.get('nome_staff', '')).strip()[:100]
-    if not nome_staff:
-        return jsonify({"erro": "Informe o nome de quem está representando a Staff neste sorteio."}), 400
 
     item = db.session.get(EventoItem, item_id)
     if not item or item.sorteado: return jsonify({"erro": "Item já sorteado."}), 400
@@ -610,14 +606,16 @@ def simular_sorteio_item():
 
     total_pontos = sum(ap.pontos for ap in apostas)
 
-    # A fatia da Staff é sempre 15% fixos; o nome exibido é definido pelo admin
-    # na hora do sorteio (não vem do login nem de um rótulo genérico fixo).
-    fatias[nome_staff] = 15.0
-    candidatos.append({"id": None, "nome": nome_staff, "pontos_apostados": 0, "is_staff": True})
-    pesos.append(15.0)
+    # Lógica condicional: Se escolheu staff divide 85%, se não escolheu divide 100%
+    fator_multiplicador = 85.0 if nome_staff else 100.0
+
+    if nome_staff:
+        fatias[nome_staff] = 15.0
+        candidatos.append({"id": None, "nome": nome_staff, "pontos_apostados": 0, "is_staff": True})
+        pesos.append(15.0)
 
     for ap in apostas:
-        porcentagem = (ap.pontos / total_pontos) * 85.0 if total_pontos > 0 else 0
+        porcentagem = (ap.pontos / total_pontos) * fator_multiplicador if total_pontos > 0 else 0
         fatias[ap.jogador.nome] = porcentagem
         candidatos.append({"id": ap.jogador.id, "nome": ap.jogador.nome, "pontos_apostados": ap.pontos, "is_staff": False})
         pesos.append(porcentagem)
