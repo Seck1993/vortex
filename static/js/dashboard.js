@@ -733,7 +733,7 @@ function googleTranslateElementInit() {
         }
 
         async function salvarNomesStaff() {
-            const linhas = document.querySelectorAll('#listaStaffGerenciamento .linha-staff-gerenciamento');
+            const linhas = document.querySelectorAll('#listaStaffGerenciamento .linha-staff-gerenciamento:not(:first-child)');
             const staffData = Array.from(linhas).map(linha => ({
                 id: linha.getAttribute('data-staff-id'),
                 nome: linha.querySelector('.staff-nome-input').value
@@ -758,13 +758,9 @@ function googleTranslateElementInit() {
             const nomeItem = document.getElementById('staffRoletaNomeItem').value;
             const radioSelecionado = document.querySelector('input[name="staffSelecionado"]:checked');
 
-            if (!radioSelecionado) {
-                mostrarToast('Selecione quem da Staff vai representar este sorteio.', 'aviso');
-                return;
-            }
-
             fecharModal('modalStaffRoleta');
-            await prepararRoletaItem(itemId, nomeItem, radioSelecionado.value);
+            // Se o rádio tiver valor vazio (a opção "Nenhum"), passa uma string vazia para o backend.
+            await prepararRoletaItem(itemId, nomeItem, radioSelecionado ? radioSelecionado.value : "");
         }
 
         async function prepararRoletaItem(itemId, nomeItem, nomeStaff) {
