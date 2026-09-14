@@ -983,6 +983,66 @@ async function deletarHistoricoMeme(id) {
 /* --- LÓGICA DA ESCALA DE BOSSES (RESTRUTURADA PARA LINHAS) --- */
 let listaBossesGlobais = [];
 let listaGruposGlobais = [];
+let isRerenderingBosses = false;
+
+function getNextSpawnInfo(b, agoraDt) {
+    const agora = agoraDt.getTime();
+    let proximoNascimento = null;
+
+    if (b.tipo_respawn === 'intervalo') {
+        const ancoraMs = parseInt(b.ancora_ms);
+        const horasIntervalo = parseInt(b.intervalo_horas);
+        if(isNaN(ancoraMs) || isNaN(horasIntervalo)) return null;
+
+        const intervaloMs = horasIntervalo * 60 * 60 * 1000;
+        proximoNascimento = ancoraMs;
+
+        if (proximoNascimento <= agora) {
+            const diffPassado = agora - proximoNascimento;
+            const ciclos = Math.floor(diffPassado / intervaloMs) + 1;
+            proximoNascimento += ciclos * intervaloMs;
+        }
+    } else if (b.tipo_respawn === 'diario' || b.tipo_respawn === 'diario_fixo') {
+        if(!b.hora_diaria) return null;
+        const horarios = b.hora_diaria.split(',').map(h => h.trim());
+        let alvos = [];
+        for(let h of horarios) {
+            let partes = h.split(':');
+            if(partes.length < 2) continue;
+            let d = new Date(agoraDt);
+            d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
+            if (d.getTime() > agora) { alvos.push(d.getTime()); }
+            else { 
+                let d2 = new Date(d);
+                d2.setDate(d2.getDate() + 1); 
+                alvos.push(d2.getTime()); 
+            }
+        }
+        if(alvos.length > 0) proximoNascimento = Math.min(...alvos);
+    } else if (b.tipo_respawn === 'semanal') {
+        if(!b.hora_diaria || !b.dias_semana) return null;
+        const horarios = b.hora_diaria.split(',').map(h => h.trim());
+        const diasPermitidos = b.dias_semana.split(',').map(d => parseInt(d));
+        let alvos = [];
+
+        for (let i = 0; i <= 7; i++) {
+            let tempDate = new Date(agoraDt);
+            tempDate.setDate(tempDate.getDate() + i);
+
+            if (diasPermitidos.includes(tempDate.getDay())) {
+                for(let h of horarios) {
+                    let partes = h.split(':');
+                    if(partes.length < 2) continue;
+                    let d = new Date(tempDate);
+                    d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
+                    if (d.getTime() > agora) { alvos.push(d.getTime()); }
+                }
+            }
+        }
+        if(alvos.length > 0) proximoNascimento = Math.min(...alvos);
+    }
+    return proximoNascimento;
+}
 
 async function carregarListasDeChefesEGrupos() {
     try {
@@ -997,47 +1057,80 @@ async function carregarListasDeChefesEGrupos() {
 }
 
 async function renderizarCardsBossesGlobais() {
+    if(isRerenderingBosses) return;
+    isRerenderingBosses = true;
+
     const areaBosses = document.getElementById('gridBossesAtivos');
-    if (!areaBosses) return;
+    if (!areaBosses) { isRerenderingBosses = false; return; }
     const isAdminVisual = isAdmin();
 
     await carregarListasDeChefesEGrupos();
     areaBosses.innerHTML = '';
-    const bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
+    
+    let bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
     
     if(bossesNossos.length === 0) {
         areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
-    } else {
-        const gruposAgrupados = {};
-        bossesNossos.forEach(b => {
-            let g = b.grupo || "Outros Chefes";
-            if(!gruposAgrupados[g]) gruposAgrupados[g] = [];
-            gruposAgrupados[g].push(b);
-        });
+        isRerenderingBosses = false;
+        return;
+    }
 
-        for(let grupoNome in gruposAgrupados) {
-            let divGrupo = document.createElement('div');
-            divGrupo.style.cssText = "grid-column: 1 / -1; margin-top: 15px;";
-            divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">🗡️ ${grupoNome}</h3>`;
+    const agoraDt = new Date();
+    bossesNossos.forEach(b => { b.nextSpawn = getNextSpawnInfo(b, agoraDt); });
+    
+    const validBosses = bossesNossos.filter(b => b.nextSpawn !== null);
+    validBosses.sort((a, b) => a.nextSpawn - b.nextSpawn);
+
+    const diasDaSemanaStr = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const groups = {};
+
+    validBosses.forEach(b => {
+        const d = new Date(b.nextSpawn);
+        const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        if (!groups[dateKey]) {
+            let label = `${diasDaSemanaStr[d.getDay()]} (${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')})`;
+            const hoje = new Date();
+            const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+            if (d.toDateString() === hoje.toDateString()) label = `🔥 HOJE - ${label}`;
+            else if (d.toDateString() === amanha.toDateString()) label = `⚡ AMANHÃ - ${label}`;
             
-            let divGridInterno = document.createElement('div');
-            divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;";
-            
-            gruposAgrupados[grupoNome].forEach(b => {
-                let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria || ''}" data-dias="${b.dias_semana || ''}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 22px; color: var(--neon-orange); font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.6); padding: 10px; text-align: center; border-radius: 4px; border: 1px dashed var(--neon-orange);">Calculando...</div>`;
-                
-                let card = document.createElement('div');
-                card.style.cssText = "background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 6px; padding: 20px; position: relative; display: flex; flex-direction: column; justify-content: center;";
-                card.innerHTML = `
-                    <h4 style="margin: 0 0 5px 0; color: #fff; font-size: 20px;">${b.nome}</h4>
-                    <p style="margin: 0; color: var(--text-muted); font-size: 15px;">📍 ${b.local}</p>
-                    ${timerHtml}
-                `;
-                divGridInterno.appendChild(card);
-            });
-            divGrupo.appendChild(divGridInterno);
-            areaBosses.appendChild(divGrupo);
+            groups[dateKey] = { label: label, timestamp: d.getTime(), bosses: [] };
         }
+        groups[dateKey].bosses.push(b);
+    });
+
+    for (const key in groups) {
+        const groupData = groups[key];
+        let divGrupo = document.createElement('div');
+        divGrupo.className = 'boss-day-group';
+        divGrupo.style.cssText = "margin-bottom: 25px;";
+        divGrupo.innerHTML = `<h3 style="color: #fff; background: rgba(0, 243, 255, 0.1); border-left: 4px solid var(--neon-cyan); padding: 10px 15px; margin-bottom: 15px; text-transform: uppercase; font-size: 20px; letter-spacing: 1px;">${groupData.label}</h3>`;
+        
+        let divGridInterno = document.createElement('div');
+        divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px;";
+        
+        groupData.bosses.forEach(b => {
+            let card = document.createElement('div');
+            card.className = 'banner-destaque boss-card-wrapper';
+            card.style.cssText = "display: flex; align-items: center; gap: 15px; padding: 15px 20px; background: rgba(0, 243, 255, 0.05); border: 2px solid rgba(0, 243, 255, 0.4); border-radius: 8px; box-shadow: 0 0 15px rgba(0, 243, 255, 0.05); position: relative; width: 100%; box-sizing: border-box;";
+            card.setAttribute('data-next-spawn', b.nextSpawn);
+            
+            let btnAdmin = isAdminVisual ? `<button class="btn-danger" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px; font-size: 12px; height: auto;" onclick="deletarBoss(${b.id})" title="Apagar do Banco de Dados">✖</button>` : '';
+
+            card.innerHTML = `
+                <div class="icone" style="font-size: 35px; text-shadow: 0 0 10px var(--neon-cyan);">😈</div>
+                <div class="info" style="flex: 1;">
+                    <div class="nome" style="color: #fff; font-size: 18px; font-weight: bold; margin-bottom: 3px; padding-right: 25px;">${b.nome}</div>
+                    <div class="classe" style="color: var(--text-muted); font-size: 13px; margin-bottom: 8px;">📍 ${b.local} | 🛡️ ${b.grupo || 'Sem Grupo'}</div>
+                    <div class="cp boss-timer" data-next-spawn="${b.nextSpawn}" style="color: var(--neon-cyan); font-size: 22px; font-weight: bold; font-family: monospace;">⏳ Calculando...</div>
+                </div>
+                ${btnAdmin}
+            `;
+            divGridInterno.appendChild(card);
+        });
+        
+        divGrupo.appendChild(divGridInterno);
+        areaBosses.appendChild(divGrupo);
     }
 
     if(isAdminVisual) {
@@ -1070,6 +1163,7 @@ async function renderizarCardsBossesGlobais() {
             }
         }
     }
+    isRerenderingBosses = false;
 }
 
 document.addEventListener('DOMContentLoaded', () => { 
@@ -1077,7 +1171,6 @@ document.addEventListener('DOMContentLoaded', () => {
     atualizarCronometros();
     renderizarCardsBossesGlobais();
 
-    // Automação visual na digitação da LINHA
     const inputNomeGrupo = document.getElementById('inputGrupoNome');
     if(inputNomeGrupo) {
         inputNomeGrupo.addEventListener('input', function() {
@@ -1096,81 +1189,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function formatTimeDiff(diff) {
-    const horas = Math.floor(diff / (1000 * 60 * 60));
+    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const min = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seg = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    if (dias > 0) return `${dias}d ${horas.toString().padStart(2, '0')}h ${min.toString().padStart(2, '0')}m`;
     return `${horas.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
 }
 
 setInterval(() => {
-    const timers = document.querySelectorAll('.boss-timer');
     const agora = Date.now();
-    const dtAgora = new Date();
+    let precisaRerender = false;
 
-    timers.forEach(timer => {
-        const tipo = timer.getAttribute('data-tipo');
-        if (tipo === 'intervalo') {
-            const ancoraMs = parseInt(timer.getAttribute('data-ancora'));
-            const horasIntervalo = parseInt(timer.getAttribute('data-horas'));
-            if(isNaN(ancoraMs) || isNaN(horasIntervalo)) { timer.innerText = "Sem Horário"; return; }
-            
-            const intervaloMs = horasIntervalo * 60 * 60 * 1000;
-            let proximoNascimento = ancoraMs;
-            if (proximoNascimento <= agora) {
-                const diffPassado = agora - proximoNascimento;
-                const ciclos = Math.floor(diffPassado / intervaloMs) + 1;
-                proximoNascimento += ciclos * intervaloMs;
-            }
-            const diff = proximoNascimento - agora;
-            timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
-            timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-orange)';
-            
-        } else if (tipo === 'diario' || tipo === 'diario_fixo') {
-            const horaStr = timer.getAttribute('data-diaria');
-            if(!horaStr || horaStr === "null") { timer.innerText = "Sem Horário"; return; }
-            const horarios = horaStr.split(',').map(h => h.trim());
-            let alvos = [];
-            for(let h of horarios) {
-                let partes = h.split(':');
-                if(partes.length < 2) continue;
-                let d = new Date(dtAgora);
-                d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
-                if (d.getTime() > agora) { alvos.push(d); } 
-                else { let d2 = new Date(d); d2.setDate(d2.getDate() + 1); alvos.push(d2); }
-            }
-            if(alvos.length === 0) { timer.innerText = "Sem Horário"; return; }
-            alvos.sort((a, b) => a.getTime() - b.getTime());
-            const diff = alvos[0].getTime() - agora;
+    document.querySelectorAll('.boss-timer').forEach(timer => {
+        const nextSpawn = parseInt(timer.getAttribute('data-next-spawn'));
+        if(isNaN(nextSpawn)) return;
+
+        const diff = nextSpawn - agora;
+        if (diff <= 0) {
+            precisaRerender = true;
+        } else {
             timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
             timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-cyan)';
-            
-        } else if (tipo === 'semanal') {
-            const horaStr = timer.getAttribute('data-diaria');
-            const diasStr = timer.getAttribute('data-dias');
-            if(!horaStr || horaStr === "null" || !diasStr || diasStr === "null") { timer.innerText = "Sem Horário"; return; }
-            const horarios = horaStr.split(',').map(h => h.trim());
-            const diasPermitidos = diasStr.split(',').map(d => parseInt(d));
-            let alvos = [];
-            for (let i = 0; i <= 7; i++) {
-                let tempDate = new Date(dtAgora);
-                tempDate.setDate(tempDate.getDate() + i);
-                if (diasPermitidos.includes(tempDate.getDay())) {
-                    for(let h of horarios) {
-                        let partes = h.split(':');
-                        if(partes.length < 2) continue;
-                        let d = new Date(tempDate);
-                        d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
-                        if (d.getTime() > agora) { alvos.push(d); }
-                    }
-                }
-            }
-            if(alvos.length === 0) { timer.innerText = "Sem Horário"; return; }
-            alvos.sort((a, b) => a.getTime() - b.getTime());
-            const diff = alvos[0].getTime() - agora;
-            timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
-            timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : '#bc13fe';
         }
     });
+
+    if (precisaRerender && !isRerenderingBosses) {
+        renderizarCardsBossesGlobais();
+    }
     
     const txtData = document.getElementById('dataExportacaoBosses');
     if(txtData) {
@@ -1179,7 +1226,7 @@ setInterval(() => {
     }
 }, 1000);
 
-/* --- GESTÃO DE GRUPOS (LINHAS DE TEMPO) --- */
+/* --- GESTÃO DE GRUPOS E CHEFES VINCULADOS --- */
 function toggleCamposGrupo() {
     const tipo = document.getElementById('inputGrupoTipoRespawn').value;
     document.getElementById('divGrupoIntervalo').style.display = tipo === 'intervalo' ? 'block' : 'none';
@@ -1311,7 +1358,6 @@ async function deletarGrupo(id) {
     } catch (e) { mostrarToast("Erro de rede.", "erro"); }
 }
 
-/* --- GESTÃO DE CHEFES VINCULADOS --- */
 function abrirModalGerenciarBosses() {
     const container = document.getElementById('listaGerenciarBosses');
     container.innerHTML = '';
@@ -1415,24 +1461,42 @@ async function salvarBossesDaSemana() {
     } catch (e) { mostrarToast("Erro de rede.", "erro"); }
 }
 
-function exportarBossesImagem() {
+function exportarBossesImagem(modo) {
     const areaToExport = document.getElementById('exportarBossArea');
     if(!areaToExport) return;
-    const btn = document.querySelector('button[onclick="exportarBossesImagem()"]');
-    const textOrig = btn.innerText;
-    btn.innerText = "Processando...";
-    btn.disabled = true;
+
+    if (modo === 'proximos') {
+        const limitMs = Date.now() + (24 * 60 * 60 * 1000);
+        document.querySelectorAll('.boss-card-wrapper').forEach(el => {
+            const spawn = parseInt(el.getAttribute('data-next-spawn'));
+            if (spawn > limitMs) el.style.display = 'none';
+        });
+        document.querySelectorAll('.boss-day-group').forEach(group => {
+            const visibleCards = group.querySelectorAll('.boss-card-wrapper[style=""]:not([style*="display: none"])');
+            if (visibleCards.length === 0) group.style.display = 'none';
+        });
+        document.getElementById('exportTitle').innerText = '🎯 Próximos Alvos (24h) - Guilda Vortex';
+    } else {
+        document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
+    }
+
+    const btnMsgOrig = "📸 Exportar...";
+    mostrarToast("Gerando imagem...", "info");
 
     html2canvas(areaToExport, { backgroundColor: "#0d0e15", scale: 2 }).then(canvas => {
         const link = document.createElement('a');
         link.download = `Escala_Bosses_Vortex_${Date.now()}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
-        btn.innerText = textOrig; btn.disabled = false;
+        
+        document.querySelectorAll('.boss-card-wrapper, .boss-day-group').forEach(el => el.style.display = '');
+        document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
+        
         mostrarToast("Imagem exportada com sucesso!", "sucesso");
     }).catch(err => {
         console.error(err);
         mostrarToast("Erro ao exportar a imagem.", "erro");
-        btn.innerText = textOrig; btn.disabled = false;
+        document.querySelectorAll('.boss-card-wrapper, .boss-day-group').forEach(el => el.style.display = '');
+        document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
     });
 }
