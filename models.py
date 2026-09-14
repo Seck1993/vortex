@@ -63,15 +63,32 @@ class Pontuacao(db.Model):
     
     data_registro = db.Column(db.DateTime, default=datetime.utcnow)
 
+class GrupoBoss(db.Model):
+    __tablename__ = 'grupo_boss'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), unique=True, nullable=False)
+    tipo_respawn = db.Column(db.String(20), default="intervalo")
+    intervalo_horas = db.Column(db.Integer, default=42)
+    hora_diaria = db.Column(db.String(100), nullable=True)
+    dias_semana = db.Column(db.String(50), nullable=True)
+    horario_ancora = db.Column(db.DateTime, nullable=True)
+    
+    bosses = db.relationship('Boss', backref='grupo_rel', lazy=True)
+
 class Boss(db.Model):
     __tablename__ = 'bosses'
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     local = db.Column(db.String(100), default="")
-    grupo = db.Column(db.String(50), default="Sem Grupo")
-    tipo_respawn = db.Column(db.String(20), default="intervalo") # 'intervalo', 'diario', 'semanal'
-    intervalo_horas = db.Column(db.Integer, default=42) 
-    hora_diaria = db.Column(db.String(50), nullable=True) # Ex: "16:00, 22:30"
-    dias_semana = db.Column(db.String(50), nullable=True) # Ex: "0,2,4" (Dom, Ter, Qui)
-    horario_ancora = db.Column(db.DateTime, nullable=True) 
     is_nosso = db.Column(db.Boolean, default=False)
+    
+    # Relação com a Linha de tempo unificada
+    grupo_id = db.Column(db.Integer, db.ForeignKey('grupo_boss.id'), nullable=True)
+
+    # Campos antigos mantidos apenas por segurança para migração
+    grupo = db.Column(db.String(50), default="Sem Grupo")
+    tipo_respawn = db.Column(db.String(20), default="intervalo")
+    intervalo_horas = db.Column(db.Integer, default=42)
+    hora_diaria = db.Column(db.String(100), nullable=True)
+    dias_semana = db.Column(db.String(50), nullable=True)
+    horario_ancora = db.Column(db.DateTime, nullable=True)
