@@ -93,6 +93,7 @@ function googleTranslateElementInit() {
                 if (translateAtual && translateNovo) translateNovo.replaceWith(translateAtual);
                 aplicarIdiomaAtivoNoBotao();
                 configurarTodasPaginacoes();
+                renderizarCardsBossesGlobais();
 
                 // Restaura a aba selecionada e recalcula overlays de CP (Mega/Titã)
                 if (abaAtivaId && abaAtivaIndice >= 0 && document.getElementById(abaAtivaId)) {
@@ -120,7 +121,7 @@ function googleTranslateElementInit() {
             if (novo && atual) atual.innerHTML = novo.innerHTML;
         }
 
-        /* --- CRONÔMETRO DIGITAL --- */
+        /* --- CRONÔMETRO DIGITAL DE BANNER --- */
         function atualizarCronometros() {
             const timerDisplay = document.getElementById('timerDisplay');
             if (!timerDisplay) return;
@@ -155,7 +156,6 @@ function googleTranslateElementInit() {
             }
         }
         setInterval(atualizarCronometros, 1000);
-        document.addEventListener('DOMContentLoaded', atualizarCronometros);
 
         async function fazerLogin() {
             const senha = document.getElementById('senhaAdmin').value;
@@ -301,7 +301,11 @@ function googleTranslateElementInit() {
                 }
             }
         }
-        document.addEventListener('DOMContentLoaded', () => { aplicarLinhasPoder(); });
+        document.addEventListener('DOMContentLoaded', () => { 
+            aplicarLinhasPoder(); 
+            atualizarCronometros();
+            renderizarCardsBossesGlobais();
+        });
 
         /* --- PAGINAÇÃO (CLIENTE) DAS TABELAS DE HISTÓRICO --- */
         const ITENS_POR_PAGINA_HISTORICO = 10;
@@ -1239,4 +1243,267 @@ function googleTranslateElementInit() {
             if (!confirm("Aviso: Purgar este registro de sorteio meme. Confirmar?")) return;
             const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
             if (response.ok) { await atualizarDados(); mostrarToast('Registro purgado.', 'info'); }
+        }
+
+        /* --- LÓGICA DA ESCALA DE BOSSES --- */
+
+        // Array global dos bosses (carregado via backend no HTML e atualizado sempre que necessário)
+        let listaBossesGlobais = [];
+
+        function renderizarCardsBossesGlobais() {
+            const areaBosses = document.getElementById('gridBossesAtivos');
+            if (!areaBosses) return;
+
+            const isAdminVisual = isAdmin();
+
+            fetch('/api/listar-bosses')
+                .then(res => res.json())
+                .then(data => {
+                    listaBossesGlobais = data.bosses;
+                    areaBosses.innerHTML = '';
+                    
+                    const bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
+                    
+                    if(bossesNossos.length === 0) {
+                        areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
+                    } else {
+                        // Agrupar por grupo para exibição mais limpa
+                        const grupos = {};
+                        bossesNossos.forEach(b => {
+                            if(!grupos[b.grupo]) grupos[b.grupo] = [];
+                            grupos[b.grupo].push(b);
+                        });
+
+                        for(let grupo in grupos) {
+                            let divGrupo = document.createElement('div');
+                            divGrupo.style.cssText = "grid-column: 1 / -1; margin-top: 15px;";
+                            divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px;">🗡️ ${grupo}</h3>`;
+                            
+                            let divGridInterno = document.createElement('div');
+                            divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;";
+                            
+                            grupos[grupo].forEach(b => {
+                                let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 18px; color: var(--neon-orange); font-weight: bold; margin-top: 10px; background: rgba(0,0,0,0.5); padding: 5px; text-align: center; border-radius: 4px;">Calculando...</div>`;
+                                
+                                let card = document.createElement('div');
+                                card.style.cssText = "background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 6px; padding: 15px; position: relative;";
+                                card.innerHTML = `
+                                    <h4 style="margin: 0 0 5px 0; color: #fff; font-size: 18px;">${b.nome}</h4>
+                                    <p style="margin: 0; color: var(--text-muted); font-size: 14px;">📍 ${b.local}</p>
+                                    ${timerHtml}
+                                    ${isAdminVisual ? `<button class="btn-danger" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px; font-size: 12px;" onclick="deletarBoss(${b.id})" title="Apagar do Banco de Dados">✖</button>` : ''}
+                                `;
+                                divGridInterno.appendChild(card);
+                            });
+                            
+                            divGrupo.appendChild(divGridInterno);
+                            areaBosses.appendChild(divGrupo);
+                        }
+                    }
+
+                    // Atualiza a lista dentro do modal de seleção para o Admin
+                    if(isAdminVisual) {
+                        const listaSelecao = document.getElementById('listaBossesSelecao');
+                        if(listaSelecao) {
+                            listaSelecao.innerHTML = '';
+                            
+                            const gruposSelecao = {};
+                            listaBossesGlobais.forEach(b => {
+                                if(!gruposSelecao[b.grupo]) gruposSelecao[b.grupo] = [];
+                                gruposSelecao[b.grupo].push(b);
+                            });
+
+                            for(let g in gruposSelecao) {
+                                listaSelecao.innerHTML += `<div style="color: var(--neon-orange); font-weight: bold; margin-top: 15px; border-bottom: 1px dashed var(--glass-border); padding-bottom: 5px;">${g}</div>`;
+                                
+                                let grid = document.createElement('div');
+                                grid.style.cssText = "display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;";
+                                
+                                gruposSelecao[g].forEach(b => {
+                                    grid.innerHTML += `
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid ${b.is_nosso ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'};">
+                                            <input type="checkbox" class="check-boss-escala" value="${b.id}" ${b.is_nosso ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'" style="accent-color: var(--neon-orange);">
+                                            <span style="color: #fff; font-size: 14px;">${b.nome}</span>
+                                        </label>
+                                    `;
+                                });
+                                listaSelecao.appendChild(grid);
+                            }
+                        }
+                    }
+                });
+        }
+        
+        // Timer global para os bosses
+        setInterval(() => {
+            const timers = document.querySelectorAll('.boss-timer');
+            const agora = Date.now();
+
+            timers.forEach(timer => {
+                const tipo = timer.getAttribute('data-tipo');
+                
+                if (tipo === 'intervalo') {
+                    const ancoraMs = parseInt(timer.getAttribute('data-ancora'));
+                    const horasIntervalo = parseInt(timer.getAttribute('data-horas'));
+                    const intervaloMs = horasIntervalo * 60 * 60 * 1000;
+                    
+                    // Encontra o próximo ciclo
+                    let proximoNascimento = ancoraMs;
+                    while (proximoNascimento <= agora) {
+                        proximoNascimento += intervaloMs;
+                    }
+                    
+                    const diff = proximoNascimento - agora;
+                    
+                    const horasFaltando = Math.floor(diff / (1000 * 60 * 60));
+                    const minFaltando = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const segFaltando = Math.floor((diff % (1000 * 60)) / 1000);
+                    
+                    timer.innerText = `⏳ ${horasFaltando.toString().padStart(2, '0')}:${minFaltando.toString().padStart(2, '0')}:${segFaltando.toString().padStart(2, '0')}`;
+                    timer.style.color = horasFaltando < 1 ? 'var(--neon-red)' : 'var(--neon-orange)';
+                    
+                } else if (tipo === 'diario_fixo') {
+                    const horaStr = timer.getAttribute('data-diaria'); // formato HH:MM
+                    if(!horaStr) {
+                        timer.innerText = "Horário Inválido"; return;
+                    }
+                    
+                    const partes = horaStr.split(':');
+                    let alvo = new Date();
+                    alvo.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
+                    
+                    if (alvo.getTime() <= agora) {
+                        // Adiciona 1 dia se já passou
+                        alvo.setDate(alvo.getDate() + 1);
+                    }
+                    
+                    const diff = alvo.getTime() - agora;
+                    const horasFaltando = Math.floor(diff / (1000 * 60 * 60));
+                    const minFaltando = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const segFaltando = Math.floor((diff % (1000 * 60)) / 1000);
+                    
+                    timer.innerText = `⏳ ${horasFaltando.toString().padStart(2, '0')}:${minFaltando.toString().padStart(2, '0')}:${segFaltando.toString().padStart(2, '0')}`;
+                    timer.style.color = horasFaltando < 1 ? 'var(--neon-red)' : 'var(--neon-cyan)';
+                }
+            });
+            
+            // Atualiza a data de exportação dinamicamente
+            const txtData = document.getElementById('dataExportacaoBosses');
+            if(txtData) {
+                const hj = new Date();
+                txtData.innerText = `Gerado em: ${hj.toLocaleDateString('pt-BR')} às ${hj.toLocaleTimeString('pt-BR')}`;
+            }
+
+        }, 1000);
+
+        async function salvarNovoBoss() {
+            const nome = document.getElementById('inputBossNome').value.trim();
+            const local = document.getElementById('inputBossLocal').value.trim();
+            const tipo = document.getElementById('inputBossTipoRespawn').value;
+            let horas = 42;
+            let horaDiaria = null;
+            
+            if(tipo.startsWith('intervalo')) {
+                horas = parseInt(tipo.split('_')[1]);
+            } else {
+                // Se for diário fixo, precisa que o admin digite algo ou pegamos a data ancora como base.
+                // Mas a lógica de âncora já supre se for preenchida corretamente.
+            }
+            
+            const ancora = document.getElementById('inputBossAncoragem').value;
+            // Para diário precisaria de um input específico, mas a âncora serve como bypass no backend
+            
+            if(!nome) { mostrarToast("O nome do chefe é obrigatório.", "aviso"); return; }
+            
+            // Lógica de adivinhar o grupo pelo nome (ex: "Nv. 66 Tamac Mecha")
+            let grupo = "Sem Grupo";
+            if (nome.toLowerCase().includes("tamac") || nome.toLowerCase().includes("eternal") || nome.toLowerCase().includes("locust") || nome.toLowerCase().includes("pinça") || nome.toLowerCase().includes("vastus")) {
+                grupo = "Grupo de Chefes Novus D";
+            } else if (nome.toLowerCase().includes("guerra") || nome.toLowerCase().includes("ertelem") || nome.toLowerCase().includes("ravenous") || nome.toLowerCase().includes("gancho")) {
+                grupo = "Grupo de Chefes Novus E";
+            }
+
+            const payload = {
+                nome: nome,
+                local: local,
+                grupo: grupo,
+                tipo_respawn: tipo.startsWith('intervalo') ? 'intervalo' : 'diario_fixo',
+                intervalo_horas: horas,
+                horario_ancora: ancora // YYYY-MM-DDTHH:MM
+            };
+
+            try {
+                const response = await fetch('/api/criar-boss', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    fecharModal('modalCadastrarBoss');
+                    document.getElementById('inputBossNome').value = '';
+                    document.getElementById('inputBossLocal').value = '';
+                    renderizarCardsBossesGlobais();
+                    mostrarToast("Chefe cadastrado com sucesso!", "sucesso");
+                } else {
+                    mostrarToast("Falha ao salvar chefe.", "erro");
+                }
+            } catch (e) { mostrarToast("Erro de rede.", "erro"); }
+        }
+
+        async function deletarBoss(id) {
+            if(!confirm("Remover permanentemente este chefe do banco de dados?")) return;
+            try {
+                const response = await fetch(`/api/deletar-boss/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    renderizarCardsBossesGlobais();
+                    mostrarToast("Chefe deletado.", "info");
+                }
+            } catch (e) { mostrarToast("Erro de rede.", "erro"); }
+        }
+
+        async function salvarBossesDaSemana() {
+            const checks = document.querySelectorAll('.check-boss-escala:checked');
+            const ids = Array.from(checks).map(cb => parseInt(cb.value));
+
+            try {
+                const response = await fetch('/api/salvar-escala-bosses', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bosses_ids: ids })
+                });
+                if (response.ok) {
+                    fecharModal('modalSelecionarBosses');
+                    renderizarCardsBossesGlobais();
+                    mostrarToast("Escala de bosses alterada para esta semana!", "sucesso");
+                } else {
+                    mostrarToast("Falha ao salvar a escala.", "erro");
+                }
+            } catch (e) { mostrarToast("Erro de rede.", "erro"); }
+        }
+
+        function exportarBossesImagem() {
+            const areaToExport = document.getElementById('exportarBossArea');
+            if(!areaToExport) return;
+            
+            const btn = document.querySelector('button[onclick="exportarBossesImagem()"]');
+            const textOrig = btn.innerText;
+            btn.innerText = "Processando...";
+            btn.disabled = true;
+
+            // Html2Canvas captura a div e gera a imagem
+            html2canvas(areaToExport, {
+                backgroundColor: "#0d0e15", // Cor de fundo do painel para não ficar transparente
+                scale: 2 // Aumenta a qualidade
+            }).then(canvas => {
+                // Cria um link temporário para download da imagem
+                const link = document.createElement('a');
+                link.download = `Escala_Bosses_Vortex_${Date.now()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                
+                btn.innerText = textOrig;
+                btn.disabled = false;
+                mostrarToast("Imagem exportada com sucesso!", "sucesso");
+            }).catch(err => {
+                console.error(err);
+                mostrarToast("Erro ao exportar a imagem.", "erro");
+                btn.innerText = textOrig;
+                btn.disabled = false;
+            });
         }
