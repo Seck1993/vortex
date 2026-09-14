@@ -178,7 +178,6 @@
                         <th style="width: 80px;">LVL</th>
                         <th style="width: 120px;">Poder de Combate</th>
                         <th style="font-size: 16px; color: #fff;">PARTICIPAÇÃO SEMANAL</th>
-                        <th style="font-size: 16px; color: var(--gold-mega); text-shadow: 0 0 5px var(--gold-mega);">DIAMANTES DA SEMANA</th>
                         <th style="font-size: 16px; color: var(--neon-red); text-shadow: 0 0 5px var(--neon-red);">PENALIDADES</th>
                         <th style="font-size: 18px; color: var(--neon-green);">SALDO TOTAL (APOSTAS)</th>
                         {% if session.get('logged_in') %}<th style="width: 90px;">EDITAR</th>{% endif %}
@@ -216,7 +215,6 @@
                             </td>
 
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
-                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
 
                             {% if user_role == 'admin' %}
@@ -232,7 +230,6 @@
                             <td style="color: #fff; font-size: 20px;">{{ item.jogador.level }}</td>
                             <td style="color: var(--neon-cyan); font-family: monospace; font-size: 20px; font-weight: bold;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</td>
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
-                            <td style="color: var(--gold-mega); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,215,0,0.4);">{% if item.pontos_diamante > 0 %}+{{ "{:,.0f}".format(item.pontos_diamante).replace(',', '.') }}{% else %}-{% endif %}</td>
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
                             <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS</td>
                         {% endif %}
