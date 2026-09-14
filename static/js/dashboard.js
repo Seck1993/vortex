@@ -1212,92 +1212,92 @@ async function deletarHistoricoMeme(id) {
 
 let listaBossesGlobais = [];
 
-function renderizarCardsBossesGlobais() {
+async function renderizarCardsBossesGlobais() {
     const areaBosses = document.getElementById('gridBossesAtivos');
     if (!areaBosses) return;
 
     const isAdminVisual = isAdmin();
 
-    fetch('/api/listar-bosses')
-        .then(res => res.json())
-        .then(data => {
-            listaBossesGlobais = data.bosses;
-            areaBosses.innerHTML = '';
-            
-            const bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
-            
-            if(bossesNossos.length === 0) {
-                areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
-            } else {
-                const grupos = {};
-                bossesNossos.forEach(b => {
+    try {
+        const res = await fetch('/api/listar-bosses');
+        const data = await res.json();
+        listaBossesGlobais = data.bosses;
+        
+        areaBosses.innerHTML = '';
+        const bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
+        
+        if(bossesNossos.length === 0) {
+            areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
+        } else {
+            const grupos = {};
+            bossesNossos.forEach(b => {
+                let g = b.grupo || "Outros Chefes";
+                if(!grupos[g]) grupos[g] = [];
+                grupos[g].push(b);
+            });
+
+            for(let grupo in grupos) {
+                let divGrupo = document.createElement('div');
+                divGrupo.style.cssText = "grid-column: 1 / -1; margin-top: 15px;";
+                divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">🗡️ ${grupo}</h3>`;
+                
+                let divGridInterno = document.createElement('div');
+                divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;";
+                
+                grupos[grupo].forEach(b => {
+                    let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria || ''}" data-dias="${b.dias_semana || ''}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 22px; color: var(--neon-orange); font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.6); padding: 10px; text-align: center; border-radius: 4px; border: 1px dashed var(--neon-orange);">Calculando...</div>`;
+                    
+                    let card = document.createElement('div');
+                    card.style.cssText = "background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 6px; padding: 20px; position: relative; display: flex; flex-direction: column; justify-content: center;";
+                    card.innerHTML = `
+                        <h4 style="margin: 0 0 5px 0; color: #fff; font-size: 20px;">${b.nome}</h4>
+                        <p style="margin: 0; color: var(--text-muted); font-size: 15px;">📍 ${b.local}</p>
+                        ${timerHtml}
+                        ${isAdminVisual ? `<button class="btn-danger" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px; font-size: 12px;" onclick="deletarBoss(${b.id})" title="Apagar do Banco de Dados">✖</button>` : ''}
+                    `;
+                    divGridInterno.appendChild(card);
+                });
+                
+                divGrupo.appendChild(divGridInterno);
+                areaBosses.appendChild(divGrupo);
+            }
+        }
+
+        if(isAdminVisual) {
+            const listaSelecao = document.getElementById('listaBossesSelecao');
+            if(listaSelecao) {
+                listaSelecao.innerHTML = '';
+                
+                const gruposSelecao = {};
+                listaBossesGlobais.forEach(b => {
                     let g = b.grupo || "Outros Chefes";
-                    if(!grupos[g]) grupos[g] = [];
-                    grupos[g].push(b);
+                    if(!gruposSelecao[g]) gruposSelecao[g] = [];
+                    gruposSelecao[g].push(b);
                 });
 
-                for(let grupo in grupos) {
-                    let divGrupo = document.createElement('div');
-                    divGrupo.style.cssText = "grid-column: 1 / -1; margin-top: 15px;";
-                    divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">🗡️ ${grupo}</h3>`;
+                for(let g in gruposSelecao) {
+                    let groupTitle = document.createElement('div');
+                    groupTitle.style.cssText = "color: var(--neon-orange); font-weight: bold; margin-top: 15px; border-bottom: 1px dashed var(--glass-border); padding-bottom: 5px;";
+                    groupTitle.innerText = g;
+                    listaSelecao.appendChild(groupTitle);
                     
-                    let divGridInterno = document.createElement('div');
-                    divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;";
+                    let grid = document.createElement('div');
+                    grid.style.cssText = "display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;";
                     
-                    grupos[grupo].forEach(b => {
-                        let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria || ''}" data-dias="${b.dias_semana || ''}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 22px; color: var(--neon-orange); font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.6); padding: 10px; text-align: center; border-radius: 4px; border: 1px dashed var(--neon-orange);">Calculando...</div>`;
-                        
-                        let card = document.createElement('div');
-                        card.style.cssText = "background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 6px; padding: 20px; position: relative; display: flex; flex-direction: column; justify-content: center;";
-                        card.innerHTML = `
-                            <h4 style="margin: 0 0 5px 0; color: #fff; font-size: 20px;">${b.nome}</h4>
-                            <p style="margin: 0; color: var(--text-muted); font-size: 15px;">📍 ${b.local}</p>
-                            ${timerHtml}
-                            ${isAdminVisual ? `<button class="btn-danger" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px; font-size: 12px;" onclick="deletarBoss(${b.id})" title="Apagar do Banco de Dados">✖</button>` : ''}
+                    gruposSelecao[g].forEach(b => {
+                        let label = document.createElement('label');
+                        label.style.cssText = `display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid ${b.is_nosso ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'};`;
+                        label.innerHTML = `
+                            <input type="checkbox" class="check-boss-escala" value="${b.id}" ${b.is_nosso ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'" style="accent-color: var(--neon-orange);">
+                            <span style="color: #fff; font-size: 14px;">${b.nome}</span>
                         `;
-                        divGridInterno.appendChild(card);
+                        grid.appendChild(label);
                     });
-                    
-                    divGrupo.appendChild(divGridInterno);
-                    areaBosses.appendChild(divGrupo);
+                    listaSelecao.appendChild(grid);
                 }
             }
-
-            if(isAdminVisual) {
-                const listaSelecao = document.getElementById('listaBossesSelecao');
-                if(listaSelecao) {
-                    listaSelecao.innerHTML = '';
-                    
-                    const gruposSelecao = {};
-                    listaBossesGlobais.forEach(b => {
-                        let g = b.grupo || "Outros Chefes";
-                        if(!gruposSelecao[g]) gruposSelecao[g] = [];
-                        gruposSelecao[g].push(b);
-                    });
-
-                    for(let g in gruposSelecao) {
-                        let groupTitle = document.createElement('div');
-                        groupTitle.style.cssText = "color: var(--neon-orange); font-weight: bold; margin-top: 15px; border-bottom: 1px dashed var(--glass-border); padding-bottom: 5px;";
-                        groupTitle.innerText = g;
-                        listaSelecao.appendChild(groupTitle);
-                        
-                        let grid = document.createElement('div');
-                        grid.style.cssText = "display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;";
-                        
-                        gruposSelecao[g].forEach(b => {
-                            let label = document.createElement('label');
-                            label.style.cssText = `display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid ${b.is_nosso ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'};`;
-                            label.innerHTML = `
-                                <input type="checkbox" class="check-boss-escala" value="${b.id}" ${b.is_nosso ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'" style="accent-color: var(--neon-orange);">
-                                <span style="color: #fff; font-size: 14px;">${b.nome}</span>
-                            `;
-                            grid.appendChild(label);
-                        });
-                        listaSelecao.appendChild(grid);
-                    }
-                }
-            }
-        });
+        }
+    } catch(e) { console.error(e); }
 }
 
 document.addEventListener('DOMContentLoaded', () => { 
@@ -1325,7 +1325,7 @@ setInterval(() => {
         if (tipo === 'intervalo') {
             const ancoraMs = parseInt(timer.getAttribute('data-ancora'));
             const horasIntervalo = parseInt(timer.getAttribute('data-horas'));
-            if(isNaN(ancoraMs) || isNaN(horasIntervalo)) { timer.innerText = "Dados Inválidos"; return; }
+            if(isNaN(ancoraMs) || isNaN(horasIntervalo)) { timer.innerText = "Sem Horário"; return; }
             
             const intervaloMs = horasIntervalo * 60 * 60 * 1000;
             let proximoNascimento = ancoraMs;
@@ -1360,7 +1360,7 @@ setInterval(() => {
                     alvos.push(d2);
                 }
             }
-            if(alvos.length === 0) { timer.innerText = "Erro"; return; }
+            if(alvos.length === 0) { timer.innerText = "Sem Horário"; return; }
             alvos.sort((a, b) => a.getTime() - b.getTime());
             
             const diff = alvos[0].getTime() - agora;
@@ -1370,7 +1370,7 @@ setInterval(() => {
         } else if (tipo === 'semanal') {
             const horaStr = timer.getAttribute('data-diaria');
             const diasStr = timer.getAttribute('data-dias');
-            if(!horaStr || horaStr === "null" || !diasStr || diasStr === "null") { timer.innerText = "Sem Config"; return; }
+            if(!horaStr || horaStr === "null" || !diasStr || diasStr === "null") { timer.innerText = "Sem Horário"; return; }
             
             const horarios = horaStr.split(',').map(h => h.trim());
             const diasPermitidos = diasStr.split(',').map(d => parseInt(d));
@@ -1390,7 +1390,7 @@ setInterval(() => {
                     }
                 }
             }
-            if(alvos.length === 0) { timer.innerText = "Erro"; return; }
+            if(alvos.length === 0) { timer.innerText = "Sem Horário"; return; }
             alvos.sort((a, b) => a.getTime() - b.getTime());
             
             const diff = alvos[0].getTime() - agora;
@@ -1414,7 +1414,87 @@ function toggleCamposBoss() {
     document.getElementById('divBossDias').style.display = tipo === 'semanal' ? 'block' : 'none';
 }
 
+function abrirModalCadastroBossLivre() {
+    document.getElementById('editBossId').value = '';
+    document.getElementById('tituloModalBoss').innerText = '➕ Cadastrar Novo Chefe';
+    document.getElementById('inputBossNome').value = '';
+    document.getElementById('inputBossLocal').value = '';
+    document.getElementById('inputBossGrupo').value = '';
+    document.getElementById('inputBossTipoRespawn').value = 'intervalo';
+    document.getElementById('inputBossHoras').value = '42';
+    document.getElementById('inputBossAncoragem').value = '';
+    document.getElementById('inputBossHorarios').value = '';
+    document.querySelectorAll('.check-dia-boss').forEach(cb => cb.checked = false);
+    toggleCamposBoss();
+    abrirModal('modalCadastrarBoss');
+}
+
+function abrirModalGerenciarBosses() {
+    const container = document.getElementById('listaGerenciarBosses');
+    container.innerHTML = '';
+    
+    if (listaBossesGlobais.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 30px;">Nenhum chefe cadastrado no sistema ainda.</p>';
+    } else {
+        listaBossesGlobais.forEach(b => {
+            let infoData = "";
+            if (b.tipo_respawn === 'intervalo') infoData = `⏱️ a cada ${b.intervalo_horas}h`;
+            if (b.tipo_respawn === 'diario') infoData = `☀️ Diário às ${b.hora_diaria}`;
+            if (b.tipo_respawn === 'semanal') infoData = `📅 Semanal às ${b.hora_diaria}`;
+
+            let div = document.createElement('div');
+            div.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); padding: 12px 15px; margin-bottom: 8px; border: 1px solid var(--glass-border); border-radius: 4px;";
+            div.innerHTML = `
+                <div>
+                    <strong style="color: #fff; font-size: 16px;">${b.nome}</strong><br>
+                    <span style="color: var(--text-muted); font-size: 13px;">${b.grupo || 'Sem Grupo'} | ${infoData}</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); padding: 6px 12px; font-size: 13px;" onclick="prepararEdicaoBoss(${b.id})">✏️ Editar</button>
+                    <button class="btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="deletarBoss(${b.id})">✖</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+    abrirModal('modalGerenciarBosses');
+}
+
+function prepararEdicaoBoss(id) {
+    const b = listaBossesGlobais.find(x => x.id === id);
+    if (!b) return;
+    
+    fecharModal('modalGerenciarBosses');
+    document.getElementById('editBossId').value = b.id;
+    document.getElementById('tituloModalBoss').innerText = '✏️ Editar Chefe Existente';
+    document.getElementById('inputBossNome').value = b.nome;
+    document.getElementById('inputBossLocal').value = b.local;
+    document.getElementById('inputBossGrupo').value = b.grupo || '';
+    document.getElementById('inputBossTipoRespawn').value = b.tipo_respawn;
+    
+    if (b.tipo_respawn === 'intervalo') {
+        document.getElementById('inputBossHoras').value = b.intervalo_horas;
+        if (b.ancora_ms) {
+            let d = new Date(b.ancora_ms);
+            let tzoffset = d.getTimezoneOffset() * 60000;
+            let localISOTime = (new Date(d - tzoffset)).toISOString().slice(0, 16);
+            document.getElementById('inputBossAncoragem').value = localISOTime;
+        }
+    } else if (b.tipo_respawn === 'diario') {
+        document.getElementById('inputBossHorarios').value = b.hora_diaria || '';
+    } else if (b.tipo_respawn === 'semanal') {
+        document.getElementById('inputBossHorarios').value = b.hora_diaria || '';
+        document.querySelectorAll('.check-dia-boss').forEach(cb => {
+            cb.checked = (b.dias_semana && b.dias_semana.split(',').includes(cb.value));
+        });
+    }
+    
+    toggleCamposBoss();
+    abrirModal('modalCadastrarBoss');
+}
+
 async function salvarNovoBoss() {
+    const editId = document.getElementById('editBossId').value;
     const nome = document.getElementById('inputBossNome').value.trim();
     const local = document.getElementById('inputBossLocal').value.trim();
     const grupo = document.getElementById('inputBossGrupo').value.trim() || 'Sem Grupo';
@@ -1447,23 +1527,20 @@ async function salvarNovoBoss() {
         payload.dias_semana = diasEscolhidos.join(',');
     }
 
+    const url = editId ? `/api/editar-boss/${editId}` : '/api/criar-boss';
+
     try {
-        const response = await fetch('/api/criar-boss', {
+        const response = await fetch(url, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
         if (response.ok) {
             fecharModal('modalCadastrarBoss');
-            renderizarCardsBossesGlobais();
-            mostrarToast("Chefe cadastrado com sucesso!", "sucesso");
+            await renderizarCardsBossesGlobais();
+            mostrarToast(editId ? "Chefe atualizado!" : "Chefe cadastrado com sucesso!", "sucesso");
             
-            // Limpa form
-            document.getElementById('inputBossNome').value = '';
-            document.getElementById('inputBossLocal').value = '';
-            document.getElementById('inputBossGrupo').value = '';
-            document.getElementById('inputBossHorarios').value = '';
-            document.getElementById('inputBossAncoragem').value = '';
-            document.querySelectorAll('.check-dia-boss').forEach(cb => cb.checked = false);
-            
+            if (editId) {
+                setTimeout(() => abrirModalGerenciarBosses(), 300);
+            }
         } else {
             mostrarToast("Falha ao salvar chefe.", "erro");
         }
@@ -1475,8 +1552,13 @@ async function deletarBoss(id) {
     try {
         const response = await fetch(`/api/deletar-boss/${id}`, { method: 'DELETE' });
         if (response.ok) {
-            renderizarCardsBossesGlobais();
-            mostrarToast("Chefe deletado.", "info");
+            await renderizarCardsBossesGlobais();
+            mostrarToast("Chefe deletado do banco de dados.", "info");
+            
+            const modalGerenciador = document.getElementById('modalGerenciarBosses');
+            if (modalGerenciador && modalGerenciador.style.display === 'flex') {
+                abrirModalGerenciarBosses();
+            }
         }
     } catch (e) { mostrarToast("Erro de rede.", "erro"); }
 }
