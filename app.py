@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, text
-from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, PersonagemSecundario
+from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, PersonagemSecundario, Boss
 from xml_engine import analisar_xml_guilda
 
 app = Flask(__name__)
@@ -24,8 +24,6 @@ db.init_app(app)
 
 
 def asset_version(filename):
-    """Retorna a data de modificação do arquivo estático como string, usada
-    como query param de cache-busting (?v=...) nos links/scripts do template."""
     caminho = os.path.join(app.static_folder, filename)
     try:
         return str(int(os.path.getmtime(caminho)))
@@ -37,10 +35,6 @@ app.jinja_env.globals['asset_version'] = asset_version
 
 
 def caminho_upload_seguro(arquivo, prefixo_padrao):
-    """Monta o caminho de gravação de um upload dentro de UPLOAD_FOLDER.
-
-    Usa secure_filename para impedir que um nome como '../app.py' escape da
-    pasta de uploads e sobrescreva arquivos do projeto."""
     nome_seguro = secure_filename(arquivo.filename or '')
     if not nome_seguro:
         nome_seguro = f"{prefixo_padrao}_{int(time.time() * 1000)}"
@@ -50,10 +44,6 @@ def caminho_upload_seguro(arquivo, prefixo_padrao):
 
 
 def calcular_pontuacao_base_semanal(pontos_semanais):
-    """Calcula a 'moda' (valor mais frequente; empate resolvido pelo maior valor)
-    de uma coleção de totais de pontos semanais por jogador. Usada como teto de
-    100% de participação. Extraída para uso único em index() e apostar_item(),
-    que antes duplicavam esta lógica de negócio central."""
     frequencias = {}
     for pts in pontos_semanais:
         if pts > 0:
@@ -64,8 +54,6 @@ def calcular_pontuacao_base_semanal(pontos_semanais):
 
 
 def erro_interno(e):
-    """Loga o stack trace no servidor e devolve uma mensagem genérica ao cliente,
-    evitando vazar detalhes internos (stack trace / mensagens do SQLAlchemy)."""
     app.logger.exception("Erro interno em rota da API")
     return jsonify({"erro": "Erro interno no servidor. Tente novamente ou contate o administrador."}), 500
 
@@ -90,7 +78,6 @@ class SorteioMemeHistorico(db.Model):
     
     jogador = db.relationship('Jogador', backref=db.backref('sorteios_meme', lazy=True))
 
-# ================= MODELOS DE EVENTO (BANNER E APOSTAS) =================
 class EventoSorteio(db.Model):
     __tablename__ = 'evento_sorteio'
     id = db.Column(db.Integer, primary_key=True)
@@ -106,7 +93,7 @@ class EventoItem(db.Model):
     evento_id = db.Column(db.Integer, db.ForeignKey('evento_sorteio.id'))
     nome_item = db.Column(db.String(100), nullable=False)
     max_pontos = db.Column(db.Float, default=100.0)
-    restricao = db.Column(db.String(20), default="Todos") # NOVA REGRA DE FAIXA (Todos, Titã, Mega)
+    restricao = db.Column(db.String(20), default="Todos") 
     sorteado = db.Column(db.Boolean, default=False)
     vencedor_nome = db.Column(db.String(100), nullable=True)
     em_andamento = db.Column(db.Boolean, default=False) 
@@ -122,14 +109,11 @@ class ApostaSorteio(db.Model):
     jogador = db.relationship('Jogador')
 
 class ConfigSistema(db.Model):
-    """Armazena as configurações globais do sistema, como as senhas de acesso."""
     __tablename__ = 'config_sistema'
     chave = db.Column(db.String(50), primary_key=True)
     valor = db.Column(db.String(255), nullable=False)
 
 class StaffMembro(db.Model):
-    """Cadastro de pessoas que podem representar a fatia fixa de 15% (Staff)
-    nos sorteios de item. Independente do cadastro de Jogadores."""
     __tablename__ = 'staff_membros'
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False, unique=True)
@@ -138,14 +122,11 @@ class StaffMembro(db.Model):
 @app.route('/')
 def index():
     configuracoes = ConfigAtividade.query.filter(ConfigAtividade.nome_xml.notin_(['REGUA_MEGA', 'REGUA_TITA', 'SEMANA_ATIVA'])).order_by(ConfigAtividade.id.asc()).all()
-    tipos_eventos = {c.nome_xml: c.tipo_evento for c in configuracoes}
-
-    # Controle da Semana Ativa
+    
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
     semana_ativa_numero = config_semana.pontos_padrao if config_semana else 1
     semana_ativa_str = f"Semana {semana_ativa_numero}"
 
-    # Puxa os valores das réguas
     config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
     cp_mega = config_mega.pontos_padrao if config_mega else 100000
 
@@ -188,7 +169,6 @@ def index():
         db.or_(Jogador.status == 'Ativo', Jogador.status == None, Jogador.status == '')
     ).all()
     
-    # === CÁLCULO DA "MODA" (TETO DE 100%) ===
     pontuacao_base_semanal = calcular_pontuacao_base_semanal(
         mapa_pontos.get(j.id, {}).get('total_semanal', 0) for j in jogadores
     )
@@ -238,13 +218,26 @@ def index():
     user_role = session.get('role', 'guest')
 
     staff_membros = StaffMembro.query.order_by(StaffMembro.nome.asc()).all()
-
-    # Lista completa (inclusive inativos) para a aba de gerenciamento de membros
     todos_jogadores = Jogador.query.order_by(Jogador.nome.asc()).all()
 
-    # Dados do Evento Ativo (Banner)
+    # BUSCA DOS BOSSES
+    bosses_db = Boss.query.order_by(Boss.grupo, Boss.nome).all()
+    bosses_data = []
+    for b in bosses_db:
+        ancora_ms = int(b.horario_ancora.timestamp() * 1000) if b.horario_ancora else int(time.time() * 1000)
+        bosses_data.append({
+            'id': b.id,
+            'nome': b.nome,
+            'local': b.local,
+            'grupo': b.grupo,
+            'tipo_respawn': b.tipo_respawn,
+            'intervalo_horas': b.intervalo_horas,
+            'hora_diaria': b.hora_diaria,
+            'ancora_ms': ancora_ms,
+            'is_nosso': b.is_nosso
+        })
+
     evento_ativo = EventoSorteio.query.filter_by(ativo=True).order_by(EventoSorteio.id.desc()).first()
-    
     evento_data = None
     if evento_ativo:
         itens_data = []
@@ -254,7 +247,7 @@ def index():
                 'id': item.id,
                 'nome_item': item.nome_item,
                 'max_pontos': item.max_pontos,
-                'restricao': item.restricao, # Passa a restrição para a Tela
+                'restricao': item.restricao, 
                 'sorteado': item.sorteado,
                 'vencedor_nome': item.vencedor_nome,
                 'apostas': apostas,
@@ -282,7 +275,8 @@ def index():
         semana_ativa_numero=semana_ativa_numero,
         evento=evento_data,
         staff_membros=staff_membros,
-        todos_jogadores=todos_jogadores
+        todos_jogadores=todos_jogadores,
+        bosses=bosses_data
     )
 
 @app.route('/api/login', methods=['POST'])
@@ -290,7 +284,6 @@ def login():
     dados = request.get_json()
     senha_enviada = dados.get('senha')
 
-    # Busca as senhas no DB, ou utiliza as antigas como padrão
     conf_admin = ConfigSistema.query.filter_by(chave='SENHA_ADMIN').first()
     senha_admin = conf_admin.valor if conf_admin else 'ana2026'
 
@@ -340,7 +333,6 @@ def alterar_senhas():
 
         db.session.commit()
 
-        # Invalida todas as sessões ativas gerando uma nova secret key para a aplicação
         app.config['SECRET_KEY'] = os.urandom(24).hex()
         session.clear()
 
@@ -398,7 +390,7 @@ def publicar_banner():
             evento_id=novo_evento.id, 
             nome_item=item['nome'], 
             max_pontos=float(item['max_pontos']),
-            restricao=item.get('restricao', 'Todos') # Recebe a Restrição
+            restricao=item.get('restricao', 'Todos') 
         ))
     
     db.session.commit()
@@ -477,7 +469,6 @@ def apostar_item():
     jogador_alvo = db.session.get(Jogador, jogador_id)
     if not jogador_alvo: return jsonify({"erro": "Jogador não encontrado."}), 404
 
-    # === CHECAGEM DE RESTRIÇÃO DE FAIXA (MEGA / TITÃ) ===
     config_mega = ConfigAtividade.query.filter_by(nome_xml='REGUA_MEGA').first()
     cp_mega = config_mega.pontos_padrao if config_mega else 100000
 
@@ -490,7 +481,6 @@ def apostar_item():
     if item.restricao == 'Titã' and jogador_alvo.poder_combate < cp_tita:
         return jsonify({"erro": f"Acesso negado! Este item é exclusivo para as faixas Titã e Mega (CP Mínimo exigido: {cp_tita:,})."}), 400
 
-    # VALIDAÇÃO DE REGRA DE NEGÓCIO: MÍNIMO 90% DE PARTICIPAÇÃO NA SEMANA ATUAL
     config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
     semana_ativa_str = f"Semana {config_semana.pontos_padrao}" if config_semana else "Semana 1"
 
@@ -508,7 +498,6 @@ def apostar_item():
             "erro": f"Acesso bloqueado! Sua participação na semana atual é {participacao_jogador:.1f}%. (Mínimo exigido: 90%)."
         }), 400
 
-    # VALIDAÇÃO DO SALDO DE PONTOS REAIS
     pts_brutos_jogador = db.session.query(func.sum(Pontuacao.pontos)).filter_by(jogador_id=jogador_id).scalar() or 0
     pens = db.session.query(func.sum(SorteioHistorico.penalidade)).filter_by(jogador_id=jogador_id).scalar() or 0
     
@@ -606,7 +595,6 @@ def simular_sorteio_item():
 
     total_pontos = sum(ap.pontos for ap in apostas)
 
-    # Lógica condicional: Se escolheu staff divide 85%, se não escolheu divide 100%
     fator_multiplicador = 85.0 if nome_staff else 100.0
 
     if nome_staff:
@@ -678,6 +666,75 @@ def confirmar_sorteio_item():
 
     db.session.commit()
     return jsonify({"mensagem": "Sorteio finalizado e dados salvos!"}), 200
+
+
+# ================= ESCALA DE BOSSES =================
+@app.route('/api/criar-boss', methods=['POST'])
+def criar_boss():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    
+    nome = dados.get('nome')
+    local = dados.get('local', '')
+    grupo = dados.get('grupo', 'Sem Grupo')
+    tipo = dados.get('tipo_respawn', 'intervalo')
+    horas = int(dados.get('intervalo_horas', 42))
+    hora_diaria = dados.get('hora_diaria')
+    ancora_str = dados.get('horario_ancora')
+    
+    if not nome: return jsonify({"erro": "O nome do chefe é obrigatório."}), 400
+
+    horario_ancora = datetime.utcnow()
+    if ancora_str:
+        try:
+            # Parse o datetime do formato HTML local (YYYY-MM-DDTHH:MM)
+            horario_ancora = datetime.strptime(ancora_str, '%Y-%m-%dT%H:%M')
+        except:
+            pass
+            
+    try:
+        novo_boss = Boss(
+            nome=nome, 
+            local=local, 
+            grupo=grupo, 
+            tipo_respawn=tipo, 
+            intervalo_horas=horas, 
+            hora_diaria=hora_diaria, 
+            horario_ancora=horario_ancora
+        )
+        db.session.add(novo_boss)
+        db.session.commit()
+        return jsonify({"mensagem": "Chefe cadastrado com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+@app.route('/api/salvar-escala-bosses', methods=['POST'])
+def salvar_escala_bosses():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    bosses_ids = dados.get('bosses_ids', [])
+    
+    try:
+        Boss.query.update({Boss.is_nosso: False})
+        if bosses_ids:
+            Boss.query.filter(Boss.id.in_(bosses_ids)).update({Boss.is_nosso: True}, synchronize_session=False)
+            
+        db.session.commit()
+        return jsonify({"mensagem": "Escala da semana atualizada com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+@app.route('/api/deletar-boss/<int:id>', methods=['DELETE'])
+def deletar_boss(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    boss = db.session.get(Boss, id)
+    if boss:
+        db.session.delete(boss)
+        db.session.commit()
+        return jsonify({"mensagem": "Chefe removido da base de dados!"}), 200
+    return jsonify({"erro": "Chefe não encontrado."}), 404
 
 # ================= AS DEMAIS ROTAS =================
 
@@ -1390,9 +1447,31 @@ def inicializar_banco():
             db.session.add(ConfigAtividade(nome_xml=atv, pontos_padrao=1, tipo_evento=tipo))
         db.session.commit()
 
-    # Índices para as colunas de Pontuacao mais usadas em filtros/GROUP BY.
-    # CREATE INDEX IF NOT EXISTS é suportado tanto pelo SQLite quanto pelo PostgreSQL,
-    # e é necessário aqui porque db.create_all() não retroaplica índices a tabelas já existentes.
+    # === CADASTRAR BOSSES DA IMAGEM SE O BANCO ESTIVER VAZIO ===
+    try:
+        db.session.execute(text("SELECT 1 FROM bosses LIMIT 1"))
+    except Exception:
+        db.session.rollback()
+        db.create_all()
+
+    if not Boss.query.first():
+        agora = datetime.utcnow()
+        bosses_iniciais = [
+            ("Nv. 66 Tamac Mecha", "Fábrica de Munições Blackstone", "Grupo de Chefes Novus D", "intervalo", 42, None),
+            ("Nv. 67 Eternal Mecha", "Colina do Pioneiro", "Grupo de Chefes Novus D", "intervalo", 42, None),
+            ("Nv. 68 Locust", "Favelas de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None),
+            ("Nv. 70 Pinça Mecha", "Ferro-Velho de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None),
+            ("Nv. 74 Vastus", "Deserto da Morte", "Grupo de Chefes Novus D", "intervalo", 42, None),
+            ("Nv. 76 Guerra Mecha", "Ruínas Despedaçadas", "Grupo de Chefes Novus E", "intervalo", 48, None),
+            ("Nv. 77 Ertelem Mecha", "Deserto de Ramun", "Grupo de Chefes Novus E", "intervalo", 48, None),
+            ("Nv. 79 Ravenous Mecha", "Base Horizon", "Grupo de Chefes Novus E", "intervalo", 48, None),
+            ("Nv. 80 Gancho Mecha", "Vale dos Gritos", "Grupo de Chefes Novus E", "intervalo", 48, None)
+        ]
+        for nome, local, grupo, tipo, horas, hd in bosses_iniciais:
+            b = Boss(nome=nome, local=local, grupo=grupo, tipo_respawn=tipo, intervalo_horas=horas, hora_diaria=hd, horario_ancora=agora)
+            db.session.add(b)
+        db.session.commit()
+
     try:
         db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_jogador_id ON pontuacoes (jogador_id)"))
         db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_pontuacoes_semana ON pontuacoes (semana)"))
