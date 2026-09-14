@@ -1608,4 +1608,28 @@ function exportarBossesImagem() {
         btn.innerText = textOrig;
         btn.disabled = false;
     });
+    document.addEventListener('DOMContentLoaded', () => {
+    const inputGrupo = document.getElementById('inputBossGrupo');
+    if(inputGrupo) {
+        inputGrupo.addEventListener('input', function() {
+            const val = this.value;
+            const tipoSelect = document.getElementById('inputBossTipoRespawn');
+            const horariosInput = document.getElementById('inputBossHorarios');
+
+            if (val === 'Grupo de Chefes Novus A') {
+                tipoSelect.value = 'diario';
+                horariosInput.value = '16:00, 22:30';
+                toggleCamposBoss();
+            } else if (val === 'Grupo de Chefes Novus B') {
+                tipoSelect.value = 'diario';
+                horariosInput.value = '16:00';
+                toggleCamposBoss();
+            } else if (val === 'Grupo de Chefes Novus C') {
+                tipoSelect.value = 'diario';
+                horariosInput.value = '22:30';
+                toggleCamposBoss();
+            }
+        });
+    }
+});
 }
