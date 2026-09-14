@@ -764,6 +764,34 @@ def editar_boss(id):
         return erro_interno(e)
 
 @app.route('/api/salvar-escala-bosses', methods=['POST'])
+@app.route('/api/editar-boss/<int:id>', methods=['POST'])
+def editar_boss(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    boss = db.session.get(Boss, id)
+    if not boss: return jsonify({"erro": "Chefe não encontrado."}), 404
+    
+    dados = request.get_json()
+    boss.nome = dados.get('nome') or boss.nome
+    boss.local = dados.get('local', '')
+    boss.grupo = dados.get('grupo', 'Sem Grupo')
+    boss.tipo_respawn = dados.get('tipo_respawn', 'intervalo')
+    boss.intervalo_horas = int(dados.get('intervalo_horas') or 42)
+    boss.hora_diaria = dados.get('hora_diaria')
+    boss.dias_semana = dados.get('dias_semana')
+    
+    ancora_str = dados.get('horario_ancora')
+    if ancora_str:
+        try:
+            boss.horario_ancora = datetime.fromisoformat(ancora_str)
+        except Exception:
+            pass
+            
+    try:
+        db.session.commit()
+        return jsonify({"mensagem": "Chefe atualizado com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
 def salvar_escala_bosses():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     dados = request.get_json()
