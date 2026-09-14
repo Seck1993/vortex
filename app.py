@@ -669,6 +669,29 @@ def confirmar_sorteio_item():
 
 
 # ================= ESCALA DE BOSSES =================
+
+@app.route('/api/listar-bosses', methods=['GET'])
+def listar_bosses():
+    try:
+        bosses_db = Boss.query.order_by(Boss.grupo, Boss.nome).all()
+        bosses_data = []
+        for b in bosses_db:
+            ancora_ms = int(b.horario_ancora.timestamp() * 1000) if b.horario_ancora else int(time.time() * 1000)
+            bosses_data.append({
+                'id': b.id,
+                'nome': b.nome,
+                'local': b.local,
+                'grupo': b.grupo,
+                'tipo_respawn': b.tipo_respawn,
+                'intervalo_horas': b.intervalo_horas,
+                'hora_diaria': b.hora_diaria,
+                'ancora_ms': ancora_ms,
+                'is_nosso': b.is_nosso
+            })
+        return jsonify({"bosses": bosses_data}), 200
+    except Exception as e:
+        return erro_interno(e)
+
 @app.route('/api/criar-boss', methods=['POST'])
 def criar_boss():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
@@ -687,9 +710,9 @@ def criar_boss():
     horario_ancora = datetime.utcnow()
     if ancora_str:
         try:
-            # Parse o datetime do formato HTML local (YYYY-MM-DDTHH:MM)
-            horario_ancora = datetime.strptime(ancora_str, '%Y-%m-%dT%H:%M')
-        except:
+            # O input datetime-local nativo envia no formato YYYY-MM-DDTHH:MM
+            horario_ancora = datetime.fromisoformat(ancora_str)
+        except Exception:
             pass
             
     try:
