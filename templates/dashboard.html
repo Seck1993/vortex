@@ -59,7 +59,6 @@
         {% for item in evento.itens %}
         <div class="item-card" data-item-id="{{ item.id }}" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
             <div>
-                <!-- NOME DO ITEM COM TAG DE RESTRIÇÃO -->
                 <h3 style="color: #fff; margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;">
                     {{ item.nome_item }}
                     {% if item.restricao == 'Mega' %}
@@ -70,7 +69,6 @@
                         <span style="font-size: 14px; background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); padding: 3px 8px; border: 1px solid var(--neon-cyan); border-radius: 4px;">Livre para Todos</span>
                     {% endif %}
                 </h3>
-
                 <p style="margin: 5px 0 0 0; color: var(--neon-cyan); font-weight: bold;">Probabilidade Máxima: {{ item.max_pontos }} PTS = 100%</p>
                 <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">Total depositado pelos membros: {{ item.total_apostado }} PTS</p>
 
@@ -132,16 +130,17 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); margin: 0;">🎯 Escala de Chefes (Semana Atual)</h2>
                 {% if user_role == 'admin' %}
-                <div style="display: flex; gap: 15px;">
-                    <button class="btn btn-outline" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="abrirModalCadastroBossLivre()">➕ Cadastrar Chefe</button>
-                    <button class="btn btn-outline" style="border-color: #f1c40f; color: #f1c40f;" onclick="abrirModalGerenciarBosses()">⚙️ Gerenciar Chefes</button>
-                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="abrirModal('modalSelecionarBosses')">🔄 Alterar Nossos Bosses</button>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-outline" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="abrirModalCadastroGrupo()">➕ Nova Linha</button>
+                    <button class="btn btn-outline" style="border-color: #f1c40f; color: #f1c40f;" onclick="abrirModalGerenciarGrupos()">⚙️ Gerenciar Linhas</button>
+                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="abrirModalCadastroBossLivre()">➕ Adicionar Chefe</button>
+                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="abrirModalGerenciarBosses()">⚙️ Gerenciar Chefes</button>
+                    <button class="btn btn-outline" style="border-color: #10b981; color: #10b981;" onclick="abrirModal('modalSelecionarBosses')">🔄 Escala da Semana</button>
                     <button class="btn btn-success" onclick="exportarBossesImagem()">📸 Exportar Imagem</button>
                 </div>
                 {% endif %}
             </div>
 
-            <!-- Container Export Imagem -->
             <div id="exportarBossArea" style="background: rgba(10, 10, 15, 0.95); padding: 25px; border-radius: 8px; border: 1px solid var(--glass-border);">
                 <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 15px;">
                     <h2 style="color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 0; font-size: 28px;">🎯 Alvos da Semana - Guilda Vortex</h2>
@@ -149,7 +148,6 @@
                 </div>
                 
                 <div id="gridBossesAtivos" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
-                    <!-- JS Injeta os Cards Aqui -->
                     <div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Carregando chefes...</div>
                 </div>
             </div>
@@ -246,7 +244,6 @@
                             </td>
 
                             <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
-                            
                             <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
 
                             {% if user_role == 'admin' %}
@@ -254,7 +251,6 @@
                             {% else %}
                                 <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS<input type="hidden" class="edit-pontos" value="{{ item.pontos }}"></td>
                             {% endif %}
-
                             <td><button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarPersonagem({{ item.jogador.id }}, '{{ item.jogador.nome }}', {{ item.jogador.level }}, {{ item.jogador.poder_combate }})">✏️ Editar</button></td>
 
                         {% else %}
@@ -267,9 +263,7 @@
                         {% endif %}
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="100" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ BANCO DE DADOS VAZIO ]</td>
-                    </tr>
+                    <tr><td colspan="100" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ BANCO DE DADOS VAZIO ]</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -685,7 +679,79 @@
     </div>
 
     {% if user_role == 'admin' %}
-    <!-- MODAL DE CADASTRAR BOSS ATUALIZADO COM OS NOVOS TIPOS DE RESPAWN -->
+
+    <!-- MODAL DE CRIAR E EDITAR LINHA (GRUPO DE CHEFES) -->
+    <div id="modalCadastrarGrupo" class="modal-overlay" style="z-index: 120;">
+        <div class="modal-content" style="width: 450px;">
+            <h2 id="tituloModalGrupo" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">➕ Criar Nova Linha</h2>
+
+            <input type="hidden" id="editGrupoId">
+
+            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Nome da Linha (Grupo):</label>
+            <input type="text" id="inputGrupoNome" class="input-edit" placeholder="Ex: Grupo de Chefes Novus D" style="width: 100%; margin-bottom: 15px; text-align: left;">
+
+            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Mecânica de Surgimento:</label>
+            <select id="inputGrupoTipoRespawn" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;" onchange="toggleCamposGrupo()">
+                <option value="intervalo">⏱️ Intervalo Fixo (Ex: a cada 48h)</option>
+                <option value="diario">☀️ Diário (Todos os dias no mesmo horário)</option>
+                <option value="semanal">📅 Semanal (Apenas em dias específicos)</option>
+            </select>
+
+            <!-- CAMPOS DINÂMICOS - INTERVALO -->
+            <div id="divGrupoIntervalo" style="display: block;">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horas do Intervalo (Nascimento a Nascimento):</label>
+                <input type="number" id="inputGrupoHoras" class="input-edit" placeholder="42" value="42" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário Base (Ancoragem):</label>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Insira a última vez que essa linha nasceu/morreu para que o sistema preveja os próximos ciclos.</p>
+                <input type="datetime-local" id="inputGrupoAncoragem" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
+            </div>
+
+            <!-- CAMPOS DINÂMICOS - HORÁRIOS FIXOS -->
+            <div id="divGrupoHorarios" style="display: none;">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário(s) de Nascimento:</label>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Se eles nascerem mais de uma vez ao dia, separe por vírgula (Ex: 16:00, 22:30).</p>
+                <input type="text" id="inputGrupoHorarios" class="input-edit" placeholder="16:00, 22:30" style="width: 100%; margin-bottom: 15px; text-align: left;">
+            </div>
+
+            <!-- CAMPOS DINÂMICOS - DIAS DA SEMANA -->
+            <div id="divGrupoDias" style="display: none; margin-bottom: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 6px;">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 10px;">Em quais dias da semana essa linha nasce?</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="0" style="accent-color: var(--neon-cyan);"> Domingo</label>
+                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="1" style="accent-color: var(--neon-cyan);"> Segunda-feira</label>
+                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="2" style="accent-color: var(--neon-cyan);"> Terça-feira</label>
+                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="3" style="accent-color: var(--neon-cyan);"> Quarta-feira</label>
+                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="4" style="accent-color: var(--neon-cyan);"> Quinta-feira</label>
+                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="5" style="accent-color: var(--neon-cyan);"> Sexta-feira</label>
+                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="6" style="accent-color: var(--neon-cyan);"> Sábado</label>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCadastrarGrupo')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarGrupo()">💾 Salvar Linha</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE GERENCIAR TODAS AS LINHAS (GRUPOS) -->
+    <div id="modalGerenciarGrupos" class="modal-overlay" style="z-index: 110;">
+        <div class="modal-content" style="width: 600px;">
+            <h2 style="color: #f1c40f; margin-top: 0; text-align: center;">⚙️ Gerenciar Linhas de Tempo</h2>
+            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Edite as configurações de tempo das linhas. Todos os chefes vinculados a ela serão atualizados automaticamente.</p>
+
+            <div id="listaGerenciarGrupos" style="max-height: 400px; overflow-y: auto; text-align: left; padding-right: 10px;">
+                <!-- JS injeta a lista aqui -->
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalGerenciarGrupos')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CADASTRAR/EDITAR CHEFE (VINCULADO) -->
     <div id="modalCadastrarBoss" class="modal-overlay" style="z-index: 120;">
         <div class="modal-content" style="width: 450px;">
             <h2 id="tituloModalBoss" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">➕ Cadastrar Novo Chefe</h2>
@@ -698,70 +764,23 @@
             <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Localização:</label>
             <input type="text" id="inputBossLocal" class="input-edit" placeholder="Ex: Fábrica de Munições" style="width: 100%; margin-bottom: 15px; text-align: left;">
 
-            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Nome do Grupo (Categoria):</label>
-            <input type="text" id="inputBossGrupo" class="input-edit" list="listaGrupos" placeholder="Ex: Grupo de Chefes Novus D" style="width: 100%; margin-bottom: 15px; text-align: left;">
-            <datalist id="listaGrupos">
-                <option value="Grupo de Chefes Novus A">
-                <option value="Grupo de Chefes Novus B">
-                <option value="Grupo de Chefes Novus C">
-                <option value="Grupo de Chefes Novus D">
-                <option value="Grupo de Chefes Novus E">
-                <option value="Grupo de Chefes Novus F">
-                <option value="Chefe Mundial">
-                <option value="Chefe de Masmorra">
-                <option value="Chefe de Campo de Batalha">
-            </datalist>
-
-            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Mecânica de Surgimento:</label>
-            <select id="inputBossTipoRespawn" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;" onchange="toggleCamposBoss()">
-                <option value="intervalo">⏱️ Intervalo Fixo (Ex: a cada 48h)</option>
-                <option value="diario">☀️ Diário (Todos os dias no mesmo horário)</option>
-                <option value="semanal">📅 Semanal (Apenas em dias específicos)</option>
+            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Vincular à Linha (Grupo de Tempo):</label>
+            <select id="inputBossGrupoId" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;">
+                <!-- Preenchido via JS dinamicamente -->
             </select>
 
-            <!-- CAMPOS DINÂMICOS - INTERVALO -->
-            <div id="divBossIntervalo" style="display: block;">
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horas do Intervalo (Nascimento a Nascimento):</label>
-                <input type="number" id="inputBossHoras" class="input-edit" placeholder="42" value="42" style="width: 100%; margin-bottom: 15px; text-align: left;">
-                
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário Base (Ancoragem):</label>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Insira a última vez que ele nasceu/morreu para que o sistema adicione as horas e preveja os próximos cronômetros.</p>
-                <input type="datetime-local" id="inputBossAncoragem" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
-            </div>
-
-            <!-- CAMPOS DINÂMICOS - HORÁRIOS FIXOS -->
-            <div id="divBossHorarios" style="display: none;">
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário(s) de Nascimento:</label>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Se ele nascer mais de uma vez ao dia, separe por vírgula (Ex: 16:00, 22:30).</p>
-                <input type="text" id="inputBossHorarios" class="input-edit" placeholder="16:00, 22:30" style="width: 100%; margin-bottom: 15px; text-align: left;">
-            </div>
-
-            <!-- CAMPOS DINÂMICOS - DIAS DA SEMANA -->
-            <div id="divBossDias" style="display: none; margin-bottom: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 6px;">
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 10px;">Em quais dias da semana ele nasce?</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-boss" value="0" style="accent-color: var(--neon-cyan);"> Domingo</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-boss" value="1" style="accent-color: var(--neon-cyan);"> Segunda-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-boss" value="2" style="accent-color: var(--neon-cyan);"> Terça-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-boss" value="3" style="accent-color: var(--neon-cyan);"> Quarta-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-boss" value="4" style="accent-color: var(--neon-cyan);"> Quinta-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-boss" value="5" style="accent-color: var(--neon-cyan);"> Sexta-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-boss" value="6" style="accent-color: var(--neon-cyan);"> Sábado</label>
-                </div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+            <div style="display: flex; justify-content: space-between;">
                 <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCadastrarBoss')">Cancelar</button>
                 <button class="btn btn-success" onclick="salvarNovoBoss()">💾 Salvar Chefe</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DE GERENCIAR TODOS OS BOSSES (NOVO) -->
+    <!-- MODAL DE GERENCIAR TODOS OS BOSSES -->
     <div id="modalGerenciarBosses" class="modal-overlay" style="z-index: 110;">
         <div class="modal-content" style="width: 600px;">
-            <h2 style="color: #f1c40f; margin-top: 0; text-align: center;">⚙️ Gerenciar Banco de Chefes</h2>
-            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Edite as configurações ou exclua qualquer chefe cadastrado no sistema, incluindo os que não estão na escala desta semana.</p>
+            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">⚙️ Gerenciar Banco de Chefes</h2>
+            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Edite as configurações de nome e localização, ou altere a qual Linha de Tempo ele pertence.</p>
 
             <div id="listaGerenciarBosses" style="max-height: 400px; overflow-y: auto; text-align: left; padding-right: 10px;">
                 <!-- JS injeta a lista aqui -->
@@ -776,7 +795,7 @@
     <!-- MODAL DE SELECIONAR BOSSES DA SEMANA -->
     <div id="modalSelecionarBosses" class="modal-overlay">
         <div class="modal-content" style="width: 500px;">
-            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">🔄 Definir Bosses da Semana</h2>
+            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">🔄 Definir Escala da Semana</h2>
             <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Marque apenas os chefes que pertencem à Guilda Vortex nesta rotação semanal.</p>
 
             <div id="listaBossesSelecao" style="display: grid; grid-template-columns: 1fr; gap: 10px; max-height: 350px; overflow-y: auto; padding-right: 10px; margin-bottom: 25px; text-align: left;">
@@ -789,8 +808,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- DEMAIS MODALS -->
+    <!-- DEMAIS MODALS... -->
     <div id="modalImportacao" class="modal-overlay">
         <div class="modal-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
@@ -1091,11 +1111,9 @@
         </div>
     </div>
 
-    {% endif %}
-
     </div>
 
-    <!-- Script de Tradução do Google e Dashboard Engine -->
+    <!-- Script de Tradução do Google -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ asset_version('js/dashboard.js') }}"></script>
     <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
