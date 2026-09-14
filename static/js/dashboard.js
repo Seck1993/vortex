@@ -1231,20 +1231,21 @@ function renderizarCardsBossesGlobais() {
             } else {
                 const grupos = {};
                 bossesNossos.forEach(b => {
-                    if(!grupos[b.grupo]) grupos[b.grupo] = [];
-                    grupos[b.grupo].push(b);
+                    let g = b.grupo || "Outros Chefes";
+                    if(!grupos[g]) grupos[g] = [];
+                    grupos[g].push(b);
                 });
 
                 for(let grupo in grupos) {
                     let divGrupo = document.createElement('div');
                     divGrupo.style.cssText = "grid-column: 1 / -1; margin-top: 15px;";
-                    divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px;">🗡️ ${grupo}</h3>`;
+                    divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">🗡️ ${grupo}</h3>`;
                     
                     let divGridInterno = document.createElement('div');
                     divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;";
                     
                     grupos[grupo].forEach(b => {
-                        let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 22px; color: var(--neon-orange); font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.6); padding: 10px; text-align: center; border-radius: 4px; border: 1px dashed var(--neon-orange);">Calculando...</div>`;
+                        let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria || ''}" data-dias="${b.dias_semana || ''}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 22px; color: var(--neon-orange); font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.6); padding: 10px; text-align: center; border-radius: 4px; border: 1px dashed var(--neon-orange);">Calculando...</div>`;
                         
                         let card = document.createElement('div');
                         card.style.cssText = "background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 6px; padding: 20px; position: relative; display: flex; flex-direction: column; justify-content: center;";
@@ -1269,8 +1270,9 @@ function renderizarCardsBossesGlobais() {
                     
                     const gruposSelecao = {};
                     listaBossesGlobais.forEach(b => {
-                        if(!gruposSelecao[b.grupo]) gruposSelecao[b.grupo] = [];
-                        gruposSelecao[b.grupo].push(b);
+                        let g = b.grupo || "Outros Chefes";
+                        if(!gruposSelecao[g]) gruposSelecao[g] = [];
+                        gruposSelecao[g].push(b);
                     });
 
                     for(let g in gruposSelecao) {
@@ -1304,9 +1306,18 @@ document.addEventListener('DOMContentLoaded', () => {
     renderizarCardsBossesGlobais();
 });
 
+// MOTOR DE TEMPO REFATORADO (CORRIGE NAN)
+function formatTimeDiff(diff) {
+    const horas = Math.floor(diff / (1000 * 60 * 60));
+    const min = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seg = Math.floor((diff % (1000 * 60)) / 1000);
+    return `${horas.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+}
+
 setInterval(() => {
     const timers = document.querySelectorAll('.boss-timer');
     const agora = Date.now();
+    const dtAgora = new Date();
 
     timers.forEach(timer => {
         const tipo = timer.getAttribute('data-tipo');
@@ -1314,8 +1325,9 @@ setInterval(() => {
         if (tipo === 'intervalo') {
             const ancoraMs = parseInt(timer.getAttribute('data-ancora'));
             const horasIntervalo = parseInt(timer.getAttribute('data-horas'));
-            const intervaloMs = horasIntervalo * 60 * 60 * 1000;
+            if(isNaN(ancoraMs) || isNaN(horasIntervalo)) { timer.innerText = "Dados Inválidos"; return; }
             
+            const intervaloMs = horasIntervalo * 60 * 60 * 1000;
             let proximoNascimento = ancoraMs;
             
             if (proximoNascimento <= agora) {
@@ -1325,35 +1337,65 @@ setInterval(() => {
             }
             
             const diff = proximoNascimento - agora;
+            timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
+            timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-orange)';
             
-            const horasFaltando = Math.floor(diff / (1000 * 60 * 60));
-            const minFaltando = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const segFaltando = Math.floor((diff % (1000 * 60)) / 1000);
-            
-            timer.innerText = `⏳ ${horasFaltando.toString().padStart(2, '0')}:${minFaltando.toString().padStart(2, '0')}:${segFaltando.toString().padStart(2, '0')}`;
-            timer.style.color = horasFaltando < 1 ? 'var(--neon-red)' : 'var(--neon-orange)';
-            
-        } else if (tipo === 'diario_fixo') {
+        } else if (tipo === 'diario' || tipo === 'diario_fixo') {
             const horaStr = timer.getAttribute('data-diaria');
-            if(!horaStr) {
-                timer.innerText = "Horário Inválido"; return;
+            if(!horaStr || horaStr === "null") { timer.innerText = "Sem Horário"; return; }
+            
+            const horarios = horaStr.split(',').map(h => h.trim());
+            let alvos = [];
+            
+            for(let h of horarios) {
+                let partes = h.split(':');
+                if(partes.length < 2) continue;
+                let d = new Date(dtAgora);
+                d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
+                
+                if (d.getTime() > agora) { alvos.push(d); } 
+                else {
+                    let d2 = new Date(d);
+                    d2.setDate(d2.getDate() + 1);
+                    alvos.push(d2);
+                }
             }
+            if(alvos.length === 0) { timer.innerText = "Erro"; return; }
+            alvos.sort((a, b) => a.getTime() - b.getTime());
             
-            const partes = horaStr.split(':');
-            let alvo = new Date();
-            alvo.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
+            const diff = alvos[0].getTime() - agora;
+            timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
+            timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-cyan)';
             
-            if (alvo.getTime() <= agora) {
-                alvo.setDate(alvo.getDate() + 1);
+        } else if (tipo === 'semanal') {
+            const horaStr = timer.getAttribute('data-diaria');
+            const diasStr = timer.getAttribute('data-dias');
+            if(!horaStr || horaStr === "null" || !diasStr || diasStr === "null") { timer.innerText = "Sem Config"; return; }
+            
+            const horarios = horaStr.split(',').map(h => h.trim());
+            const diasPermitidos = diasStr.split(',').map(d => parseInt(d));
+            let alvos = [];
+            
+            for (let i = 0; i <= 7; i++) {
+                let tempDate = new Date(dtAgora);
+                tempDate.setDate(tempDate.getDate() + i);
+                
+                if (diasPermitidos.includes(tempDate.getDay())) {
+                    for(let h of horarios) {
+                        let partes = h.split(':');
+                        if(partes.length < 2) continue;
+                        let d = new Date(tempDate);
+                        d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
+                        if (d.getTime() > agora) { alvos.push(d); }
+                    }
+                }
             }
+            if(alvos.length === 0) { timer.innerText = "Erro"; return; }
+            alvos.sort((a, b) => a.getTime() - b.getTime());
             
-            const diff = alvo.getTime() - agora;
-            const horasFaltando = Math.floor(diff / (1000 * 60 * 60));
-            const minFaltando = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const segFaltando = Math.floor((diff % (1000 * 60)) / 1000);
-            
-            timer.innerText = `⏳ ${horasFaltando.toString().padStart(2, '0')}:${minFaltando.toString().padStart(2, '0')}:${segFaltando.toString().padStart(2, '0')}`;
-            timer.style.color = horasFaltando < 1 ? 'var(--neon-red)' : 'var(--neon-cyan)';
+            const diff = alvos[0].getTime() - agora;
+            timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
+            timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : '#bc13fe';
         }
     });
     
@@ -1365,47 +1407,45 @@ setInterval(() => {
 
 }, 1000);
 
+function toggleCamposBoss() {
+    const tipo = document.getElementById('inputBossTipoRespawn').value;
+    document.getElementById('divBossIntervalo').style.display = tipo === 'intervalo' ? 'block' : 'none';
+    document.getElementById('divBossHorarios').style.display = (tipo === 'diario' || tipo === 'semanal') ? 'block' : 'none';
+    document.getElementById('divBossDias').style.display = tipo === 'semanal' ? 'block' : 'none';
+}
+
 async function salvarNovoBoss() {
     const nome = document.getElementById('inputBossNome').value.trim();
     const local = document.getElementById('inputBossLocal').value.trim();
+    const grupo = document.getElementById('inputBossGrupo').value.trim() || 'Sem Grupo';
     const tipo = document.getElementById('inputBossTipoRespawn').value;
-    let horas = 42;
-    let horaDiaria = null;
-    
-    if(tipo.startsWith('intervalo')) {
-        horas = parseInt(tipo.split('_')[1]);
-    }
-    
-    const ancoraInput = document.getElementById('inputBossAncoragem').value;
-    let ancoraStr = "";
-    if (ancoraInput) {
-        // Converte a data local do computador para String ISO na conversão exata do Fuso (UTC)
-        const localDate = new Date(ancoraInput);
-        ancoraStr = localDate.toISOString().slice(0, 16); 
-    } else {
-        mostrarToast("Por favor, insira a Data e Horário Base (Ancoragem).", "aviso");
-        return;
-    }
     
     if(!nome) { mostrarToast("O nome do chefe é obrigatório.", "aviso"); return; }
     
-    let grupo = "Sem Grupo";
-    if (nome.toLowerCase().includes("tamac") || nome.toLowerCase().includes("eternal") || nome.toLowerCase().includes("locust") || nome.toLowerCase().includes("pinça") || nome.toLowerCase().includes("vastus") || nome.toLowerCase().includes("novus d")) {
-        grupo = "Grupo de Chefes Novus D";
-    } else if (nome.toLowerCase().includes("guerra") || nome.toLowerCase().includes("ertelem") || nome.toLowerCase().includes("ravenous") || nome.toLowerCase().includes("gancho") || nome.toLowerCase().includes("novus e")) {
-        grupo = "Grupo de Chefes Novus E";
-    } else {
-        grupo = "Outros Chefes";
-    }
+    let payload = { nome: nome, local: local, grupo: grupo, tipo_respawn: tipo };
 
-    const payload = {
-        nome: nome,
-        local: local,
-        grupo: grupo,
-        tipo_respawn: tipo.startsWith('intervalo') ? 'intervalo' : 'diario_fixo',
-        intervalo_horas: horas,
-        horario_ancora: ancoraStr 
-    };
+    if (tipo === 'intervalo') {
+        payload.intervalo_horas = parseInt(document.getElementById('inputBossHoras').value) || 42;
+        const ancoraInput = document.getElementById('inputBossAncoragem').value;
+        if (!ancoraInput) { mostrarToast("Insira o horário de ancoragem da última morte/nascimento.", "aviso"); return; }
+        const localDate = new Date(ancoraInput);
+        payload.horario_ancora = localDate.toISOString().slice(0, 16);
+    } 
+    else if (tipo === 'diario') {
+        const horarios = document.getElementById('inputBossHorarios').value.trim();
+        if(!horarios) { mostrarToast("Preencha o(s) horário(s).", "aviso"); return; }
+        payload.hora_diaria = horarios;
+    } 
+    else if (tipo === 'semanal') {
+        const horarios = document.getElementById('inputBossHorarios').value.trim();
+        if(!horarios) { mostrarToast("Preencha o(s) horário(s).", "aviso"); return; }
+        payload.hora_diaria = horarios;
+        
+        let diasEscolhidos = [];
+        document.querySelectorAll('.check-dia-boss:checked').forEach(cb => diasEscolhidos.push(cb.value));
+        if(diasEscolhidos.length === 0) { mostrarToast("Selecione ao menos um dia da semana.", "aviso"); return; }
+        payload.dias_semana = diasEscolhidos.join(',');
+    }
 
     try {
         const response = await fetch('/api/criar-boss', {
@@ -1413,11 +1453,17 @@ async function salvarNovoBoss() {
         });
         if (response.ok) {
             fecharModal('modalCadastrarBoss');
-            document.getElementById('inputBossNome').value = '';
-            document.getElementById('inputBossLocal').value = '';
-            document.getElementById('inputBossAncoragem').value = '';
             renderizarCardsBossesGlobais();
             mostrarToast("Chefe cadastrado com sucesso!", "sucesso");
+            
+            // Limpa form
+            document.getElementById('inputBossNome').value = '';
+            document.getElementById('inputBossLocal').value = '';
+            document.getElementById('inputBossGrupo').value = '';
+            document.getElementById('inputBossHorarios').value = '';
+            document.getElementById('inputBossAncoragem').value = '';
+            document.querySelectorAll('.check-dia-boss').forEach(cb => cb.checked = false);
+            
         } else {
             mostrarToast("Falha ao salvar chefe.", "erro");
         }
