@@ -498,7 +498,7 @@ async function confirmarAbono() {
 function abrirModalAposta(itemId, nomeItem, maxPontos) {
     document.getElementById('apostaItemId').value = itemId;
     document.getElementById('labelItemAposta').innerText = nomeItem;
-    document.getElementById('labelMaxPontos').innerText = `O custo para ter 100% de chance é de ${maxPontos} pts. (Mínimo de 90% de participação semanal exigido).`;
+    document.getElementById('labelMaxPontos').innerText = `O custo para ter 100% de chance é de ${maxPontos} pts. (Mínimo de 90% participation semanal exigido).`;
     document.getElementById('apostaPontos').value = '';
     document.getElementById('apostaJogadorId').selectedIndex = 0;
     abrirModal('modalAposta');
@@ -980,13 +980,12 @@ async function deletarHistoricoMeme(id) {
     if (response.ok) { await atualizarDados(); mostrarToast('Registro purgado.', 'info'); }
 }
 
-/* --- LÓGICA DA ESCALA DE BOSSES (RESTRUTURADA PARA LINHAS) --- */
+/* --- LÓGICA DA ESCALA DE BOSSES (RESTRUTURADA PARA LINHAS E FUSO BRT) --- */
 let listaBossesGlobais = [];
 let listaGruposGlobais = [];
 let isRerenderingBosses = false;
 
 // O motor foi refatorado para converter qualquer input/cálculo nativamente para o fuso horário oficial de Brasília (BRT / UTC-3).
-// Isso garante que membros acessando de qualquer lugar do mundo (ou com Windows desconfigurado) vejam exatamente as mesmas datas e horas do servidor.
 function parseBRT(horaStr, offsetDias = 0) {
     const offsetDate = new Date(Date.now() - 3 * 3600000); 
     const year = offsetDate.getUTCFullYear();
@@ -1043,6 +1042,26 @@ function getNextSpawnInfo(b, agoraMs) {
         if(alvos.length > 0) proximoNascimento = Math.min(...alvos);
     }
     return proximoNascimento;
+}
+
+// Formata a string de "HOJE ÀS 20:00" ou "DD/MM ÀS HH:MM" baseada no Timestamp BRT
+function formatSpawnDate(timestamp) {
+    const dBRT = new Date(timestamp - 3 * 3600000);
+    const hojeBRT = new Date(Date.now() - 3 * 3600000);
+    const amanhaBRT = new Date(Date.now() - 3 * 3600000 + 86400000);
+
+    const isHoje = dBRT.getUTCFullYear() === hojeBRT.getUTCFullYear() && dBRT.getUTCMonth() === hojeBRT.getUTCMonth() && dBRT.getUTCDate() === hojeBRT.getUTCDate();
+    const isAmanha = dBRT.getUTCFullYear() === amanhaBRT.getUTCFullYear() && dBRT.getUTCMonth() === amanhaBRT.getUTCMonth() && dBRT.getUTCDate() === amanhaBRT.getUTCDate();
+
+    const hh = dBRT.getUTCHours().toString().padStart(2, '0');
+    const mm = dBRT.getUTCMinutes().toString().padStart(2, '0');
+
+    if (isHoje) return `HOJE ÀS ${hh}:${mm}`;
+    if (isAmanha) return `AMANHÃ ÀS ${hh}:${mm}`;
+    
+    const dd = dBRT.getUTCDate().toString().padStart(2, '0');
+    const mes = (dBRT.getUTCMonth() + 1).toString().padStart(2, '0');
+    return `${dd}/${mes} ÀS ${hh}:${mm}`;
 }
 
 async function carregarListasDeChefesEGrupos() {
@@ -1121,19 +1140,29 @@ async function renderizarCardsBossesGlobais() {
         
         groupData.bosses.forEach(b => {
             let card = document.createElement('div');
+            // Removemos a classe .banner-destaque e substituímos por .boss-card-wrapper
             card.className = 'boss-card-wrapper';
             card.style.cssText = "display: flex; align-items: center; gap: 15px; padding: 15px 20px; background: rgba(0, 243, 255, 0.05); border: 2px solid rgba(0, 243, 255, 0.4); border-radius: 8px; box-shadow: 0 0 15px rgba(0, 243, 255, 0.05); position: relative; width: 100%; box-sizing: border-box;";
             card.setAttribute('data-next-spawn', b.nextSpawn);
             
             let btnAdmin = isAdminVisual ? `<button class="btn-danger" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px; font-size: 12px; height: auto;" onclick="deletarBoss(${b.id})" title="Apagar do Banco de Dados">✖</button>` : '';
 
+            let realTimeStr = "Data Inválida";
+            if (!isNaN(b.nextSpawn) && b.nextSpawn !== null) {
+                realTimeStr = formatSpawnDate(b.nextSpawn);
+            }
+
             card.innerHTML = `
                 <div class="icone" style="font-size: 35px; text-shadow: 0 0 10px var(--neon-cyan);">😈</div>
                 <div class="info" style="flex: 1;">
                     <div style="display: inline-block; background: rgba(255, 170, 0, 0.15); color: var(--neon-orange); border: 1px solid var(--neon-orange); padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase;">🛡️ ${b.grupo || 'Sem Grupo'}</div>
                     <div class="nome" style="color: #fff; font-size: 20px; font-weight: bold; margin-bottom: 4px; text-shadow: 0 0 5px rgba(255,255,255,0.2); padding-right: 25px;">${b.nome}</div>
-                    <div class="classe" style="color: var(--text-muted); font-size: 14px; margin-bottom: 8px;">📍 ${b.local}</div>
-                    <div class="boss-timer" data-next-spawn="${b.nextSpawn}" style="color: var(--neon-cyan); font-size: 20px; font-weight: bold; font-family: monospace;">⏳ Calculando...</div>
+                    <div class="classe" style="color: var(--text-muted); font-size: 14px; margin-bottom: 12px;">📍 ${b.local}</div>
+                    
+                    <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); text-align: left; border-left: 3px solid var(--neon-cyan);">
+                        <div style="color: #fff; font-size: 16px; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px;">📅 ${realTimeStr}</div>
+                        <div class="boss-timer" data-next-spawn="${b.nextSpawn}" style="color: var(--neon-cyan); font-size: 15px; font-weight: bold;">⏳ Calculando...</div>
+                    </div>
                 </div>
                 ${btnAdmin}
             `;
@@ -1205,8 +1234,9 @@ function formatTimeDiff(diff) {
     const min = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seg = Math.floor((diff % (1000 * 60)) / 1000);
     
-    if (dias > 0) return `⏳ ${dias}d ${horas.toString().padStart(2, '0')}h ${min.toString().padStart(2, '0')}m`;
-    return `⏳ ${horas.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+    if (dias > 0) return `FALTAM ${dias} Dia${dias > 1 ? 's' : ''}, ${horas.toString().padStart(2, '0')}h e ${min.toString().padStart(2, '0')}m`;
+    if (horas > 0) return `FALTAM ${horas.toString().padStart(2, '0')} Horas e ${min.toString().padStart(2, '0')} Minutos`;
+    return `FALTAM ${min.toString().padStart(2, '0')} Minutos e ${seg.toString().padStart(2, '0')} Segs`;
 }
 
 setInterval(() => {
@@ -1221,7 +1251,7 @@ setInterval(() => {
         if (diff <= 0) {
             precisaRerender = true;
         } else {
-            timer.innerText = formatTimeDiff(diff);
+            timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
             timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-cyan)';
         }
     });
