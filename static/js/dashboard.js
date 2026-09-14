@@ -50,7 +50,7 @@ function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
 function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 function fecharModalEAtualizar() { fecharModal('modalRoletaMeme'); atualizarDados(); }
 
-/* --- SISTEMA DE TOASTS (substitui alert()) --- */
+/* --- SISTEMA DE TOASTS --- */
 function mostrarToast(mensagem, tipo = 'info', duracao = 4500) {
     const container = document.getElementById('toastContainer');
     if (!container) { console.warn(mensagem); return; }
@@ -68,7 +68,6 @@ function mostrarToast(mensagem, tipo = 'info', duracao = 4500) {
     }, duracao);
 }
 
-/* --- ATUALIZAÇÃO DE DADOS SEM RECARREGAR A PÁGINA --- */
 async function atualizarDados() {
     try {
         const resp = await fetch(window.location.pathname, { cache: 'no-store' });
@@ -116,28 +115,23 @@ async function atualizarElementoParcial(elementId) {
     if (novo && atual) atual.innerHTML = novo.innerHTML;
 }
 
-/* --- CRONÔMETRO DIGITAL DE BANNER --- */
 function atualizarCronometros() {
     const timerDisplay = document.getElementById('timerDisplay');
     if (!timerDisplay) return;
-
     const prazoRaw = timerDisplay.getAttribute('data-prazo');
     if (!prazoRaw || prazoRaw.trim() === "") {
         timerDisplay.innerText = "SEM TEMPO LIMITE";
         timerDisplay.style.fontSize = "26px";
         return;
     }
-
     const prazo = parseFloat(prazoRaw);
     if (isNaN(prazo)) {
         timerDisplay.innerText = "ENCERRADO";
         timerDisplay.style.color = "var(--neon-red)";
         return;
     }
-
     const agora = Date.now();
     const diff = prazo - agora;
-
     if (diff <= 0) {
         timerDisplay.innerText = "TEMPO ENCERRADO";
         timerDisplay.style.color = "var(--neon-red)";
@@ -161,7 +155,7 @@ async function fazerLogin() {
         });
         if (response.ok) { fecharModal('modalLogin'); document.getElementById('senhaAdmin').value = ''; btn.innerText = 'Autenticar'; await atualizarDados(); mostrarToast('Acesso autorizado!', 'sucesso'); }
         else { mostrarToast('Acesso Negado: Credencial Inválida', 'erro'); btn.innerText = 'Autenticar'; }
-    } catch (e) { mostrarToast('Falha de conexão com o servidor matriz.', 'erro'); btn.innerText = 'Autenticar'; }
+    } catch (e) { mostrarToast('Falha de conexão.', 'erro'); btn.innerText = 'Autenticar'; }
 }
 
 async function fazerLogout() {
@@ -171,7 +165,6 @@ async function fazerLogout() {
     } catch (e) { mostrarToast('Erro de conexão', 'erro'); }
 }
 
-/* --- LOGICA DE RÉGUAS MEGA E TITÃ E FILTROS --- */
 function aplicarLinhasPoder() {
     const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
     const cpTita = parseInt(document.getElementById('inputTitaCP').value) || 0;
@@ -242,7 +235,6 @@ function aplicarLinhasPoder() {
 
         linhasClasses.forEach(linha => {
             const cp = parseInt(linha.getAttribute('data-poder')) || 0;
-
             const nomeCell = linha.cells[1].innerText.trim();
             const selectElement = linha.querySelector('.edit-classe');
             const hiddenClasse = linha.querySelector('input[type="hidden"].edit-classe');
@@ -291,7 +283,6 @@ function aplicarLinhasPoder() {
     }
 }
 
-/* --- PAGINAÇÃO (CLIENTE) --- */
 const ITENS_POR_PAGINA_HISTORICO = 10;
 const estadoPaginacao = {};
 
@@ -358,7 +349,7 @@ function filtrarTabelaClasses() {
     document.querySelectorAll('#abaClasses .linha-mega, #abaClasses .linha-tita').forEach(el => el.style.display = filtro === "Todas" ? "" : "none");
 }
 
-/* --- LÓGICA DE EVENTOS (BANNER E APOSTAS) --- */
+/* --- EVENTOS (BANNER E APOSTAS) --- */
 function adicionarCampoItem() {
     const container = document.getElementById('listaItensCriacao');
     const index = container.children.length + 1;
@@ -399,73 +390,37 @@ async function salvarNovoEvento() {
         body: JSON.stringify({ titulo: titulo, prazo: prazoTimestamp, itens: itens })
     });
     if(response.ok) { fecharModal('modalCriarEvento'); await atualizarDados(); mostrarToast('Banner de sorteio publicado!', 'sucesso'); }
-    else { mostrarToast('Falha ao publicar o banner.', 'erro'); }
+    else { mostrarToast('Falha ao publicar.', 'erro'); }
 }
 
 async function encerrarEvento() {
     if(!confirm("Encerrar o banner sumirá com ele da tela. Continuar?")) return;
     await fetch('/api/encerrar-banner', {method: 'POST'});
     await atualizarDados();
-    mostrarToast('Evento encerrado. Pontos estornados aos jogadores.', 'info');
+    mostrarToast('Evento encerrado.', 'info');
 }
 
 async function confirmarExtensaoTempo() {
     const horasSelect = document.getElementById('extensaoTempo');
     if(!horasSelect) return;
     const horas = horasSelect.value;
-
     try {
-        const response = await fetch('/api/estender-banner', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ horas: horas })
-        });
+        const response = await fetch('/api/estender-banner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ horas: horas }) });
         const data = await response.json();
-        
-        if (response.ok) {
-            fecharModal('modalEstenderTempo');
-            await atualizarDados();
-            mostrarToast(data.mensagem, 'sucesso');
-        } else {
-            mostrarToast('Falha: ' + data.erro, 'erro');
-        }
-    } catch (e) {
-        mostrarToast('Erro de rede.', 'erro');
-    }
+        if (response.ok) { fecharModal('modalEstenderTempo'); await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast('Falha: ' + data.erro, 'erro'); }
+    } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
 async function salvarNovasSenhas() {
     const novaAdmin = document.getElementById('inputNovaSenhaAdmin').value;
     const novaMembro = document.getElementById('inputNovaSenhaMembro').value;
-
-    if (!novaAdmin || !novaMembro) {
-        mostrarToast('Ambos os campos de senha devem ser preenchidos.', 'aviso');
-        return;
-    }
-
-    if (!confirm("ATENÇÃO: Isso desconectará imediatamente todos os usuários ativos, incluindo você. Confirma a alteração?")) {
-        return;
-    }
-
+    if (!novaAdmin || !novaMembro) { mostrarToast('Ambos os campos de senha devem ser preenchidos.', 'aviso'); return; }
+    if (!confirm("Isso desconectará imediatamente todos os usuários ativos. Confirma?")) return;
     try {
-        const response = await fetch('/api/alterar-senhas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ senha_admin: novaAdmin, senha_membro: novaMembro })
-        });
-
+        const response = await fetch('/api/alterar-senhas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha_admin: novaAdmin, senha_membro: novaMembro }) });
         const data = await response.json();
-        
-        if (response.ok) {
-            fecharModal('modalSenhas');
-            mostrarToast(data.mensagem, 'sucesso');
-            setTimeout(() => { window.location.reload(); }, 2000);
-        } else {
-            mostrarToast('Falha: ' + data.erro, 'erro');
-        }
-    } catch (e) {
-        mostrarToast('Erro de rede.', 'erro');
-    }
+        if (response.ok) { fecharModal('modalSenhas'); mostrarToast(data.mensagem, 'sucesso'); setTimeout(() => { window.location.reload(); }, 2000); } else { mostrarToast('Falha: ' + data.erro, 'erro'); }
+    } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
 function abrirModalEditarPersonagem(jogadorId, nome, level, poder) {
@@ -480,19 +435,9 @@ async function salvarEdicaoPersonagem() {
     const jogadorId = document.getElementById('editPersonagemId').value;
     const level = document.getElementById('editPersonagemLevel').value;
     const poder = document.getElementById('editPersonagemPoder').value;
-
     try {
-        const response = await fetch('/api/editar-jogadores', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jogadores: [{ id: jogadorId, level: level, poder_combate: poder }] })
-        });
-        if (response.ok) {
-            fecharModal('modalEditarPersonagem');
-            await atualizarDados();
-            mostrarToast('Personagem atualizado com sucesso!', 'sucesso');
-        } else {
-            mostrarToast('Falha ao atualizar personagem.', 'erro');
-        }
+        const response = await fetch('/api/editar-jogadores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: [{ id: jogadorId, level: level, poder_combate: poder }] }) });
+        if (response.ok) { fecharModal('modalEditarPersonagem'); await atualizarDados(); mostrarToast('Personagem atualizado com sucesso!', 'sucesso'); } else { mostrarToast('Falha ao atualizar personagem.', 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
@@ -512,9 +457,8 @@ function abrirModalEditarBuild(jogadorId, nome, classe, s4, s5, s6, s7, c3, c4, 
 }
 
 async function salvarEdicaoBuild() {
-    const jogadorId = document.getElementById('editBuildId').value;
     const payload = {
-        id: jogadorId,
+        id: document.getElementById('editBuildId').value,
         classe: document.getElementById('editBuildClasse').value,
         skill_4: document.getElementById('editBuildS4').checked,
         skill_5: document.getElementById('editBuildS5').checked,
@@ -525,19 +469,9 @@ async function salvarEdicaoBuild() {
         trindade: document.getElementById('editBuildTrin').checked,
         mestre_tecnica: document.getElementById('editBuildMT').checked
     };
-
     try {
-        const response = await fetch('/api/editar-jogadores', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jogadores: [payload] })
-        });
-        if (response.ok) {
-            fecharModal('modalEditarBuild');
-            await atualizarDados();
-            mostrarToast('Build atualizada com sucesso!', 'sucesso');
-        } else {
-            mostrarToast('Falha ao atualizar build.', 'erro');
-        }
+        const response = await fetch('/api/editar-jogadores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: [payload] }) });
+        if (response.ok) { fecharModal('modalEditarBuild'); await atualizarDados(); mostrarToast('Build atualizada com sucesso!', 'sucesso'); } else { mostrarToast('Falha ao atualizar.', 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
@@ -553,26 +487,11 @@ async function confirmarAbono() {
     const jogadorId = document.getElementById('abonoJogadorId').value;
     const pontos = document.getElementById('abonoPontos').value;
     const motivo = document.getElementById('abonoMotivo').value.trim() || 'Abono de Missão (Justificativa)';
-
-    if (!pontos || pontos <= 0) {
-        mostrarToast('Insira uma quantidade válida de pontos para abonar.', 'aviso');
-        return;
-    }
-
+    if (!pontos || pontos <= 0) { mostrarToast('Insira uma quantidade válida de pontos para abonar.', 'aviso'); return; }
     try {
-        const response = await fetch('/api/abonar-falta', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jogador_id: jogadorId, pontos: pontos, motivo: motivo })
-        });
+        const response = await fetch('/api/abonar-falta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogador_id: jogadorId, pontos: pontos, motivo: motivo }) });
         const data = await response.json();
-        
-        if (response.ok) {
-            fecharModal('modalAbono');
-            await atualizarDados();
-            mostrarToast(data.mensagem, 'sucesso');
-        } else {
-            mostrarToast(data.erro, 'erro');
-        }
+        if (response.ok) { fecharModal('modalAbono'); await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast(data.erro, 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
@@ -591,28 +510,16 @@ async function confirmarAposta() {
     const pontos = document.getElementById('apostaPontos').value;
     const itemId = document.getElementById('apostaItemId').value;
 
-    if (!jogadorId) {
-        return mostrarToast("Por favor, selecione o SEU PERSONAGEM na lista antes de apostar!", 'aviso');
-    }
-
-    if (pontos <= 0 || pontos === "") {
-        return mostrarToast("Insira uma pontuação válida para apostar.", 'aviso');
-    }
-
+    if (!jogadorId) return mostrarToast("Selecione o SEU PERSONAGEM na lista antes de apostar!", 'aviso');
+    if (pontos <= 0 || pontos === "") return mostrarToast("Insira uma pontuação válida.", 'aviso');
     const nomeJogadorText = selectElement.options[selectElement.selectedIndex].text;
-    const nomeJogador = nomeJogadorText.split(' (')[0];
+    if (!confirm(`Você realmente é o jogador "${nomeJogadorText.split(' (')[0]}"?\nConfirma sua aposta de ${pontos} pontos neste item?`)) return;
 
-    const confirmacao = confirm(`Você realmente é o jogador "${nomeJogador}"?\n\nConfirma sua aposta de ${pontos} pontos neste item?`);
-    if (!confirmacao) { return; }
-
-    const payload = { item_id: itemId, jogador_id: jogadorId, pontos: pontos };
-
-    const response = await fetch('/api/apostar-item', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    if(response.ok) { fecharModal('modalAposta'); await atualizarDados(); mostrarToast('Aposta registrada com sucesso!', 'sucesso'); } else { mostrarToast(data.erro, 'erro'); }
+    try {
+        const response = await fetch('/api/apostar-item', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ item_id: itemId, jogador_id: jogadorId, pontos: pontos }) });
+        const data = await response.json();
+        if(response.ok) { fecharModal('modalAposta'); await atualizarDados(); mostrarToast('Aposta registrada com sucesso!', 'sucesso'); } else { mostrarToast(data.erro, 'erro'); }
+    } catch(e) { mostrarToast("Erro de conexão.", 'erro'); }
 }
 
 async function removerAposta(apostaId) {
@@ -641,30 +548,25 @@ async function pollSorteioAoVivo() {
 }
 
 setInterval(pollSorteioAoVivo, 2500);
-
 const DELAY_SUSPENSE_ROLETA_MS = 1200;
 
 function abrirModalStaffRoleta(itemId, nomeItem) {
     document.getElementById('staffRoletaItemId').value = itemId;
     document.getElementById('staffRoletaNomeItem').value = nomeItem;
     document.getElementById('novoStaffNome').value = '';
-
     const card = document.querySelector(`.item-card[data-item-id="${itemId}"]`);
     const listaPresentes = document.getElementById('listaJogadoresPresentes');
     listaPresentes.innerHTML = '';
     const apostas = card ? card.querySelectorAll('.lista-apostas-item > span') : [];
-    if (apostas.length === 0) {
-        listaPresentes.innerHTML = '<span>Nenhum jogador apostou neste item ainda.</span>';
-    } else {
+    if (apostas.length === 0) { listaPresentes.innerHTML = '<span>Nenhum jogador apostou neste item ainda.</span>'; } 
+    else {
         apostas.forEach(span => {
-            const nomeTexto = (span.childNodes[0] ? span.childNodes[0].textContent : span.textContent).trim();
             const tag = document.createElement('span');
             tag.style.cssText = 'background: rgba(0,243,255,0.1); border: 1px solid var(--glass-border); padding: 4px 8px; border-radius: 4px; color: #fff;';
-            tag.innerText = nomeTexto;
+            tag.innerText = (span.childNodes[0] ? span.childNodes[0].textContent : span.textContent).trim();
             listaPresentes.appendChild(tag);
         });
     }
-
     abrirModal('modalStaffRoleta');
 }
 
@@ -672,19 +574,10 @@ async function adicionarStaff() {
     const input = document.getElementById('novoStaffNome');
     const nome = input.value.trim();
     if (!nome) { mostrarToast('Digite um nome antes de adicionar.', 'aviso'); return; }
-
     try {
-        const response = await fetch('/api/criar-staff', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: nome })
-        });
+        const response = await fetch('/api/criar-staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: nome }) });
         const data = await response.json();
-        if (response.ok) {
-            input.value = '';
-            await atualizarElementoParcial('listaStaffGerenciamento');
-            mostrarToast('Pessoa adicionada à Staff!', 'sucesso');
-        } else {
-            mostrarToast(data.erro, 'erro');
-        }
+        if (response.ok) { input.value = ''; await atualizarElementoParcial('listaStaffGerenciamento'); mostrarToast('Pessoa adicionada à Staff!', 'sucesso'); } else { mostrarToast(data.erro, 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
@@ -692,34 +585,17 @@ async function removerStaff(id) {
     if (!confirm('Remover esta pessoa da lista de Staff?')) return;
     try {
         const response = await fetch(`/api/deletar-staff/${id}`, { method: 'DELETE' });
-        if (response.ok) {
-            await atualizarElementoParcial('listaStaffGerenciamento');
-            mostrarToast('Removido da Staff.', 'info');
-        } else {
-            const data = await response.json();
-            mostrarToast(data.erro, 'erro');
-        }
+        if (response.ok) { await atualizarElementoParcial('listaStaffGerenciamento'); mostrarToast('Removido da Staff.', 'info'); } else { const data = await response.json(); mostrarToast(data.erro, 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
 async function salvarNomesStaff() {
     const linhas = document.querySelectorAll('#listaStaffGerenciamento .linha-staff-gerenciamento:not(:first-child)');
-    const staffData = Array.from(linhas).map(linha => ({
-        id: linha.getAttribute('data-staff-id'),
-        nome: linha.querySelector('.staff-nome-input').value
-    }));
+    const staffData = Array.from(linhas).map(linha => ({ id: linha.getAttribute('data-staff-id'), nome: linha.querySelector('.staff-nome-input').value }));
     if (staffData.length === 0) { mostrarToast('Nenhuma pessoa cadastrada para salvar.', 'aviso'); return; }
-
     try {
-        const response = await fetch('/api/editar-staff', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ staff: staffData })
-        });
-        if (response.ok) {
-            await atualizarElementoParcial('listaStaffGerenciamento');
-            mostrarToast('Nomes da Staff atualizados!', 'sucesso');
-        } else {
-            mostrarToast('Falha ao salvar nomes.', 'erro');
-        }
+        const response = await fetch('/api/editar-staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ staff: staffData }) });
+        if (response.ok) { await atualizarElementoParcial('listaStaffGerenciamento'); mostrarToast('Nomes da Staff atualizados!', 'sucesso'); } else { mostrarToast('Falha ao salvar nomes.', 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
@@ -727,27 +603,18 @@ async function confirmarStaffEGirarRoleta() {
     const itemId = document.getElementById('staffRoletaItemId').value;
     const nomeItem = document.getElementById('staffRoletaNomeItem').value;
     const radioSelecionado = document.querySelector('input[name="staffSelecionado"]:checked');
-
     fecharModal('modalStaffRoleta');
     await prepararRoletaItem(itemId, nomeItem, radioSelecionado ? radioSelecionado.value : "");
 }
 
 async function prepararRoletaItem(itemId, nomeItem, nomeStaff) {
     try {
-        const response = await fetch('/api/simular-sorteio-item', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ item_id: itemId, nome_staff: nomeStaff })
-        });
+        const response = await fetch('/api/simular-sorteio-item', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ item_id: itemId, nome_staff: nomeStaff }) });
         const data = await response.json();
-
         if (response.ok) {
             dadosSorteioAtual = data;
-            setTimeout(() => {
-                iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem);
-            }, DELAY_SUSPENSE_ROLETA_MS);
-        } else {
-            mostrarToast(data.erro, 'erro');
-        }
+            setTimeout(() => { iniciarAnimacaoRoletaCanvas(data.fatias, data.vencedor_nome, nomeItem); }, DELAY_SUSPENSE_ROLETA_MS);
+        } else { mostrarToast(data.erro, 'erro'); }
     } catch(e) { mostrarToast("Erro de rede.", 'erro'); }
 }
 
@@ -771,10 +638,7 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
         btnFechar.innerText = "Concluir (Pontos Descontados)";
         btnFechar.onclick = async () => {
             btnFechar.innerText = "Salvando..."; btnFechar.disabled = true;
-            await fetch('/api/confirmar-sorteio-item', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(dadosSorteioAtual)
-            });
+            await fetch('/api/confirmar-sorteio-item', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(dadosSorteioAtual) });
             fecharModal('modalRoletaItem');
             roletaIsSpinning = false;
             await atualizarDados();
@@ -790,7 +654,6 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
     const radius = Math.min(centerX, centerY) - 2;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     const cores = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#00f3ff', '#bc13fe', '#ffaa00', '#ff003c', '#10b981'];
     let colorIndex = 0;
 
@@ -799,7 +662,6 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
     for (const [nome, porcentagem] of Object.entries(fatias)) {
         let p = parseFloat(porcentagem);
         if (p <= 0) continue;
-
         let visualP = Math.max(p, 4.0);
         visualFatias[nome] = { realP: p, visualP: visualP };
         totalVisual += visualP;
@@ -812,13 +674,8 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
 
     for (const [nome, dataFat] of Object.entries(visualFatias)) {
         let fatiaVisualDeg = (dataFat.visualP / totalVisual) * 360;
-
-        if (nome === vencedorNome) {
-            startWinDeg = currentDegAcumulado;
-            endWinDeg = currentDegAcumulado + fatiaVisualDeg;
-        }
+        if (nome === vencedorNome) { startWinDeg = currentDegAcumulado; endWinDeg = currentDegAcumulado + fatiaVisualDeg; }
         currentDegAcumulado += fatiaVisualDeg;
-
         const sliceAngle = (dataFat.visualP / totalVisual) * 2 * Math.PI;
         const endAngle = startAngle + sliceAngle;
 
@@ -828,7 +685,6 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
         ctx.closePath();
         ctx.fillStyle = cores[colorIndex % cores.length];
         ctx.fill();
-
         ctx.lineWidth = 4;
         ctx.strokeStyle = '#111';
         ctx.stroke();
@@ -840,18 +696,14 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
 
         let textNome = nome.length > 15 ? nome.substring(0, 15) + "..." : nome;
         let textoFinal = `${textNome} (${dataFat.realP.toFixed(1)}%)`;
-
         ctx.fillStyle = "#fff";
         ctx.font = "bold 16px 'Rajdhani'";
         ctx.shadowColor = "rgba(0,0,0,1)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
-
         ctx.lineWidth = 3;
         ctx.strokeStyle = "#000";
         ctx.strokeText(textoFinal, radius - 15, 5);
         ctx.fillText(textoFinal, radius - 15, 5);
-
         ctx.restore();
-
         startAngle = endAngle;
         colorIndex++;
     }
@@ -859,11 +711,9 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
     setTimeout(() => {
         const margin = (endWinDeg - startWinDeg) * 0.1;
         const winDeg = startWinDeg + margin + (Math.random() * ((endWinDeg - startWinDeg) - (margin * 2)));
-
         const rotacaoParaTopo = 360 - winDeg;
         const voltasCompletas = 360 * 12;
         const rotacaoFinal = voltasCompletas + rotacaoParaTopo;
-
         wrapper.style.transition = 'transform 6s cubic-bezier(0.2, 0, 0, 1)';
         wrapper.style.transform = `rotate(${rotacaoFinal}deg)`;
 
@@ -872,7 +722,6 @@ function iniciarAnimacaoRoletaCanvas(fatias, vencedorNome, nomeItem) {
             labelVencedor.style.display = 'block';
             btnFechar.style.display = 'block';
         }, 6200);
-
     }, 100);
 }
 
@@ -882,54 +731,26 @@ async function salvarEdicoes() {
     if (linhasModificadas.length === 0) { mostrarToast("Nenhuma alteração detectada para ser salva.", 'aviso'); return; }
     let jogadoresData = [];
     linhasModificadas.forEach(linha => {
-        const inNome = linha.querySelector('.edit-nome');
-        const inAlts = linha.querySelector('.edit-alts');
-        const inLevel = linha.querySelector('.edit-level');
-        const inPoder = linha.querySelector('.edit-poder');
-        const inPontos = linha.querySelector('.edit-pontos');
-        const inClasse = linha.querySelector('.edit-classe');
-        const ckS4 = linha.querySelector('.check-s4');
-        const ckS5 = linha.querySelector('.check-s5');
-        const ckS6 = linha.querySelector('.check-s6');
-        const ckS7 = linha.querySelector('.check-s7');
-        const ckC3 = linha.querySelector('.check-c3');
-        const ckC4 = linha.querySelector('.check-c4');
-        const ckTrin = linha.querySelector('.check-trin');
-        const ckMT = linha.querySelector('.check-mt');
-
         jogadoresData.push({
             id: linha.getAttribute('data-jogador-id'),
-            nome: inNome ? inNome.value : null,
-            alts: inAlts ? inAlts.value : null,
-            level: inLevel ? inLevel.value : null,
-            poder_combate: inPoder ? inPoder.value : null,
-            pontos: inPontos ? inPontos.value : null,
-            classe: inClasse ? inClasse.value : null,
-            skill_4: ckS4 ? ckS4.checked : null,
-            skill_5: ckS5 ? ckS5.checked : null,
-            skill_6: ckS6 ? ckS6.checked : null,
-            skill_7: ckS7 ? ckS7.checked : null,
-            constante_3: ckC3 ? ckC3.checked : null,
-            constante_4: ckC4 ? ckC4.checked : null,
-            trindade: ckTrin ? ckTrin.checked : null,
-            mestre_tecnica: ckMT ? ckMT.checked : null,
+            nome: linha.querySelector('.edit-nome') ? linha.querySelector('.edit-nome').value : null,
+            alts: linha.querySelector('.edit-alts') ? linha.querySelector('.edit-alts').value : null,
+            level: linha.querySelector('.edit-level') ? linha.querySelector('.edit-level').value : null,
+            poder_combate: linha.querySelector('.edit-poder') ? linha.querySelector('.edit-poder').value : null,
+            pontos: linha.querySelector('.edit-pontos') ? linha.querySelector('.edit-pontos').value : null,
             eventos: {}
         });
     });
 
     try {
-        const response = await fetch('/api/editar-jogadores', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: jogadoresData })
-        });
-        if (response.ok) { await atualizarDados(); mostrarToast("Sincronização concluída apenas para as modificações feitas!", 'sucesso'); } else { mostrarToast('Falha ao gravar alterações.', 'erro'); }
+        const response = await fetch('/api/editar-jogadores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores: jogadoresData }) });
+        if (response.ok) { await atualizarDados(); mostrarToast("Sincronização concluída apenas para as modificações feitas!", 'sucesso'); } else { mostrarToast('Falha ao gravar.', 'erro'); }
     } catch (error) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
 async function salvarHistorico() {
     let historicoData = [];
-    document.querySelectorAll('tr[data-historico-id]').forEach(linha => {
-        historicoData.push({ id: linha.getAttribute('data-historico-id'), observacao: linha.querySelector('.hist-obs').value, penalidade: linha.querySelector('.hist-penalidade').value });
-    });
+    document.querySelectorAll('tr[data-historico-id]').forEach(linha => { historicoData.push({ id: linha.getAttribute('data-historico-id'), observacao: linha.querySelector('.hist-obs').value, penalidade: linha.querySelector('.hist-penalidade').value }); });
     const response = await fetch('/api/editar-historico', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico: historicoData }) });
     if (response.ok) { await atualizarDados(); mostrarToast("Registros atualizados.", 'sucesso'); }
 }
@@ -941,26 +762,18 @@ async function deletarHistorico(id) {
 }
 
 /* --- LÓGICA DE IMPORTAÇÃO E ADMIN (NOVA SEMANA) --- */
-
 async function avancarSemana() {
-    if(!confirm("ATENÇÃO: Isso iniciará uma nova semana no calendário. O cálculo de 90% de presença recomeçará do zero para todos os jogadores. Os pontos já ganhos continuarão guardados no saldo total. Confirma a virada de semana?")) return;
-
+    if(!confirm("ATENÇÃO: Isso iniciará uma nova semana. O cálculo de presença recomeçará do zero para todos. Confirma a virada de semana?")) return;
     try {
         const response = await fetch('/api/nova-semana', { method: 'POST' });
         const data = await response.json();
-        if(response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); }
-        else { mostrarToast("Erro: " + data.erro, 'erro'); }
+        if(response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast("Erro: " + data.erro, 'erro'); }
     } catch(e) { mostrarToast("Falha na conexão.", 'erro'); }
 }
 
 async function salvarReguasGlobais() {
-    const cpMega = document.getElementById('inputMegaCP').value;
-    const cpTita = document.getElementById('inputTitaCP').value;
     try {
-        const response = await fetch('/api/salvar-regua', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cp_mega: cpMega, cp_tita: cpTita })
-        });
+        const response = await fetch('/api/salvar-regua', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cp_mega: document.getElementById('inputMegaCP').value, cp_tita: document.getElementById('inputTitaCP').value }) });
         const data = await response.json();
         if (response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast("Erro: " + data.erro, 'erro'); }
     } catch (e) { mostrarToast("Falha de rede.", 'erro'); }
@@ -969,38 +782,20 @@ async function salvarReguasGlobais() {
 /* --- GERENCIAMENTO DE MEMBROS (ADMIN) --- */
 async function criarJogador() {
     const nome = document.getElementById('novoJogadorNome').value.trim();
-    const level = document.getElementById('novoJogadorLevel').value;
-    const poder = document.getElementById('novoJogadorPoder').value;
-
     if (!nome) { mostrarToast('Informe o nome do membro.', 'aviso'); return; }
-
     try {
-        const response = await fetch('/api/criar-jogador', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome: nome, level: level, poder_combate: poder })
-        });
+        const response = await fetch('/api/criar-jogador', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: nome, level: document.getElementById('novoJogadorLevel').value, poder_combate: document.getElementById('novoJogadorPoder').value }) });
         const data = await response.json();
-        if (response.ok) {
-            await atualizarDados();
-            mostrarToast(data.mensagem, 'sucesso');
-        } else {
-            mostrarToast(data.erro, 'erro');
-        }
+        if (response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast(data.erro, 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
 async function deletarJogador(id, nome) {
-    if (!confirm(`Remover "${nome}" permanentemente?\n\nTodo o histórico dele será apagado: pontuações, espólios recebidos, sorteios meme e apostas ativas. Esta ação não pode ser desfeita.`)) return;
-
+    if (!confirm(`Remover "${nome}" permanentemente?\nTodo o histórico dele será apagado.`)) return;
     try {
         const response = await fetch(`/api/deletar-jogador/${id}`, { method: 'DELETE' });
         const data = await response.json();
-        if (response.ok) {
-            await atualizarDados();
-            mostrarToast(data.mensagem, 'info');
-        } else {
-            mostrarToast(data.erro, 'erro');
-        }
+        if (response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'info'); } else { mostrarToast(data.erro, 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
 }
 
@@ -1008,37 +803,25 @@ async function toggleStatusJogador(id, btnElement) {
     const textoOriginal = btnElement.innerText;
     btnElement.innerText = '...';
     btnElement.disabled = true;
-
     try {
         const response = await fetch(`/api/toggle-status-jogador/${id}`, { method: 'POST' });
         const data = await response.json();
-        if (response.ok) {
-            await atualizarDados();
-            mostrarToast(data.mensagem, 'info');
-        } else {
-            mostrarToast(data.erro, 'erro');
-            btnElement.innerText = textoOriginal;
-            btnElement.disabled = false;
-        }
-    } catch (e) {
-        mostrarToast('Erro de rede.', 'erro');
-        btnElement.innerText = textoOriginal;
-        btnElement.disabled = false;
-    }
+        if (response.ok) { await atualizarDados(); mostrarToast(data.mensagem, 'info'); } else { mostrarToast(data.erro, 'erro'); btnElement.innerText = textoOriginal; btnElement.disabled = false; }
+    } catch (e) { mostrarToast('Erro de rede.', 'erro'); btnElement.innerText = textoOriginal; btnElement.disabled = false; }
 }
 
 async function criarEvento() {
     const payload = { nome: document.getElementById('novoEventoNome').value.trim(), tipo: document.getElementById('novoEventoTipo').value, pontos: document.getElementById('novoEventoPontos').value };
-    if(!payload.nome) return mostrarToast("Parâmetro 'Nome' é obrigatório.", 'aviso');
+    if(!payload.nome) return mostrarToast("Nome obrigatório.", 'aviso');
     const response = await fetch('/api/criar-evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (response.ok) { document.getElementById('novoEventoNome').value = ''; await atualizarDados(); mostrarToast('Novo evento injetado com sucesso!', 'sucesso'); } else { mostrarToast('Falha ao criar módulo.', 'erro'); }
+    if (response.ok) { document.getElementById('novoEventoNome').value = ''; await atualizarDados(); mostrarToast('Novo evento injetado!', 'sucesso'); }
 }
 
 async function salvarConfiguracoes() {
     let configsData = [];
     document.querySelectorAll('tr[data-config-id]').forEach(linha => { configsData.push({ id: linha.getAttribute('data-config-id'), pontos: linha.querySelector('.conf-pontos').value }); });
     const response = await fetch('/api/salvar-configuracoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs: configsData }) });
-    if (response.ok) { await atualizarDados(); mostrarToast("Matriz atualizada. Cálculo refeito.", 'sucesso'); }
+    if (response.ok) { await atualizarDados(); mostrarToast("Matriz atualizada.", 'sucesso'); }
 }
 
 async function salvarEdicaoImports() {
@@ -1049,7 +832,6 @@ async function salvarEdicaoImports() {
 }
 
 let dadosImportacaoAtual = [];
-
 async function enviarXML(e) {
     e.preventDefault();
     const btnEnviar = document.getElementById('btnEnviar');
@@ -1059,7 +841,7 @@ async function enviarXML(e) {
         const response = await fetch('/api/importar', { method: 'POST', body: formData });
         const data = await response.json();
         if (response.ok) { mostrarPreview(data.preview, data.hash, data.atividades_encontradas); } else { mostrarToast('Falha: ' + data.erro, 'erro'); }
-    } catch (error) { mostrarToast('Falha de conexão com o servidor matriz.', 'erro'); } finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
+    } catch (error) { mostrarToast('Falha de conexão.', 'erro'); } finally { btnEnviar.innerText = 'Processar XML'; btnEnviar.disabled = false; }
 }
 
 async function enviarExcel(e) {
@@ -1083,7 +865,6 @@ function mostrarPreview(jogadores, hash, todas_atividades) {
     const containerEventos = document.getElementById('listaEventosEncontrados');
     containerEventos.innerHTML = '';
     const eventosDiariosPadrao = ['Verificado', 'Doar', 'Atividade da Guilda'];
-
     if (todas_atividades && todas_atividades.length > 0) {
         todas_atividades.forEach(atv => {
             const isChecked = eventosDiariosPadrao.includes(atv) ? 'checked' : '';
@@ -1124,7 +905,7 @@ function atualizarPreviewPontos(checkboxElement = null) {
     if(temDesconhecido && !isBlackSkull) { document.getElementById('areaAlertaNovos').style.display = 'flex'; }
     else {
         document.getElementById('areaAlertaNovos').style.display = 'none';
-        if(isBlackSkull && temDesconhecido) document.getElementById('resultadoPreview').innerHTML += '<p style="color: var(--neon-orange); margin-top: 10px; font-size: 13px;">⚠️ Alts "NÃO VINCULADOS" serão ignorados na injeção.</p>';
+        if(isBlackSkull && temDesconhecido) document.getElementById('resultadoPreview').innerHTML += '<p style="color: var(--neon-orange); margin-top: 10px; font-size: 13px;">⚠️ Alts ignorados na injeção.</p>';
     }
 }
 
@@ -1142,31 +923,28 @@ async function confirmarImportacao(e) {
         cadastrar_novos: document.getElementById('checkCadastrarNovos') ? document.getElementById('checkCadastrarNovos').checked : false,
         eventos_selecionados: eventosSelecionados
     };
-
     try {
         const response = await fetch('/api/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await response.json();
-        if (response.ok) { fecharModal('modalImportacao'); await atualizarDados(); mostrarToast('Operação bem sucedida: ' + data.mensagem, 'sucesso'); } else { mostrarToast('Falha na operação: ' + data.erro, 'erro'); btnConfirmar.innerText = 'Confirmar Injeção de Dados'; btnConfirmar.disabled = false; }
+        if (response.ok) { fecharModal('modalImportacao'); await atualizarDados(); mostrarToast('Operação bem sucedida: ' + data.mensagem, 'sucesso'); } else { mostrarToast('Falha: ' + data.erro, 'erro'); btnConfirmar.innerText = 'Confirmar Injeção de Dados'; btnConfirmar.disabled = false; }
     } catch (error) { mostrarToast('Falha no servidor.', 'erro'); btnConfirmar.disabled = false; }
 }
 
 async function deletarImportacao(id) {
     if (!confirm("Aviso Crítico: Purgar este upload irá DESFAZER TODOS OS PONTOS adicionados por ele. Confirma?")) return;
     const response = await fetch(`/api/deletar-importacao/${id}`, { method: 'DELETE' });
-    if (response.ok) { await atualizarDados(); mostrarToast('Rollback concluído! Importação e pontos desfeitos.', 'info'); }
+    if (response.ok) { await atualizarDados(); mostrarToast('Rollback concluído!', 'info'); }
 }
 
-/* --- LÓGICA DO SORTEIO MEME --- */
 function toggleTodosMeme(source) { document.querySelectorAll('.check-meme').forEach(cb => cb.checked = source.checked); }
 
 async function abrirRoletaMeme() {
     const checkboxes = document.querySelectorAll('.check-meme:checked');
     const itemInput = document.getElementById('inputItemMeme').value.trim();
-    if (!itemInput) { mostrarToast('Parâmetro ausente: Por favor, digite o nome do item a ser sorteado.', 'aviso'); return; }
-    if (checkboxes.length === 0) { mostrarToast('Parâmetros insuficientes: Selecione alvos para o sorteio meme.', 'aviso'); return; }
+    if (!itemInput) { mostrarToast('Digite o nome do item a ser sorteado.', 'aviso'); return; }
+    if (checkboxes.length === 0) { mostrarToast('Selecione alvos para o sorteio.', 'aviso'); return; }
 
-    const idsSet = new Set();
-    const nomesMap = new Map();
+    const idsSet = new Set(); const nomesMap = new Map();
     checkboxes.forEach(cb => { idsSet.add(cb.value); nomesMap.set(cb.value, cb.dataset.nome); });
     const idsSelecionados = Array.from(idsSet);
     const nomesSelecionados = idsSelecionados.map(id => nomesMap.get(id));
@@ -1184,13 +962,7 @@ async function abrirRoletaMeme() {
         const response = await fetch('/api/realizar-sorteio-meme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogadores_ids: idsSelecionados, item: itemInput }) });
         const data = await response.json();
         if (response.ok) {
-            setTimeout(() => {
-                clearInterval(intervaloAnimacao);
-                roletaNomeMeme.innerText = "🏆 " + data.vencedor_nome + " 🏆";
-                roletaNomeMeme.style.color = "var(--neon-cyan)";
-                roletaNomeMeme.style.textShadow = "0 0 20px rgba(0,243,255,0.8)";
-                btnFecharRoletaMeme.style.display = 'block';
-            }, 2500);
+            setTimeout(() => { clearInterval(intervaloAnimacao); roletaNomeMeme.innerText = "🏆 " + data.vencedor_nome + " 🏆"; roletaNomeMeme.style.color = "var(--neon-cyan)"; roletaNomeMeme.style.textShadow = "0 0 20px rgba(0,243,255,0.8)"; btnFecharRoletaMeme.style.display = 'block'; }, 2500);
         } else { clearInterval(intervaloAnimacao); mostrarToast("Falha: " + data.erro, 'erro'); fecharModal('modalRoletaMeme'); }
     } catch (error) { clearInterval(intervaloAnimacao); mostrarToast('Falha de rede.', 'erro'); fecharModal('modalRoletaMeme'); }
 }
@@ -1203,110 +975,126 @@ async function salvarHistoricoMeme() {
 }
 
 async function deletarHistoricoMeme(id) {
-    if (!confirm("Aviso: Purgar este registro de sorteio meme. Confirmar?")) return;
+    if (!confirm("Purgar este registro de sorteio meme?")) return;
     const response = await fetch(`/api/deletar-historico-meme/${id}`, { method: 'DELETE' });
     if (response.ok) { await atualizarDados(); mostrarToast('Registro purgado.', 'info'); }
 }
 
-/* --- LÓGICA DA ESCALA DE BOSSES --- */
-
+/* --- LÓGICA DA ESCALA DE BOSSES (RESTRUTURADA PARA LINHAS) --- */
 let listaBossesGlobais = [];
+let listaGruposGlobais = [];
+
+async function carregarListasDeChefesEGrupos() {
+    try {
+        const resGrupos = await fetch('/api/listar-grupos-boss');
+        const dataGrupos = await resGrupos.json();
+        listaGruposGlobais = dataGrupos.grupos || [];
+        
+        const resBoss = await fetch('/api/listar-bosses');
+        const dataBoss = await resBoss.json();
+        listaBossesGlobais = dataBoss.bosses || [];
+    } catch(e) { console.error("Falha ao puxar os dados dos bosses:", e); }
+}
 
 async function renderizarCardsBossesGlobais() {
     const areaBosses = document.getElementById('gridBossesAtivos');
     if (!areaBosses) return;
-
     const isAdminVisual = isAdmin();
 
-    try {
-        const res = await fetch('/api/listar-bosses');
-        const data = await res.json();
-        listaBossesGlobais = data.bosses;
-        
-        areaBosses.innerHTML = '';
-        const bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
-        
-        if(bossesNossos.length === 0) {
-            areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
-        } else {
-            const grupos = {};
-            bossesNossos.forEach(b => {
+    await carregarListasDeChefesEGrupos();
+    areaBosses.innerHTML = '';
+    const bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
+    
+    if(bossesNossos.length === 0) {
+        areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
+    } else {
+        const gruposAgrupados = {};
+        bossesNossos.forEach(b => {
+            let g = b.grupo || "Outros Chefes";
+            if(!gruposAgrupados[g]) gruposAgrupados[g] = [];
+            gruposAgrupados[g].push(b);
+        });
+
+        for(let grupoNome in gruposAgrupados) {
+            let divGrupo = document.createElement('div');
+            divGrupo.style.cssText = "grid-column: 1 / -1; margin-top: 15px;";
+            divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">🗡️ ${grupoNome}</h3>`;
+            
+            let divGridInterno = document.createElement('div');
+            divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;";
+            
+            gruposAgrupados[grupoNome].forEach(b => {
+                let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria || ''}" data-dias="${b.dias_semana || ''}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 22px; color: var(--neon-orange); font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.6); padding: 10px; text-align: center; border-radius: 4px; border: 1px dashed var(--neon-orange);">Calculando...</div>`;
+                
+                let card = document.createElement('div');
+                card.style.cssText = "background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 6px; padding: 20px; position: relative; display: flex; flex-direction: column; justify-content: center;";
+                card.innerHTML = `
+                    <h4 style="margin: 0 0 5px 0; color: #fff; font-size: 20px;">${b.nome}</h4>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 15px;">📍 ${b.local}</p>
+                    ${timerHtml}
+                `;
+                divGridInterno.appendChild(card);
+            });
+            divGrupo.appendChild(divGridInterno);
+            areaBosses.appendChild(divGrupo);
+        }
+    }
+
+    if(isAdminVisual) {
+        const listaSelecao = document.getElementById('listaBossesSelecao');
+        if(listaSelecao) {
+            listaSelecao.innerHTML = '';
+            const gruposSelecao = {};
+            listaBossesGlobais.forEach(b => {
                 let g = b.grupo || "Outros Chefes";
-                if(!grupos[g]) grupos[g] = [];
-                grupos[g].push(b);
+                if(!gruposSelecao[g]) gruposSelecao[g] = [];
+                gruposSelecao[g].push(b);
             });
 
-            for(let grupo in grupos) {
-                let divGrupo = document.createElement('div');
-                divGrupo.style.cssText = "grid-column: 1 / -1; margin-top: 15px;";
-                divGrupo.innerHTML = `<h3 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">🗡️ ${grupo}</h3>`;
+            for(let g in gruposSelecao) {
+                let groupTitle = document.createElement('div');
+                groupTitle.style.cssText = "color: var(--neon-orange); font-weight: bold; margin-top: 15px; border-bottom: 1px dashed var(--glass-border); padding-bottom: 5px;";
+                groupTitle.innerText = g;
+                listaSelecao.appendChild(groupTitle);
                 
-                let divGridInterno = document.createElement('div');
-                divGridInterno.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;";
+                let grid = document.createElement('div');
+                grid.style.cssText = "display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;";
                 
-                grupos[grupo].forEach(b => {
-                    let timerHtml = `<div class="boss-timer" data-boss-id="${b.id}" data-tipo="${b.tipo_respawn}" data-horas="${b.intervalo_horas}" data-diaria="${b.hora_diaria || ''}" data-dias="${b.dias_semana || ''}" data-ancora="${b.ancora_ms}" style="font-family: monospace; font-size: 22px; color: var(--neon-orange); font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.6); padding: 10px; text-align: center; border-radius: 4px; border: 1px dashed var(--neon-orange);">Calculando...</div>`;
-                    
-                    let card = document.createElement('div');
-                    card.style.cssText = "background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 6px; padding: 20px; position: relative; display: flex; flex-direction: column; justify-content: center;";
-                    card.innerHTML = `
-                        <h4 style="margin: 0 0 5px 0; color: #fff; font-size: 20px;">${b.nome}</h4>
-                        <p style="margin: 0; color: var(--text-muted); font-size: 15px;">📍 ${b.local}</p>
-                        ${timerHtml}
-                        ${isAdminVisual ? `<button class="btn-danger" style="position: absolute; top: 10px; right: 10px; padding: 2px 8px; font-size: 12px;" onclick="deletarBoss(${b.id})" title="Apagar do Banco de Dados">✖</button>` : ''}
-                    `;
-                    divGridInterno.appendChild(card);
+                gruposSelecao[g].forEach(b => {
+                    let label = document.createElement('label');
+                    label.style.cssText = `display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid ${b.is_nosso ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'};`;
+                    label.innerHTML = `<input type="checkbox" class="check-boss-escala" value="${b.id}" ${b.is_nosso ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'" style="accent-color: var(--neon-orange);"><span style="color: #fff; font-size: 14px;">${b.nome}</span>`;
+                    grid.appendChild(label);
                 });
-                
-                divGrupo.appendChild(divGridInterno);
-                areaBosses.appendChild(divGrupo);
+                listaSelecao.appendChild(grid);
             }
         }
-
-        if(isAdminVisual) {
-            const listaSelecao = document.getElementById('listaBossesSelecao');
-            if(listaSelecao) {
-                listaSelecao.innerHTML = '';
-                
-                const gruposSelecao = {};
-                listaBossesGlobais.forEach(b => {
-                    let g = b.grupo || "Outros Chefes";
-                    if(!gruposSelecao[g]) gruposSelecao[g] = [];
-                    gruposSelecao[g].push(b);
-                });
-
-                for(let g in gruposSelecao) {
-                    let groupTitle = document.createElement('div');
-                    groupTitle.style.cssText = "color: var(--neon-orange); font-weight: bold; margin-top: 15px; border-bottom: 1px dashed var(--glass-border); padding-bottom: 5px;";
-                    groupTitle.innerText = g;
-                    listaSelecao.appendChild(groupTitle);
-                    
-                    let grid = document.createElement('div');
-                    grid.style.cssText = "display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;";
-                    
-                    gruposSelecao[g].forEach(b => {
-                        let label = document.createElement('label');
-                        label.style.cssText = `display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid ${b.is_nosso ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'};`;
-                        label.innerHTML = `
-                            <input type="checkbox" class="check-boss-escala" value="${b.id}" ${b.is_nosso ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'var(--neon-orange)' : 'rgba(255,255,255,0.1)'" style="accent-color: var(--neon-orange);">
-                            <span style="color: #fff; font-size: 14px;">${b.nome}</span>
-                        `;
-                        grid.appendChild(label);
-                    });
-                    listaSelecao.appendChild(grid);
-                }
-            }
-        }
-    } catch(e) { console.error(e); }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => { 
     aplicarLinhasPoder(); 
     atualizarCronometros();
     renderizarCardsBossesGlobais();
+
+    // Automação visual na digitação da LINHA
+    const inputNomeGrupo = document.getElementById('inputGrupoNome');
+    if(inputNomeGrupo) {
+        inputNomeGrupo.addEventListener('input', function() {
+            const val = this.value;
+            const tipoSelect = document.getElementById('inputGrupoTipoRespawn');
+            const horariosInput = document.getElementById('inputGrupoHorarios');
+            if (val === 'Grupo de Chefes Novus A') {
+                tipoSelect.value = 'diario'; horariosInput.value = '16:00, 22:30'; toggleCamposGrupo();
+            } else if (val === 'Grupo de Chefes Novus B') {
+                tipoSelect.value = 'diario'; horariosInput.value = '16:00'; toggleCamposGrupo();
+            } else if (val === 'Grupo de Chefes Novus C') {
+                tipoSelect.value = 'diario'; horariosInput.value = '22:30'; toggleCamposGrupo();
+            }
+        });
+    }
 });
 
-// MOTOR DE TEMPO REFATORADO (CORRIGE NAN)
 function formatTimeDiff(diff) {
     const horas = Math.floor(diff / (1000 * 60 * 60));
     const min = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -1321,7 +1109,6 @@ setInterval(() => {
 
     timers.forEach(timer => {
         const tipo = timer.getAttribute('data-tipo');
-        
         if (tipo === 'intervalo') {
             const ancoraMs = parseInt(timer.getAttribute('data-ancora'));
             const horasIntervalo = parseInt(timer.getAttribute('data-horas'));
@@ -1329,13 +1116,11 @@ setInterval(() => {
             
             const intervaloMs = horasIntervalo * 60 * 60 * 1000;
             let proximoNascimento = ancoraMs;
-            
             if (proximoNascimento <= agora) {
                 const diffPassado = agora - proximoNascimento;
                 const ciclos = Math.floor(diffPassado / intervaloMs) + 1;
                 proximoNascimento += ciclos * intervaloMs;
             }
-            
             const diff = proximoNascimento - agora;
             timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
             timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-orange)';
@@ -1343,26 +1128,18 @@ setInterval(() => {
         } else if (tipo === 'diario' || tipo === 'diario_fixo') {
             const horaStr = timer.getAttribute('data-diaria');
             if(!horaStr || horaStr === "null") { timer.innerText = "Sem Horário"; return; }
-            
             const horarios = horaStr.split(',').map(h => h.trim());
             let alvos = [];
-            
             for(let h of horarios) {
                 let partes = h.split(':');
                 if(partes.length < 2) continue;
                 let d = new Date(dtAgora);
                 d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
-                
                 if (d.getTime() > agora) { alvos.push(d); } 
-                else {
-                    let d2 = new Date(d);
-                    d2.setDate(d2.getDate() + 1);
-                    alvos.push(d2);
-                }
+                else { let d2 = new Date(d); d2.setDate(d2.getDate() + 1); alvos.push(d2); }
             }
             if(alvos.length === 0) { timer.innerText = "Sem Horário"; return; }
             alvos.sort((a, b) => a.getTime() - b.getTime());
-            
             const diff = alvos[0].getTime() - agora;
             timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
             timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-cyan)';
@@ -1371,15 +1148,12 @@ setInterval(() => {
             const horaStr = timer.getAttribute('data-diaria');
             const diasStr = timer.getAttribute('data-dias');
             if(!horaStr || horaStr === "null" || !diasStr || diasStr === "null") { timer.innerText = "Sem Horário"; return; }
-            
             const horarios = horaStr.split(',').map(h => h.trim());
             const diasPermitidos = diasStr.split(',').map(d => parseInt(d));
             let alvos = [];
-            
             for (let i = 0; i <= 7; i++) {
                 let tempDate = new Date(dtAgora);
                 tempDate.setDate(tempDate.getDate() + i);
-                
                 if (diasPermitidos.includes(tempDate.getDay())) {
                     for(let h of horarios) {
                         let partes = h.split(':');
@@ -1392,7 +1166,6 @@ setInterval(() => {
             }
             if(alvos.length === 0) { timer.innerText = "Sem Horário"; return; }
             alvos.sort((a, b) => a.getTime() - b.getTime());
-            
             const diff = alvos[0].getTime() - agora;
             timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
             timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : '#bc13fe';
@@ -1404,53 +1177,157 @@ setInterval(() => {
         const hj = new Date();
         txtData.innerText = `Gerado em: ${hj.toLocaleDateString('pt-BR')} às ${hj.toLocaleTimeString('pt-BR')}`;
     }
-
 }, 1000);
 
-function toggleCamposBoss() {
-    const tipo = document.getElementById('inputBossTipoRespawn').value;
-    document.getElementById('divBossIntervalo').style.display = tipo === 'intervalo' ? 'block' : 'none';
-    document.getElementById('divBossHorarios').style.display = (tipo === 'diario' || tipo === 'semanal') ? 'block' : 'none';
-    document.getElementById('divBossDias').style.display = tipo === 'semanal' ? 'block' : 'none';
+/* --- GESTÃO DE GRUPOS (LINHAS DE TEMPO) --- */
+function toggleCamposGrupo() {
+    const tipo = document.getElementById('inputGrupoTipoRespawn').value;
+    document.getElementById('divGrupoIntervalo').style.display = tipo === 'intervalo' ? 'block' : 'none';
+    document.getElementById('divGrupoHorarios').style.display = (tipo === 'diario' || tipo === 'semanal') ? 'block' : 'none';
+    document.getElementById('divGrupoDias').style.display = tipo === 'semanal' ? 'block' : 'none';
 }
 
-function abrirModalCadastroBossLivre() {
-    document.getElementById('editBossId').value = '';
-    document.getElementById('tituloModalBoss').innerText = '➕ Cadastrar Novo Chefe';
-    document.getElementById('inputBossNome').value = '';
-    document.getElementById('inputBossLocal').value = '';
-    document.getElementById('inputBossGrupo').value = '';
-    document.getElementById('inputBossTipoRespawn').value = 'intervalo';
-    document.getElementById('inputBossHoras').value = '42';
-    document.getElementById('inputBossAncoragem').value = '';
-    document.getElementById('inputBossHorarios').value = '';
-    document.querySelectorAll('.check-dia-boss').forEach(cb => cb.checked = false);
-    toggleCamposBoss();
-    abrirModal('modalCadastrarBoss');
-}
-
-function abrirModalGerenciarBosses() {
-    const container = document.getElementById('listaGerenciarBosses');
+function abrirModalGerenciarGrupos() {
+    const container = document.getElementById('listaGerenciarGrupos');
     container.innerHTML = '';
-    
-    if (listaBossesGlobais.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 30px;">Nenhum chefe cadastrado no sistema ainda.</p>';
+    if (listaGruposGlobais.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 30px;">Nenhuma linha criada ainda.</p>';
     } else {
-        listaBossesGlobais.forEach(b => {
+        listaGruposGlobais.forEach(g => {
             let infoData = "";
-            if (b.tipo_respawn === 'intervalo') infoData = `⏱️ a cada ${b.intervalo_horas}h`;
-            if (b.tipo_respawn === 'diario') infoData = `☀️ Diário às ${b.hora_diaria}`;
-            if (b.tipo_respawn === 'semanal') infoData = `📅 Semanal às ${b.hora_diaria}`;
+            if (g.tipo_respawn === 'intervalo') infoData = `⏱️ a cada ${g.intervalo_horas}h`;
+            if (g.tipo_respawn === 'diario') infoData = `☀️ Diário às ${g.hora_diaria}`;
+            if (g.tipo_respawn === 'semanal') infoData = `📅 Semanal às ${g.hora_diaria}`;
 
             let div = document.createElement('div');
             div.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); padding: 12px 15px; margin-bottom: 8px; border: 1px solid var(--glass-border); border-radius: 4px;";
             div.innerHTML = `
                 <div>
-                    <strong style="color: #fff; font-size: 16px;">${b.nome}</strong><br>
-                    <span style="color: var(--text-muted); font-size: 13px;">${b.grupo || 'Sem Grupo'} | ${infoData}</span>
+                    <strong style="color: var(--neon-cyan); font-size: 16px;">${g.nome}</strong><br>
+                    <span style="color: var(--text-muted); font-size: 13px;">${infoData}</span>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); padding: 6px 12px; font-size: 13px;" onclick="prepararEdicaoBoss(${b.id})">✏️ Editar</button>
+                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); padding: 6px 12px; font-size: 13px;" onclick="prepararEdicaoGrupo(${g.id})">⚙️ Editar</button>
+                    <button class="btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="deletarGrupo(${g.id})">✖</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+    abrirModal('modalGerenciarGrupos');
+}
+
+function abrirModalCadastroGrupo() {
+    document.getElementById('editGrupoId').value = '';
+    document.getElementById('tituloModalGrupo').innerText = '➕ Criar Nova Linha (Tempo)';
+    document.getElementById('inputGrupoNome').value = '';
+    document.getElementById('inputGrupoTipoRespawn').value = 'intervalo';
+    document.getElementById('inputGrupoHoras').value = '42';
+    document.getElementById('inputGrupoAncoragem').value = '';
+    document.getElementById('inputGrupoHorarios').value = '';
+    document.querySelectorAll('.check-dia-grupo').forEach(cb => cb.checked = false);
+    toggleCamposGrupo();
+    fecharModal('modalGerenciarGrupos');
+    abrirModal('modalCadastrarGrupo');
+}
+
+function prepararEdicaoGrupo(id) {
+    const g = listaGruposGlobais.find(x => x.id === id);
+    if (!g) return;
+    fecharModal('modalGerenciarGrupos');
+    document.getElementById('editGrupoId').value = g.id;
+    document.getElementById('tituloModalGrupo').innerText = '✏️ Editar Linha: ' + g.nome;
+    document.getElementById('inputGrupoNome').value = g.nome;
+    document.getElementById('inputGrupoTipoRespawn').value = g.tipo_respawn;
+    
+    if (g.tipo_respawn === 'intervalo') {
+        document.getElementById('inputGrupoHoras').value = g.intervalo_horas;
+        if (g.ancora_ms) {
+            let d = new Date(g.ancora_ms);
+            let tzoffset = d.getTimezoneOffset() * 60000;
+            let localISOTime = (new Date(d - tzoffset)).toISOString().slice(0, 16);
+            document.getElementById('inputGrupoAncoragem').value = localISOTime;
+        }
+    } else if (g.tipo_respawn === 'diario') {
+        document.getElementById('inputGrupoHorarios').value = g.hora_diaria || '';
+    } else if (g.tipo_respawn === 'semanal') {
+        document.getElementById('inputGrupoHorarios').value = g.hora_diaria || '';
+        document.querySelectorAll('.check-dia-grupo').forEach(cb => {
+            cb.checked = (g.dias_semana && g.dias_semana.split(',').includes(cb.value));
+        });
+    }
+    toggleCamposGrupo();
+    abrirModal('modalCadastrarGrupo');
+}
+
+async function salvarGrupo() {
+    const editId = document.getElementById('editGrupoId').value;
+    const nome = document.getElementById('inputGrupoNome').value.trim();
+    const tipo = document.getElementById('inputGrupoTipoRespawn').value;
+    
+    if(!nome) return mostrarToast("O nome da Linha é obrigatório.", "aviso");
+    let payload = { id: editId, nome: nome, tipo_respawn: tipo };
+
+    if (tipo === 'intervalo') {
+        payload.intervalo_horas = parseInt(document.getElementById('inputGrupoHoras').value) || 42;
+        const ancoraInput = document.getElementById('inputGrupoAncoragem').value;
+        if (!ancoraInput) return mostrarToast("Insira o horário de ancoragem da Linha.", "aviso");
+        const localDate = new Date(ancoraInput);
+        payload.horario_ancora = localDate.toISOString().slice(0, 16);
+    } else if (tipo === 'diario') {
+        const horarios = document.getElementById('inputGrupoHorarios').value.trim();
+        if(!horarios) return mostrarToast("Preencha o(s) horário(s).", "aviso");
+        payload.hora_diaria = horarios;
+    } else if (tipo === 'semanal') {
+        const horarios = document.getElementById('inputGrupoHorarios').value.trim();
+        if(!horarios) return mostrarToast("Preencha o(s) horário(s).", "aviso");
+        payload.hora_diaria = horarios;
+        let diasEscolhidos = [];
+        document.querySelectorAll('.check-dia-grupo:checked').forEach(cb => diasEscolhidos.push(cb.value));
+        if(diasEscolhidos.length === 0) return mostrarToast("Selecione ao menos um dia da semana.", "aviso");
+        payload.dias_semana = diasEscolhidos.join(',');
+    }
+
+    try {
+        const response = await fetch('/api/salvar-grupo-boss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (response.ok) {
+            fecharModal('modalCadastrarGrupo');
+            await renderizarCardsBossesGlobais();
+            mostrarToast("Linha salva com sucesso!", "sucesso");
+            setTimeout(() => abrirModalGerenciarGrupos(), 300);
+        } else { mostrarToast("Falha ao salvar a Linha.", "erro"); }
+    } catch (e) { mostrarToast("Erro de rede.", "erro"); }
+}
+
+async function deletarGrupo(id) {
+    if(!confirm("Atenção: Deletar esta linha vai deletar TAMBÉM todos os chefes atrelados a ela. Continuar?")) return;
+    try {
+        const response = await fetch(`/api/deletar-grupo-boss/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            await renderizarCardsBossesGlobais();
+            mostrarToast("Linha e Chefes deletados do banco.", "info");
+            abrirModalGerenciarGrupos();
+        }
+    } catch (e) { mostrarToast("Erro de rede.", "erro"); }
+}
+
+/* --- GESTÃO DE CHEFES VINCULADOS --- */
+function abrirModalGerenciarBosses() {
+    const container = document.getElementById('listaGerenciarBosses');
+    container.innerHTML = '';
+    if (listaBossesGlobais.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 30px;">Nenhum chefe cadastrado.</p>';
+    } else {
+        listaBossesGlobais.forEach(b => {
+            let div = document.createElement('div');
+            div.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); padding: 12px 15px; margin-bottom: 8px; border: 1px solid var(--glass-border); border-radius: 4px;";
+            div.innerHTML = `
+                <div>
+                    <strong style="color: #fff; font-size: 16px;">${b.nome}</strong><br>
+                    <span style="color: var(--text-muted); font-size: 13px;">Linha: ${b.grupo || 'Sem Grupo'} | Local: ${b.local}</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange); padding: 6px 12px; font-size: 13px;" onclick="prepararEdicaoBoss(${b.id})">✏️ Editar</button>
                     <button class="btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="deletarBoss(${b.id})">✖</button>
                 </div>
             `;
@@ -1460,36 +1337,39 @@ function abrirModalGerenciarBosses() {
     abrirModal('modalGerenciarBosses');
 }
 
+function popularSelectDeGruposParaBoss() {
+    const s = document.getElementById('inputBossGrupoId');
+    s.innerHTML = '<option value="" disabled selected>-- Selecione a Linha / Grupo --</option>';
+    listaGruposGlobais.forEach(g => {
+        let opt = document.createElement('option');
+        opt.value = g.id;
+        opt.text = g.nome;
+        s.appendChild(opt);
+    });
+}
+
+function abrirModalCadastroBossLivre() {
+    fecharModal('modalGerenciarBosses');
+    popularSelectDeGruposParaBoss();
+    document.getElementById('editBossId').value = '';
+    document.getElementById('tituloModalBoss').innerText = '➕ Cadastrar Novo Chefe';
+    document.getElementById('inputBossNome').value = '';
+    document.getElementById('inputBossLocal').value = '';
+    abrirModal('modalCadastrarBoss');
+}
+
 function prepararEdicaoBoss(id) {
     const b = listaBossesGlobais.find(x => x.id === id);
     if (!b) return;
-    
     fecharModal('modalGerenciarBosses');
+    popularSelectDeGruposParaBoss();
+    
     document.getElementById('editBossId').value = b.id;
     document.getElementById('tituloModalBoss').innerText = '✏️ Editar Chefe Existente';
     document.getElementById('inputBossNome').value = b.nome;
     document.getElementById('inputBossLocal').value = b.local;
-    document.getElementById('inputBossGrupo').value = b.grupo || '';
-    document.getElementById('inputBossTipoRespawn').value = b.tipo_respawn;
+    document.getElementById('inputBossGrupoId').value = b.grupo_id;
     
-    if (b.tipo_respawn === 'intervalo') {
-        document.getElementById('inputBossHoras').value = b.intervalo_horas;
-        if (b.ancora_ms) {
-            let d = new Date(b.ancora_ms);
-            let tzoffset = d.getTimezoneOffset() * 60000;
-            let localISOTime = (new Date(d - tzoffset)).toISOString().slice(0, 16);
-            document.getElementById('inputBossAncoragem').value = localISOTime;
-        }
-    } else if (b.tipo_respawn === 'diario') {
-        document.getElementById('inputBossHorarios').value = b.hora_diaria || '';
-    } else if (b.tipo_respawn === 'semanal') {
-        document.getElementById('inputBossHorarios').value = b.hora_diaria || '';
-        document.querySelectorAll('.check-dia-boss').forEach(cb => {
-            cb.checked = (b.dias_semana && b.dias_semana.split(',').includes(cb.value));
-        });
-    }
-    
-    toggleCamposBoss();
     abrirModal('modalCadastrarBoss');
 }
 
@@ -1497,68 +1377,31 @@ async function salvarNovoBoss() {
     const editId = document.getElementById('editBossId').value;
     const nome = document.getElementById('inputBossNome').value.trim();
     const local = document.getElementById('inputBossLocal').value.trim();
-    const grupo = document.getElementById('inputBossGrupo').value.trim() || 'Sem Grupo';
-    const tipo = document.getElementById('inputBossTipoRespawn').value;
+    const grupoId = document.getElementById('inputBossGrupoId').value;
     
-    if(!nome) { mostrarToast("O nome do chefe é obrigatório.", "aviso"); return; }
+    if(!nome || !grupoId) return mostrarToast("Nome e Seleção da Linha são obrigatórios.", "aviso");
     
-    let payload = { nome: nome, local: local, grupo: grupo, tipo_respawn: tipo };
-
-    if (tipo === 'intervalo') {
-        payload.intervalo_horas = parseInt(document.getElementById('inputBossHoras').value) || 42;
-        const ancoraInput = document.getElementById('inputBossAncoragem').value;
-        if (!ancoraInput) { mostrarToast("Insira o horário de ancoragem da última morte/nascimento.", "aviso"); return; }
-        const localDate = new Date(ancoraInput);
-        payload.horario_ancora = localDate.toISOString().slice(0, 16);
-    } 
-    else if (tipo === 'diario') {
-        const horarios = document.getElementById('inputBossHorarios').value.trim();
-        if(!horarios) { mostrarToast("Preencha o(s) horário(s).", "aviso"); return; }
-        payload.hora_diaria = horarios;
-    } 
-    else if (tipo === 'semanal') {
-        const horarios = document.getElementById('inputBossHorarios').value.trim();
-        if(!horarios) { mostrarToast("Preencha o(s) horário(s).", "aviso"); return; }
-        payload.hora_diaria = horarios;
-        
-        let diasEscolhidos = [];
-        document.querySelectorAll('.check-dia-boss:checked').forEach(cb => diasEscolhidos.push(cb.value));
-        if(diasEscolhidos.length === 0) { mostrarToast("Selecione ao menos um dia da semana.", "aviso"); return; }
-        payload.dias_semana = diasEscolhidos.join(',');
-    }
-
-    const url = editId ? `/api/editar-boss/${editId}` : '/api/criar-boss';
-
+    let payload = { id: editId, nome: nome, local: local, grupo_id: grupoId };
     try {
-        const response = await fetch(url, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-        });
+        const response = await fetch('/api/salvar-boss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (response.ok) {
             fecharModal('modalCadastrarBoss');
             await renderizarCardsBossesGlobais();
             mostrarToast(editId ? "Chefe atualizado!" : "Chefe cadastrado com sucesso!", "sucesso");
-            
-            if (editId) {
-                setTimeout(() => abrirModalGerenciarBosses(), 300);
-            }
-        } else {
-            mostrarToast("Falha ao salvar chefe.", "erro");
-        }
+            if (editId) setTimeout(() => abrirModalGerenciarBosses(), 300);
+        } else { mostrarToast("Falha ao salvar chefe.", "erro"); }
     } catch (e) { mostrarToast("Erro de rede.", "erro"); }
 }
 
 async function deletarBoss(id) {
-    if(!confirm("Remover permanentemente este chefe do banco de dados?")) return;
+    if(!confirm("Remover este chefe do banco de dados?")) return;
     try {
         const response = await fetch(`/api/deletar-boss/${id}`, { method: 'DELETE' });
         if (response.ok) {
             await renderizarCardsBossesGlobais();
-            mostrarToast("Chefe deletado do banco de dados.", "info");
-            
+            mostrarToast("Chefe deletado do banco.", "info");
             const modalGerenciador = document.getElementById('modalGerenciarBosses');
-            if (modalGerenciador && modalGerenciador.style.display === 'flex') {
-                abrirModalGerenciarBosses();
-            }
+            if (modalGerenciador && modalGerenciador.style.display === 'flex') abrirModalGerenciarBosses();
         }
     } catch (e) { mostrarToast("Erro de rede.", "erro"); }
 }
@@ -1566,70 +1409,30 @@ async function deletarBoss(id) {
 async function salvarBossesDaSemana() {
     const checks = document.querySelectorAll('.check-boss-escala:checked');
     const ids = Array.from(checks).map(cb => parseInt(cb.value));
-
     try {
-        const response = await fetch('/api/salvar-escala-bosses', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bosses_ids: ids })
-        });
-        if (response.ok) {
-            fecharModal('modalSelecionarBosses');
-            renderizarCardsBossesGlobais();
-            mostrarToast("Escala de bosses alterada para esta semana!", "sucesso");
-        } else {
-            mostrarToast("Falha ao salvar a escala.", "erro");
-        }
+        const response = await fetch('/api/salvar-escala-bosses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bosses_ids: ids }) });
+        if (response.ok) { fecharModal('modalSelecionarBosses'); renderizarCardsBossesGlobais(); mostrarToast("Escala de bosses alterada!", "sucesso"); } else { mostrarToast("Falha ao salvar.", "erro"); }
     } catch (e) { mostrarToast("Erro de rede.", "erro"); }
 }
 
 function exportarBossesImagem() {
     const areaToExport = document.getElementById('exportarBossArea');
     if(!areaToExport) return;
-    
     const btn = document.querySelector('button[onclick="exportarBossesImagem()"]');
     const textOrig = btn.innerText;
     btn.innerText = "Processando...";
     btn.disabled = true;
 
-    html2canvas(areaToExport, {
-        backgroundColor: "#0d0e15", 
-        scale: 2 
-    }).then(canvas => {
+    html2canvas(areaToExport, { backgroundColor: "#0d0e15", scale: 2 }).then(canvas => {
         const link = document.createElement('a');
         link.download = `Escala_Bosses_Vortex_${Date.now()}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
-        
-        btn.innerText = textOrig;
-        btn.disabled = false;
+        btn.innerText = textOrig; btn.disabled = false;
         mostrarToast("Imagem exportada com sucesso!", "sucesso");
     }).catch(err => {
         console.error(err);
         mostrarToast("Erro ao exportar a imagem.", "erro");
-        btn.innerText = textOrig;
-        btn.disabled = false;
+        btn.innerText = textOrig; btn.disabled = false;
     });
-    document.addEventListener('DOMContentLoaded', () => {
-    const inputGrupo = document.getElementById('inputBossGrupo');
-    if(inputGrupo) {
-        inputGrupo.addEventListener('input', function() {
-            const val = this.value;
-            const tipoSelect = document.getElementById('inputBossTipoRespawn');
-            const horariosInput = document.getElementById('inputBossHorarios');
-
-            if (val === 'Grupo de Chefes Novus A') {
-                tipoSelect.value = 'diario';
-                horariosInput.value = '16:00, 22:30';
-                toggleCamposBoss();
-            } else if (val === 'Grupo de Chefes Novus B') {
-                tipoSelect.value = 'diario';
-                horariosInput.value = '16:00';
-                toggleCamposBoss();
-            } else if (val === 'Grupo de Chefes Novus C') {
-                tipoSelect.value = 'diario';
-                horariosInput.value = '22:30';
-                toggleCamposBoss();
-            }
-        });
-    }
-});
 }
