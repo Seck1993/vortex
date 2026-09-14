@@ -69,8 +69,9 @@ class Boss(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     local = db.Column(db.String(100), default="")
     grupo = db.Column(db.String(50), default="Sem Grupo")
-    tipo_respawn = db.Column(db.String(20), default="intervalo") # 'intervalo' ou 'diario'
-    intervalo_horas = db.Column(db.Integer, default=42) # Usado se tipo == intervalo
-    hora_diaria = db.Column(db.String(10), nullable=True) # Usado se tipo == diario (ex: "16:00")
-    horario_ancora = db.Column(db.DateTime, nullable=True) # Marco zero para calcular os respawns futuros
+    tipo_respawn = db.Column(db.String(20), default="intervalo") # 'intervalo', 'diario', 'semanal'
+    intervalo_horas = db.Column(db.Integer, default=42) 
+    hora_diaria = db.Column(db.String(50), nullable=True) # Ex: "16:00, 22:30"
+    dias_semana = db.Column(db.String(50), nullable=True) # Ex: "0,2,4" (Dom, Ter, Qui)
+    horario_ancora = db.Column(db.DateTime, nullable=True) 
     is_nosso = db.Column(db.Boolean, default=False)
