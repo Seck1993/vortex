@@ -30,7 +30,6 @@ def asset_version(filename):
     except OSError:
         return "1"
 
-
 app.jinja_env.globals['asset_version'] = asset_version
 
 
@@ -233,6 +232,7 @@ def index():
             'tipo_respawn': b.tipo_respawn,
             'intervalo_horas': b.intervalo_horas,
             'hora_diaria': b.hora_diaria,
+            'dias_semana': b.dias_semana,
             'ancora_ms': ancora_ms,
             'is_nosso': b.is_nosso
         })
@@ -685,6 +685,7 @@ def listar_bosses():
                 'tipo_respawn': b.tipo_respawn,
                 'intervalo_horas': b.intervalo_horas,
                 'hora_diaria': b.hora_diaria,
+                'dias_semana': b.dias_semana,
                 'ancora_ms': ancora_ms,
                 'is_nosso': b.is_nosso
             })
@@ -701,8 +702,9 @@ def criar_boss():
     local = dados.get('local', '')
     grupo = dados.get('grupo', 'Sem Grupo')
     tipo = dados.get('tipo_respawn', 'intervalo')
-    horas = int(dados.get('intervalo_horas', 42))
+    horas = int(dados.get('intervalo_horas') or 42)
     hora_diaria = dados.get('hora_diaria')
+    dias_semana = dados.get('dias_semana')
     ancora_str = dados.get('horario_ancora')
     
     if not nome: return jsonify({"erro": "O nome do chefe é obrigatório."}), 400
@@ -710,7 +712,6 @@ def criar_boss():
     horario_ancora = datetime.utcnow()
     if ancora_str:
         try:
-            # O input datetime-local nativo envia no formato YYYY-MM-DDTHH:MM
             horario_ancora = datetime.fromisoformat(ancora_str)
         except Exception:
             pass
@@ -722,7 +723,8 @@ def criar_boss():
             grupo=grupo, 
             tipo_respawn=tipo, 
             intervalo_horas=horas, 
-            hora_diaria=hora_diaria, 
+            hora_diaria=hora_diaria,
+            dias_semana=dias_semana,
             horario_ancora=horario_ancora
         )
         db.session.add(novo_boss)
@@ -1330,10 +1332,7 @@ def deletar_historico(id):
         return erro_interno(e)
 
 def inicializar_banco():
-    """Cria as tabelas, aplica migrações leves via ALTER TABLE e semeia dados
-    padrão. Extraída para uma função (em vez de código solto em
-    `with app.app_context():`) para poder ser chamada de novo pelos testes
-    automatizados, que precisam de um banco limpo e semeado a cada teste."""
+    """Cria as tabelas, aplica migrações leves via ALTER TABLE e semeia dados padrão."""
     db.create_all()
 
     try:
@@ -1387,6 +1386,16 @@ def inicializar_banco():
         db.session.commit()
     except Exception:
         db.session.rollback()
+        
+    try:
+        db.session.execute(text('SELECT dias_semana FROM bosses LIMIT 1'))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE bosses ADD COLUMN dias_semana VARCHAR(50)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     colunas_jogadores = {
         'status': "VARCHAR(20) DEFAULT 'Ativo'",
@@ -1480,18 +1489,18 @@ def inicializar_banco():
     if not Boss.query.first():
         agora = datetime.utcnow()
         bosses_iniciais = [
-            ("Nv. 66 Tamac Mecha", "Fábrica de Munições Blackstone", "Grupo de Chefes Novus D", "intervalo", 42, None),
-            ("Nv. 67 Eternal Mecha", "Colina do Pioneiro", "Grupo de Chefes Novus D", "intervalo", 42, None),
-            ("Nv. 68 Locust", "Favelas de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None),
-            ("Nv. 70 Pinça Mecha", "Ferro-Velho de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None),
-            ("Nv. 74 Vastus", "Deserto da Morte", "Grupo de Chefes Novus D", "intervalo", 42, None),
-            ("Nv. 76 Guerra Mecha", "Ruínas Despedaçadas", "Grupo de Chefes Novus E", "intervalo", 48, None),
-            ("Nv. 77 Ertelem Mecha", "Deserto de Ramun", "Grupo de Chefes Novus E", "intervalo", 48, None),
-            ("Nv. 79 Ravenous Mecha", "Base Horizon", "Grupo de Chefes Novus E", "intervalo", 48, None),
-            ("Nv. 80 Gancho Mecha", "Vale dos Gritos", "Grupo de Chefes Novus E", "intervalo", 48, None)
+            ("Nv. 66 Tamac Mecha", "Fábrica de Munições Blackstone", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
+            ("Nv. 67 Eternal Mecha", "Colina do Pioneiro", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
+            ("Nv. 68 Locust", "Favelas de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
+            ("Nv. 70 Pinça Mecha", "Ferro-Velho de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
+            ("Nv. 74 Vastus", "Deserto da Morte", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
+            ("Nv. 76 Guerra Mecha", "Ruínas Despedaçadas", "Grupo de Chefes Novus E", "intervalo", 48, None, None),
+            ("Nv. 77 Ertelem Mecha", "Deserto de Ramun", "Grupo de Chefes Novus E", "intervalo", 48, None, None),
+            ("Nv. 79 Ravenous Mecha", "Base Horizon", "Grupo de Chefes Novus E", "intervalo", 48, None, None),
+            ("Nv. 80 Gancho Mecha", "Vale dos Gritos", "Grupo de Chefes Novus E", "intervalo", 48, None, None)
         ]
-        for nome, local, grupo, tipo, horas, hd in bosses_iniciais:
-            b = Boss(nome=nome, local=local, grupo=grupo, tipo_respawn=tipo, intervalo_horas=horas, hora_diaria=hd, horario_ancora=agora)
+        for nome, local, grupo, tipo, horas, hd, ds in bosses_iniciais:
+            b = Boss(nome=nome, local=local, grupo=grupo, tipo_respawn=tipo, intervalo_horas=horas, hora_diaria=hd, dias_semana=ds, horario_ancora=agora)
             db.session.add(b)
         db.session.commit()
 
