@@ -5,6 +5,8 @@
     <title>Guilda Vortex - Command Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v={{ asset_version('css/dashboard.css') }}">
+    <!-- Script para exportação de imagem -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -116,12 +118,44 @@
         <button class="tab-btn" onclick="trocarAba('abaClasses', this)">Ordem de Classes & Builds</button>
         <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
         <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
+        <button class="tab-btn" onclick="trocarAba('abaBosses', this)">Escala de Bosses</button>
 
         {% if user_role == 'admin' %}
             <button class="tab-btn" onclick="trocarAba('abaMembros', this)">Gerenciar Membros</button>
             <button class="tab-btn" onclick="trocarAba('abaConfig', this)">Matriz de Pontos</button>
             <button class="tab-btn" onclick="trocarAba('abaLogs', this)">Logs do Sistema</button>
         {% endif %}
+    </div>
+
+    <!-- MÓDULO DE BOSSES (ESCALA) -->
+    <div id="abaBosses" class="tab-content">
+        <div class="table-container" style="border-left-color: var(--neon-cyan);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); margin: 0;">🎯 Escala de Chefes (Semana Atual)</h2>
+                {% if user_role == 'admin' %}
+                <div style="display: flex; gap: 15px;">
+                    <button class="btn btn-outline" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="abrirModal('modalCadastrarBoss')">➕ Cadastrar Chefe</button>
+                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="abrirModal('modalSelecionarBosses')">🔄 Alterar Nossos Bosses</button>
+                    <button class="btn btn-success" onclick="exportarBossesImagem()">📸 Exportar Imagem</button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Container that will be exported as image -->
+            <div id="exportarBossArea" style="background: rgba(10, 10, 15, 0.95); padding: 25px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 15px;">
+                    <h2 style="color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 0; font-size: 28px;">🎯 Alvos da Semana - Guilda Vortex</h2>
+                    <p style="color: var(--neon-cyan); font-size: 16px; margin-top: 5px; font-weight: bold;" id="dataExportacaoBosses"></p>
+                </div>
+                
+                <div id="gridBossesAtivos" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+                    <!-- JS WILL POPULATE THIS WITH CARDS LATER -->
+                    <div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">
+                        Carregando chefes...
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- PAINEL DE CONTROLE MEGA E TITÃ GLOBAL -->
@@ -659,6 +693,54 @@
     </div>
 
     {% if user_role == 'admin' %}
+    <!-- MODAL DE CADASTRAR BOSS -->
+    <div id="modalCadastrarBoss" class="modal-overlay">
+        <div class="modal-content" style="width: 450px;">
+            <h2 style="color: var(--neon-cyan); margin-top: 0; text-align: center;">➕ Cadastrar Novo Chefe</h2>
+
+            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Nome do Chefe/Grupo:</label>
+            <input type="text" id="inputBossNome" class="input-edit" placeholder="Ex: Nv. 66 Tamac Mecha" style="width: 100%; margin-bottom: 15px; text-align: left;">
+
+            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Localização:</label>
+            <input type="text" id="inputBossLocal" class="input-edit" placeholder="Ex: Fábrica de Munições Blackstone" style="width: 100%; margin-bottom: 15px; text-align: left;">
+
+            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Tipo de Respawn:</label>
+            <select id="inputBossTipoRespawn" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                <option value="intervalo_42">Intervalo Fixo: 42 Horas</option>
+                <option value="intervalo_48">Intervalo Fixo: 48 Horas</option>
+                <option value="intervalo_72">Intervalo Fixo: 72 Horas</option>
+                <option value="diario_fixo">Diário Fixo (Sempre no mesmo horário)</option>
+            </select>
+
+            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário Base (Ancoragem):</label>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Para intervalos (42h/48h): Insira a data e hora em que ele morreu (ou nascerá) para o sistema calcular os próximos ciclos. Para diários: Insira apenas o horário fixo que ele nasce todo dia.</p>
+            <input type="datetime-local" id="inputBossAncoragem" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;">
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCadastrarBoss')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarNovoBoss()">💾 Salvar Chefe</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE SELECIONAR BOSSES DA SEMANA -->
+    <div id="modalSelecionarBosses" class="modal-overlay">
+        <div class="modal-content" style="width: 500px;">
+            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">🔄 Definir Bosses da Semana</h2>
+            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Marque apenas os chefes que pertencem à Guilda Vortex nesta rotação semanal.</p>
+
+            <div id="listaBossesSelecao" style="display: grid; grid-template-columns: 1fr; gap: 10px; max-height: 350px; overflow-y: auto; padding-right: 10px; margin-bottom: 25px; text-align: left;">
+                <div style="text-align: center; color: var(--text-muted); padding: 20px;">Carregando lista de chefes cadastrados...</div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalSelecionarBosses')">Cancelar</button>
+                <button class="btn" style="background: var(--neon-orange); color: #111; font-weight: bold;" onclick="salvarBossesDaSemana()">Salvar Escala</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DEMAIS MODALS... -->
     <div id="modalImportacao" class="modal-overlay">
         <div class="modal-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
