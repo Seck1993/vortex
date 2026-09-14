@@ -985,8 +985,18 @@ let listaBossesGlobais = [];
 let listaGruposGlobais = [];
 let isRerenderingBosses = false;
 
-function getNextSpawnInfo(b, agoraDt) {
-    const agora = agoraDt.getTime();
+// O motor foi refatorado para converter qualquer input/cálculo nativamente para o fuso horário oficial de Brasília (BRT / UTC-3).
+// Isso garante que membros acessando de qualquer lugar do mundo (ou com Windows desconfigurado) vejam exatamente as mesmas datas e horas do servidor.
+function parseBRT(horaStr, offsetDias = 0) {
+    const offsetDate = new Date(Date.now() - 3 * 3600000); 
+    const year = offsetDate.getUTCFullYear();
+    const month = offsetDate.getUTCMonth();
+    const day = offsetDate.getUTCDate();
+    const partes = horaStr.split(':');
+    return Date.UTC(year, month, day + offsetDias, parseInt(partes[0]) + 3, parseInt(partes[1]), 0);
+}
+
+function getNextSpawnInfo(b, agoraMs) {
     let proximoNascimento = null;
 
     if (b.tipo_respawn === 'intervalo') {
@@ -997,8 +1007,8 @@ function getNextSpawnInfo(b, agoraDt) {
         const intervaloMs = horasIntervalo * 60 * 60 * 1000;
         proximoNascimento = ancoraMs;
 
-        if (proximoNascimento <= agora) {
-            const diffPassado = agora - proximoNascimento;
+        if (proximoNascimento <= agoraMs) {
+            const diffPassado = agoraMs - proximoNascimento;
             const ciclos = Math.floor(diffPassado / intervaloMs) + 1;
             proximoNascimento += ciclos * intervaloMs;
         }
@@ -1007,16 +1017,9 @@ function getNextSpawnInfo(b, agoraDt) {
         const horarios = b.hora_diaria.split(',').map(h => h.trim());
         let alvos = [];
         for(let h of horarios) {
-            let partes = h.split(':');
-            if(partes.length < 2) continue;
-            let d = new Date(agoraDt);
-            d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
-            if (d.getTime() > agora) { alvos.push(d.getTime()); }
-            else { 
-                let d2 = new Date(d);
-                d2.setDate(d2.getDate() + 1); 
-                alvos.push(d2.getTime()); 
-            }
+            let ts = parseBRT(h, 0);
+            if (ts <= agoraMs) ts = parseBRT(h, 1);
+            alvos.push(ts);
         }
         if(alvos.length > 0) proximoNascimento = Math.min(...alvos);
     } else if (b.tipo_respawn === 'semanal') {
@@ -1025,17 +1028,15 @@ function getNextSpawnInfo(b, agoraDt) {
         const diasPermitidos = b.dias_semana.split(',').map(d => parseInt(d));
         let alvos = [];
 
-        for (let i = 0; i <= 7; i++) {
-            let tempDate = new Date(agoraDt);
-            tempDate.setDate(tempDate.getDate() + i);
+        const offsetDate = new Date(agoraMs - 3 * 3600000); 
+        const currentBRTDayOfWeek = offsetDate.getUTCDay();
 
-            if (diasPermitidos.includes(tempDate.getDay())) {
+        for (let offset = 0; offset <= 7; offset++) {
+            const targetDayOfWeek = (currentBRTDayOfWeek + offset) % 7;
+            if (diasPermitidos.includes(targetDayOfWeek)) {
                 for(let h of horarios) {
-                    let partes = h.split(':');
-                    if(partes.length < 2) continue;
-                    let d = new Date(tempDate);
-                    d.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
-                    if (d.getTime() > agora) { alvos.push(d.getTime()); }
+                    let ts = parseBRT(h, offset);
+                    if (ts > agoraMs) alvos.push(ts);
                 }
             }
         }
@@ -1070,13 +1071,13 @@ async function renderizarCardsBossesGlobais() {
     let bossesNossos = listaBossesGlobais.filter(b => b.is_nosso);
     
     if(bossesNossos.length === 0) {
-        areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); grid-column: 1 / -1; padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
+        areaBosses.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 18px;">Nenhum chefe definido para a nossa Rotação desta Semana.</div>';
         isRerenderingBosses = false;
         return;
     }
 
-    const agoraDt = new Date();
-    bossesNossos.forEach(b => { b.nextSpawn = getNextSpawnInfo(b, agoraDt); });
+    const agoraMs = Date.now();
+    bossesNossos.forEach(b => { b.nextSpawn = getNextSpawnInfo(b, agoraMs); });
     
     const validBosses = bossesNossos.filter(b => b.nextSpawn !== null);
     validBosses.sort((a, b) => a.nextSpawn - b.nextSpawn);
@@ -1084,22 +1085,31 @@ async function renderizarCardsBossesGlobais() {
     const diasDaSemanaStr = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     const groups = {};
 
+    const hojeDateBRT = new Date(agoraMs - 3 * 3600000);
+    const hojeKey = `${hojeDateBRT.getUTCFullYear()}-${hojeDateBRT.getUTCMonth()}-${hojeDateBRT.getUTCDate()}`;
+    
+    const amanhaDateBRT = new Date(agoraMs - 3 * 3600000 + 86400000);
+    const amanhaKey = `${amanhaDateBRT.getUTCFullYear()}-${amanhaDateBRT.getUTCMonth()}-${amanhaDateBRT.getUTCDate()}`;
+
     validBosses.forEach(b => {
-        const d = new Date(b.nextSpawn);
-        const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        const dBRT = new Date(b.nextSpawn - 3 * 3600000);
+        const dateKey = `${dBRT.getUTCFullYear()}-${dBRT.getUTCMonth()}-${dBRT.getUTCDate()}`;
+        
         if (!groups[dateKey]) {
-            let label = `${diasDaSemanaStr[d.getDay()]} (${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')})`;
-            const hoje = new Date();
-            const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
-            if (d.toDateString() === hoje.toDateString()) label = `🔥 HOJE - ${label}`;
-            else if (d.toDateString() === amanha.toDateString()) label = `⚡ AMANHÃ - ${label}`;
+            const dayOfWeek = dBRT.getUTCDay();
+            let label = `${diasDaSemanaStr[dayOfWeek]} (${dBRT.getUTCDate().toString().padStart(2,'0')}/${(dBRT.getUTCMonth()+1).toString().padStart(2,'0')})`;
             
-            groups[dateKey] = { label: label, timestamp: d.getTime(), bosses: [] };
+            if (dateKey === hojeKey) label = `🔥 HOJE - ${label}`;
+            else if (dateKey === amanhaKey) label = `⚡ AMANHÃ - ${label}`;
+            
+            groups[dateKey] = { label: label, timestamp: dBRT.getTime(), bosses: [] };
         }
         groups[dateKey].bosses.push(b);
     });
 
-    for (const key in groups) {
+    const sortedKeys = Object.keys(groups).sort((k1, k2) => groups[k1].timestamp - groups[k2].timestamp);
+
+    for (const key of sortedKeys) {
         const groupData = groups[key];
         let divGrupo = document.createElement('div');
         divGrupo.className = 'boss-day-group';
@@ -1120,9 +1130,10 @@ async function renderizarCardsBossesGlobais() {
             card.innerHTML = `
                 <div class="icone" style="font-size: 35px; text-shadow: 0 0 10px var(--neon-cyan);">😈</div>
                 <div class="info" style="flex: 1;">
-                    <div class="nome" style="color: #fff; font-size: 18px; font-weight: bold; margin-bottom: 3px; padding-right: 25px;">${b.nome}</div>
-                    <div class="classe" style="color: var(--text-muted); font-size: 13px; margin-bottom: 8px;">📍 ${b.local} | 🛡️ ${b.grupo || 'Sem Grupo'}</div>
-                    <div class="cp boss-timer" data-next-spawn="${b.nextSpawn}" style="color: var(--neon-cyan); font-size: 22px; font-weight: bold; font-family: monospace;">⏳ Calculando...</div>
+                    <div style="display: inline-block; background: rgba(255, 170, 0, 0.15); color: var(--neon-orange); border: 1px solid var(--neon-orange); padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase;">🛡️ ${b.grupo || 'Sem Grupo'}</div>
+                    <div class="nome" style="color: #fff; font-size: 20px; font-weight: bold; margin-bottom: 4px; text-shadow: 0 0 5px rgba(255,255,255,0.2); padding-right: 25px;">${b.nome}</div>
+                    <div class="classe" style="color: var(--text-muted); font-size: 14px; margin-bottom: 8px;">📍 ${b.local}</div>
+                    <div class="boss-timer" data-next-spawn="${b.nextSpawn}" style="color: var(--neon-cyan); font-size: 20px; font-weight: bold; font-family: monospace;">⏳ Calculando...</div>
                 </div>
                 ${btnAdmin}
             `;
@@ -1194,8 +1205,8 @@ function formatTimeDiff(diff) {
     const min = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seg = Math.floor((diff % (1000 * 60)) / 1000);
     
-    if (dias > 0) return `${dias}d ${horas.toString().padStart(2, '0')}h ${min.toString().padStart(2, '0')}m`;
-    return `${horas.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+    if (dias > 0) return `⏳ ${dias}d ${horas.toString().padStart(2, '0')}h ${min.toString().padStart(2, '0')}m`;
+    return `⏳ ${horas.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
 }
 
 setInterval(() => {
@@ -1210,7 +1221,7 @@ setInterval(() => {
         if (diff <= 0) {
             precisaRerender = true;
         } else {
-            timer.innerText = `⏳ ${formatTimeDiff(diff)}`;
+            timer.innerText = formatTimeDiff(diff);
             timer.style.color = (diff < 3600000) ? 'var(--neon-red)' : 'var(--neon-cyan)';
         }
     });
@@ -1221,8 +1232,8 @@ setInterval(() => {
     
     const txtData = document.getElementById('dataExportacaoBosses');
     if(txtData) {
-        const hj = new Date();
-        txtData.innerText = `Gerado em: ${hj.toLocaleDateString('pt-BR')} às ${hj.toLocaleTimeString('pt-BR')}`;
+        const offsetDate = new Date(agora - 3 * 3600000); 
+        txtData.innerText = `Gerado em: ${offsetDate.getUTCDate().toString().padStart(2,'0')}/${(offsetDate.getUTCMonth()+1).toString().padStart(2,'0')}/${offsetDate.getUTCFullYear()} às ${offsetDate.getUTCHours().toString().padStart(2,'0')}:${offsetDate.getUTCMinutes().toString().padStart(2,'0')}:${offsetDate.getUTCSeconds().toString().padStart(2,'0')} (BRT)`;
     }
 }, 1000);
 
@@ -1473,7 +1484,7 @@ function exportarBossesImagem(modo) {
             if (spawn > limitMs) el.style.display = 'none';
         });
         document.querySelectorAll('.boss-day-group').forEach(group => {
-            const visibleCards = group.querySelectorAll('.boss-card-wrapper[style=""]:not([style*="display: none"])');
+            const visibleCards = group.querySelectorAll('.boss-card-wrapper[style="display: flex;"]:not([style*="display: none"])');
             if (visibleCards.length === 0) group.style.display = 'none';
         });
         document.getElementById('exportTitle').innerText = '🎯 Próximos Alvos (24h) - Guilda Vortex';
@@ -1484,20 +1495,24 @@ function exportarBossesImagem(modo) {
     const btnMsgOrig = "📸 Exportar...";
     mostrarToast("Gerando imagem...", "info");
 
-    html2canvas(areaToExport, { backgroundColor: "#0d0e15", scale: 2 }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = `Escala_Bosses_Vortex_${Date.now()}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-        
-        document.querySelectorAll('.boss-card-wrapper, .boss-day-group').forEach(el => el.style.display = '');
-        document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
-        
-        mostrarToast("Imagem exportada com sucesso!", "sucesso");
-    }).catch(err => {
-        console.error(err);
-        mostrarToast("Erro ao exportar a imagem.", "erro");
-        document.querySelectorAll('.boss-card-wrapper, .boss-day-group').forEach(el => el.style.display = '');
-        document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
-    });
+    setTimeout(() => {
+        html2canvas(areaToExport, { backgroundColor: "#0d0e15", scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `Escala_Bosses_Vortex_${Date.now()}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            
+            document.querySelectorAll('.boss-card-wrapper').forEach(el => el.style.display = 'flex');
+            document.querySelectorAll('.boss-day-group').forEach(el => el.style.display = 'block');
+            document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
+            
+            mostrarToast("Imagem exportada com sucesso!", "sucesso");
+        }).catch(err => {
+            console.error(err);
+            mostrarToast("Erro ao exportar a imagem.", "erro");
+            document.querySelectorAll('.boss-card-wrapper').forEach(el => el.style.display = 'flex');
+            document.querySelectorAll('.boss-day-group').forEach(el => el.style.display = 'block');
+            document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
+        });
+    }, 300);
 }
