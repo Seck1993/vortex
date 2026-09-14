@@ -12,7 +12,6 @@ class Jogador(db.Model):
     status = db.Column(db.String(20), default='Ativo') 
     data_entrada = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Novas colunas adicionadas para Classe e Milestones (Marcações)
     classe = db.Column(db.String(50), nullable=True)
     skill_4 = db.Column(db.Boolean, default=False)
     skill_5 = db.Column(db.Boolean, default=False)
@@ -63,3 +62,15 @@ class Pontuacao(db.Model):
     motivo_ajuste = db.Column(db.String(255), nullable=True)
     
     data_registro = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Boss(db.Model):
+    __tablename__ = 'bosses'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    local = db.Column(db.String(100), default="")
+    grupo = db.Column(db.String(50), default="Sem Grupo")
+    tipo_respawn = db.Column(db.String(20), default="intervalo") # 'intervalo' ou 'diario'
+    intervalo_horas = db.Column(db.Integer, default=42) # Usado se tipo == intervalo
+    hora_diaria = db.Column(db.String(10), nullable=True) # Usado se tipo == diario (ex: "16:00")
+    horario_ancora = db.Column(db.DateTime, nullable=True) # Marco zero para calcular os respawns futuros
+    is_nosso = db.Column(db.Boolean, default=False)
