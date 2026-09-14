@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, text
-from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, PersonagemSecundario, Boss
+from models import db, Jogador, ConfigAtividade, ImportacaoXML, Pontuacao, PersonagemSecundario, Boss, GrupoBoss
 from xml_engine import analisar_xml_guilda
 
 app = Flask(__name__)
@@ -219,24 +219,6 @@ def index():
     staff_membros = StaffMembro.query.order_by(StaffMembro.nome.asc()).all()
     todos_jogadores = Jogador.query.order_by(Jogador.nome.asc()).all()
 
-    # BUSCA DOS BOSSES
-    bosses_db = Boss.query.order_by(Boss.grupo, Boss.nome).all()
-    bosses_data = []
-    for b in bosses_db:
-        ancora_ms = int(b.horario_ancora.timestamp() * 1000) if b.horario_ancora else int(time.time() * 1000)
-        bosses_data.append({
-            'id': b.id,
-            'nome': b.nome,
-            'local': b.local,
-            'grupo': b.grupo,
-            'tipo_respawn': b.tipo_respawn,
-            'intervalo_horas': b.intervalo_horas,
-            'hora_diaria': b.hora_diaria,
-            'dias_semana': b.dias_semana,
-            'ancora_ms': ancora_ms,
-            'is_nosso': b.is_nosso
-        })
-
     evento_ativo = EventoSorteio.query.filter_by(ativo=True).order_by(EventoSorteio.id.desc()).first()
     evento_data = None
     if evento_ativo:
@@ -275,8 +257,7 @@ def index():
         semana_ativa_numero=semana_ativa_numero,
         evento=evento_data,
         staff_membros=staff_membros,
-        todos_jogadores=todos_jogadores,
-        bosses=bosses_data
+        todos_jogadores=todos_jogadores
     )
 
 @app.route('/api/login', methods=['POST'])
@@ -533,14 +514,13 @@ def remover_aposta(id):
     return jsonify({"mensagem": "Aposta removida."}), 200
 
 
-# ================= CADASTRO DE STAFF (para a fatia fixa da roleta) =================
+# ================= CADASTRO DE STAFF =================
 
 @app.route('/api/criar-staff', methods=['POST'])
 def criar_staff():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     nome = str(request.get_json().get('nome', '')).strip()[:100]
-    if not nome:
-        return jsonify({"erro": "Informe um nome."}), 400
+    if not nome: return jsonify({"erro": "Informe um nome."}), 400
 
     if StaffMembro.query.filter(func.lower(StaffMembro.nome) == nome.lower()).first():
         return jsonify({"erro": "Já existe uma pessoa da Staff com esse nome."}), 409
@@ -670,95 +650,130 @@ def confirmar_sorteio_item():
 
 # ================= ESCALA DE BOSSES =================
 
-@app.route('/api/listar-bosses', methods=['GET'])
-def listar_bosses():
+@app.route('/api/listar-grupos-boss', methods=['GET'])
+def listar_grupos_boss():
     try:
-        bosses_db = Boss.query.order_by(Boss.grupo, Boss.nome).all()
-        bosses_data = []
-        for b in bosses_db:
-            ancora_ms = int(b.horario_ancora.timestamp() * 1000) if b.horario_ancora else int(time.time() * 1000)
-            bosses_data.append({
-                'id': b.id,
-                'nome': b.nome,
-                'local': b.local,
-                'grupo': b.grupo,
-                'tipo_respawn': b.tipo_respawn,
-                'intervalo_horas': b.intervalo_horas,
-                'hora_diaria': b.hora_diaria,
-                'dias_semana': b.dias_semana,
-                'ancora_ms': ancora_ms,
-                'is_nosso': b.is_nosso
+        grupos = GrupoBoss.query.order_by(GrupoBoss.nome).all()
+        dados = []
+        for g in grupos:
+            ancora_ms = int(g.horario_ancora.timestamp() * 1000) if g.horario_ancora else None
+            dados.append({
+                'id': g.id,
+                'nome': g.nome,
+                'tipo_respawn': g.tipo_respawn,
+                'intervalo_horas': g.intervalo_horas,
+                'hora_diaria': g.hora_diaria,
+                'dias_semana': g.dias_semana,
+                'ancora_ms': ancora_ms
             })
-        return jsonify({"bosses": bosses_data}), 200
+        return jsonify({"grupos": dados}), 200
     except Exception as e:
         return erro_interno(e)
 
-@app.route('/api/criar-boss', methods=['POST'])
-def criar_boss():
+@app.route('/api/salvar-grupo-boss', methods=['POST'])
+def salvar_grupo_boss():
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
     dados = request.get_json()
+    grupo_id = dados.get('id')
+    nome = dados.get('nome', '').strip()
     
-    nome = dados.get('nome')
-    local = dados.get('local', '')
-    grupo = dados.get('grupo', 'Sem Grupo')
+    if not nome: return jsonify({"erro": "Nome do grupo é obrigatório."}), 400
+    
     tipo = dados.get('tipo_respawn', 'intervalo')
     horas = int(dados.get('intervalo_horas') or 42)
     hora_diaria = dados.get('hora_diaria')
     dias_semana = dados.get('dias_semana')
     ancora_str = dados.get('horario_ancora')
     
-    if not nome: return jsonify({"erro": "O nome do chefe é obrigatório."}), 400
-
     horario_ancora = datetime.utcnow()
     if ancora_str:
-        try:
-            horario_ancora = datetime.fromisoformat(ancora_str)
-        except Exception:
-            pass
-            
+        try: horario_ancora = datetime.fromisoformat(ancora_str)
+        except Exception: pass
+    
     try:
-        novo_boss = Boss(
-            nome=nome, 
-            local=local, 
-            grupo=grupo, 
-            tipo_respawn=tipo, 
-            intervalo_horas=horas, 
-            hora_diaria=hora_diaria,
-            dias_semana=dias_semana,
-            horario_ancora=horario_ancora
-        )
-        db.session.add(novo_boss)
+        if grupo_id:
+            gb = db.session.get(GrupoBoss, grupo_id)
+            if not gb: return jsonify({"erro": "Grupo não encontrado."}), 404
+            gb.nome = nome
+            gb.tipo_respawn = tipo
+            gb.intervalo_horas = horas
+            gb.hora_diaria = hora_diaria
+            gb.dias_semana = dias_semana
+            gb.horario_ancora = horario_ancora
+        else:
+            gb = GrupoBoss(nome=nome, tipo_respawn=tipo, intervalo_horas=horas, hora_diaria=hora_diaria, dias_semana=dias_semana, horario_ancora=horario_ancora)
+            db.session.add(gb)
         db.session.commit()
-        return jsonify({"mensagem": "Chefe cadastrado com sucesso!"}), 200
+        return jsonify({"mensagem": "Linha salva com sucesso!"}), 200
     except Exception as e:
         db.session.rollback()
         return erro_interno(e)
 
-@app.route('/api/editar-boss/<int:id>', methods=['POST'])
-def editar_boss(id):
+@app.route('/api/deletar-grupo-boss/<int:id>', methods=['DELETE'])
+def deletar_grupo_boss(id):
     if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
-    boss = db.session.get(Boss, id)
-    if not boss: return jsonify({"erro": "Chefe não encontrado."}), 404
-    
-    dados = request.get_json()
-    boss.nome = dados.get('nome') or boss.nome
-    boss.local = dados.get('local', '')
-    boss.grupo = dados.get('grupo', 'Sem Grupo')
-    boss.tipo_respawn = dados.get('tipo_respawn', 'intervalo')
-    boss.intervalo_horas = int(dados.get('intervalo_horas') or 42)
-    boss.hora_diaria = dados.get('hora_diaria')
-    boss.dias_semana = dados.get('dias_semana')
-    
-    ancora_str = dados.get('horario_ancora')
-    if ancora_str:
-        try:
-            boss.horario_ancora = datetime.fromisoformat(ancora_str)
-        except Exception:
-            pass
-            
     try:
+        gb = db.session.get(GrupoBoss, id)
+        if gb:
+            Boss.query.filter_by(grupo_id=gb.id).delete()
+            db.session.delete(gb)
+            db.session.commit()
+            return jsonify({"mensagem": "Linha e todos os seus chefes deletados!"}), 200
+        return jsonify({"erro": "Não encontrado."}), 404
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
+@app.route('/api/listar-bosses', methods=['GET'])
+def listar_bosses():
+    try:
+        bosses_db = Boss.query.all()
+        bosses_data = []
+        for b in bosses_db:
+            gb = b.grupo_rel
+            if not gb: continue
+            ancora_ms = int(gb.horario_ancora.timestamp() * 1000) if gb.horario_ancora else int(time.time() * 1000)
+            bosses_data.append({
+                'id': b.id,
+                'nome': b.nome,
+                'local': b.local,
+                'grupo_id': gb.id,
+                'grupo': gb.nome,
+                'tipo_respawn': gb.tipo_respawn,
+                'intervalo_horas': gb.intervalo_horas,
+                'hora_diaria': gb.hora_diaria,
+                'dias_semana': gb.dias_semana,
+                'ancora_ms': ancora_ms,
+                'is_nosso': b.is_nosso
+            })
+        bosses_data.sort(key=lambda x: (x['grupo'], x['nome']))
+        return jsonify({"bosses": bosses_data}), 200
+    except Exception as e:
+        return erro_interno(e)
+
+@app.route('/api/salvar-boss', methods=['POST'])
+def salvar_boss():
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    dados = request.get_json()
+    boss_id = dados.get('id')
+    nome = dados.get('nome', '').strip()
+    local = dados.get('local', '')
+    grupo_id = dados.get('grupo_id')
+    
+    if not nome or not grupo_id: return jsonify({"erro": "Nome e Linha são obrigatórios."}), 400
+    
+    try:
+        if boss_id:
+            b = db.session.get(Boss, boss_id)
+            if not b: return jsonify({"erro": "Chefe não encontrado."}), 404
+            b.nome = nome
+            b.local = local
+            b.grupo_id = int(grupo_id)
+        else:
+            b = Boss(nome=nome, local=local, grupo_id=int(grupo_id))
+            db.session.add(b)
         db.session.commit()
-        return jsonify({"mensagem": "Chefe atualizado com sucesso!"}), 200
+        return jsonify({"mensagem": "Chefe salvo com sucesso!"}), 200
     except Exception as e:
         db.session.rollback()
         return erro_interno(e)
@@ -789,6 +804,7 @@ def deletar_boss(id):
         db.session.commit()
         return jsonify({"mensagem": "Chefe removido da base de dados!"}), 200
     return jsonify({"erro": "Chefe não encontrado."}), 404
+
 
 # ================= AS DEMAIS ROTAS =================
 
@@ -1172,7 +1188,6 @@ def deletar_jogador(id):
         return jsonify({"erro": "Membro não encontrado."}), 404
 
     try:
-        # Remove o que referencia o jogador e não sai por cascade
         ApostaSorteio.query.filter_by(jogador_id=jogador.id).delete()
         SorteioHistorico.query.filter_by(jogador_id=jogador.id).delete()
         SorteioMemeHistorico.query.filter_by(jogador_id=jogador.id).delete()
@@ -1226,7 +1241,6 @@ def abonar_falta():
         config_semana = ConfigAtividade.query.filter_by(nome_xml='SEMANA_ATIVA').first()
         semana_ativa_str = f"Semana {config_semana.pontos_padrao}" if config_semana else "Semana 1"
 
-        # Injeta os pontos na semana atual com a tag de Abono
         novo_ponto = Pontuacao(
             jogador_id=jogador.id,
             semana=semana_ativa_str,
@@ -1426,9 +1440,46 @@ def inicializar_banco():
             db.session.rollback()
 
     # O erro "16:00, 22:30" ocorre porque a coluna `hora_diaria` foi gerada originalmente como VARCHAR(10). 
-    # Esta instrução força o banco a ampliar esse limite e aceitar o valor.
     try:
         db.session.execute(text("ALTER TABLE bosses ALTER COLUMN hora_diaria TYPE VARCHAR(100)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        db.session.execute(text("ALTER TABLE grupo_boss ALTER COLUMN hora_diaria TYPE VARCHAR(100)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    # MIGRAR DADOS ANTIGOS DE CHEFES PARA GRUPOS SE EXISTIR (Adiciona FK)
+    try:
+        db.session.execute(text('SELECT grupo_id FROM bosses LIMIT 1'))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE bosses ADD COLUMN grupo_id INTEGER"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    try:
+        old_bosses = Boss.query.filter(Boss.grupo_id == None).all()
+        for ob in old_bosses:
+            if ob.grupo:
+                gb = GrupoBoss.query.filter_by(nome=ob.grupo).first()
+                if not gb:
+                    gb = GrupoBoss(
+                        nome=ob.grupo, 
+                        tipo_respawn=ob.tipo_respawn or 'intervalo', 
+                        intervalo_horas=ob.intervalo_horas or 42, 
+                        hora_diaria=ob.hora_diaria, 
+                        dias_semana=ob.dias_semana, 
+                        horario_ancora=ob.horario_ancora
+                    )
+                    db.session.add(gb)
+                    db.session.flush()
+                ob.grupo_id = gb.id
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -1517,26 +1568,32 @@ def inicializar_banco():
 
     # === CADASTRAR BOSSES DA IMAGEM SE O BANCO ESTIVER VAZIO ===
     try:
-        db.session.execute(text("SELECT 1 FROM bosses LIMIT 1"))
+        db.session.execute(text("SELECT 1 FROM grupo_boss LIMIT 1"))
     except Exception:
         db.session.rollback()
         db.create_all()
 
-    if not Boss.query.first():
+    if not GrupoBoss.query.first():
         agora = datetime.utcnow()
+        gd = GrupoBoss(nome="Grupo de Chefes Novus D", tipo_respawn="intervalo", intervalo_horas=42, horario_ancora=agora)
+        ge = GrupoBoss(nome="Grupo de Chefes Novus E", tipo_respawn="intervalo", intervalo_horas=48, horario_ancora=agora)
+        ga = GrupoBoss(nome="Grupo de Chefes Novus A", tipo_respawn="diario", hora_diaria="16:00, 22:30", horario_ancora=agora)
+        db.session.add_all([gd, ge, ga])
+        db.session.commit()
+        
         bosses_iniciais = [
-            ("Nv. 66 Tamac Mecha", "Fábrica de Munições Blackstone", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
-            ("Nv. 67 Eternal Mecha", "Colina do Pioneiro", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
-            ("Nv. 68 Locust", "Favelas de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
-            ("Nv. 70 Pinça Mecha", "Ferro-Velho de Seth", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
-            ("Nv. 74 Vastus", "Deserto da Morte", "Grupo de Chefes Novus D", "intervalo", 42, None, None),
-            ("Nv. 76 Guerra Mecha", "Ruínas Despedaçadas", "Grupo de Chefes Novus E", "intervalo", 48, None, None),
-            ("Nv. 77 Ertelem Mecha", "Deserto de Ramun", "Grupo de Chefes Novus E", "intervalo", 48, None, None),
-            ("Nv. 79 Ravenous Mecha", "Base Horizon", "Grupo de Chefes Novus E", "intervalo", 48, None, None),
-            ("Nv. 80 Gancho Mecha", "Vale dos Gritos", "Grupo de Chefes Novus E", "intervalo", 48, None, None)
+            ("Nv. 66 Tamac Mecha", "Fábrica de Munições Blackstone", gd.id),
+            ("Nv. 67 Eternal Mecha", "Colina do Pioneiro", gd.id),
+            ("Nv. 68 Locust", "Favelas de Seth", gd.id),
+            ("Nv. 70 Pinça Mecha", "Ferro-Velho de Seth", gd.id),
+            ("Nv. 74 Vastus", "Deserto da Morte", gd.id),
+            ("Nv. 76 Guerra Mecha", "Ruínas Despedaçadas", ge.id),
+            ("Nv. 77 Ertelem Mecha", "Deserto de Ramun", ge.id),
+            ("Nv. 79 Ravenous Mecha", "Base Horizon", ge.id),
+            ("Nv. 80 Gancho Mecha", "Vale dos Gritos", ge.id)
         ]
-        for nome, local, grupo, tipo, horas, hd, ds in bosses_iniciais:
-            b = Boss(nome=nome, local=local, grupo=grupo, tipo_respawn=tipo, intervalo_horas=horas, hora_diaria=hd, dias_semana=ds, horario_ancora=agora)
+        for nome, local, gid in bosses_iniciais:
+            b = Boss(nome=nome, local=local, grupo_id=gid)
             db.session.add(b)
         db.session.commit()
 
