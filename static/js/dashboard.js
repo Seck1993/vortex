@@ -1111,7 +1111,7 @@ async function renderizarCardsBossesGlobais() {
         
         groupData.bosses.forEach(b => {
             let card = document.createElement('div');
-            card.className = 'banner-destaque boss-card-wrapper';
+            card.className = 'boss-card-wrapper';
             card.style.cssText = "display: flex; align-items: center; gap: 15px; padding: 15px 20px; background: rgba(0, 243, 255, 0.05); border: 2px solid rgba(0, 243, 255, 0.4); border-radius: 8px; box-shadow: 0 0 15px rgba(0, 243, 255, 0.05); position: relative; width: 100%; box-sizing: border-box;";
             card.setAttribute('data-next-spawn', b.nextSpawn);
             
@@ -1358,6 +1358,7 @@ async function deletarGrupo(id) {
     } catch (e) { mostrarToast("Erro de rede.", "erro"); }
 }
 
+/* --- GESTÃO DE CHEFES VINCULADOS --- */
 function abrirModalGerenciarBosses() {
     const container = document.getElementById('listaGerenciarBosses');
     container.innerHTML = '';
