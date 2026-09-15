@@ -259,7 +259,7 @@
                             {% else %}
                                 <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS<input type="hidden" class="edit-pontos" value="{{ item.pontos }}"></td>
                             {% endif %}
-                            <td><button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarPersonagem({{ item.jogador.id }}, '{{ item.jogador.nome }}', {{ item.jogador.level }}, {{ item.jogador.poder_combate }})">✏️ Editar</button></td>
+                            <td><button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarPersonagem({{ item.jogador.id }}, '{{ item.jogador.nome|escape }}', {{ item.jogador.level }}, {{ item.jogador.poder_combate }})">✏️ Editar</button></td>
 
                         {% else %}
                             <td style="color: var(--text-muted); font-size: 16px; text-align: center;" title="Faça login como Membro para visualizar">🔒</td>
@@ -348,7 +348,7 @@
 
                                 {% if user_role == 'admin' %}
                                 <td style="border-right: none;">
-                                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarBuild({{ item.jogador.id }}, '{{ item.jogador.nome }}', '{{ item.jogador.classe or '' }}', {{ item.jogador.skill_4|tojson }}, {{ item.jogador.skill_5|tojson }}, {{ item.jogador.skill_6|tojson }}, {{ item.jogador.skill_7|tojson }}, {{ item.jogador.constante_3|tojson }}, {{ item.jogador.constante_4|tojson }}, {{ item.jogador.trindade|tojson }}, {{ item.jogador.mestre_tecnica|tojson }})">✏️ Editar</button>
+                                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarBuild({{ item.jogador.id }}, '{{ item.jogador.nome|escape }}', '{{ item.jogador.classe or '' }}', {{ item.jogador.skill_4|tojson }}, {{ item.jogador.skill_5|tojson }}, {{ item.jogador.skill_6|tojson }}, {{ item.jogador.skill_7|tojson }}, {{ item.jogador.constante_3|tojson }}, {{ item.jogador.constante_4|tojson }}, {{ item.jogador.trindade|tojson }}, {{ item.jogador.mestre_tecnica|tojson }})">✏️ Editar</button>
                                 </td>
                                 {% endif %}
                             {% else %}
@@ -628,7 +628,6 @@
             </table>
         </div>
     </div>
-    {% endif %}
 
     <!-- MODALS GERAIS -->
     <div id="modalLogin" class="modal-overlay">
@@ -681,8 +680,6 @@
             </div>
         </div>
     </div>
-
-    {% if user_role == 'admin' %}
 
     <!-- MODAL DE CRIAR E EDITAR LINHA (GRUPO DE CHEFES) -->
     <div id="modalCadastrarGrupo" class="modal-overlay" style="z-index: 120;">
@@ -812,7 +809,311 @@
             </div>
         </div>
     </div>
+
+    <!-- DEMAIS MODALS -->
+    <div id="modalImportacao" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 24px; color: var(--neon-cyan);"><span style="margin-right:10px;">⇪</span> Central de Uploads</h2>
+                <button onclick="fecharModal('modalImportacao')" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; font-size: 28px; transition: 0.2s;">&times;</button>
+            </div>
+
+            <div style="border: 1px solid rgba(0, 243, 255, 0.3); padding: 20px; border-radius: 6px; margin-bottom: 25px; background: rgba(0, 243, 255, 0.02);">
+                <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px;">1. Injetar Matriz de Pontos (XML)</h3>
+
+                <form id="formImportacao" onsubmit="enviarXML(event)">
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 14px; color: var(--neon-cyan); font-weight: bold; margin-bottom: 8px; display: block;">Guilda Alvo do XML:</label>
+                        <select name="guilda_alvo" id="guildaAlvoSelect" class="input-edit" style="width: 100%; text-align: left;">
+                            <option value="vortex">Guilda Principal (Vortex)</option>
+                            <option value="blackskull">Guilda Secundária (BlackSkull - Pontua apenas Alts)</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 15px; border: 1px dashed var(--neon-cyan); padding: 20px; text-align: center; background: rgba(0,0,0,0.5);">
+                        <input type="file" id="arquivoXML" name="xml_file" accept=".xml" required style="color: var(--neon-cyan); width: 100%; font-family: monospace; font-size: 14px;">
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="submit" id="btnEnviar" class="btn">Processar XML</button>
+                    </div>
+                </form>
+            </div>
+
+            <div style="border: 1px solid rgba(0, 255, 102, 0.3); padding: 20px; border-radius: 6px; margin-bottom: 20px; background: rgba(0, 255, 102, 0.02);">
+                <h3 style="margin-top: 0; color: var(--neon-green); font-size: 18px;">2. Sincronizar Atributos (.XLSX)</h3>
+                <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Módulo de leitura: Nomes, Level e CP (Apenas Guilda Principal).</p>
+                <form id="formExcel" onsubmit="enviarExcel(event)">
+                    <div style="margin-bottom: 15px; border: 1px dashed var(--neon-green); padding: 20px; text-align: center; background: rgba(0,0,0,0.5);">
+                        <input type="file" id="arquivoExcel" name="excel_file" accept=".xlsx, .xls" required style="color: var(--neon-green); width: 100%; font-family: monospace; font-size: 14px;">
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="submit" id="btnEnviarExcel" class="btn btn-success">Sincronizar Atributos</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="areaPreview" style="display: none; border-top: 1px solid var(--neon-cyan); padding-top: 25px;">
+                <div id="areaFiltroEventos" style="margin-bottom: 20px; background: rgba(0, 243, 255, 0.05); padding: 20px; border: 1px solid var(--glass-border); border-radius: 6px;">
+                    <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 22px;">☑</span> Autorização de Pontuação
+                    </h3>
+                    <p style="font-size: 14px; color: var(--text-light); margin-bottom: 20px;">Selecione abaixo quais eventos identificados no banco de dados devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
+                    <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
+                </div>
+
+                <h3 style="margin-top: 0; font-size: 18px; color: var(--neon-cyan);">Resultado do Escaneamento (Jogadores)</h3>
+                <div id="resultadoPreview" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.8); border: 1px solid var(--glass-border); padding: 15px; margin-bottom: 20px; font-size: 15px; font-family: monospace;"></div>
+
+                <form id="formConfirmar" onsubmit="confirmarImportacao(event)">
+                    <input type="hidden" id="hashArquivo" name="hash">
+                    <div style="margin-bottom: 20px; display: none; background: rgba(255, 170, 0, 0.1); padding: 12px; border-left: 4px solid var(--neon-orange);" id="areaAlertaNovos">
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--neon-orange); font-weight: bold; cursor: pointer;">
+                            <input type="checkbox" id="checkCadastrarNovos" checked style="accent-color: var(--neon-orange); width: 20px; height: 20px;">
+                            Sinalizador de novos recrutas ativo (Auto-cadastro p/ Principal)
+                        </label>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 15px;">
+                        <button type="button" class="btn btn-outline" onclick="abrirModal('modalImportacao')">Descartar</button>
+                        <button type="submit" class="btn btn-success">Confirmar Injeção de Dados</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CRIAR EVENTO DE SORTEIO (BANNER) -->
+    <div id="modalCriarEvento" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="color: var(--neon-orange); margin-top: 0;">Configurar Novo Sorteio</h2>
+            <label style="color: #fff; font-weight: bold;">Título do Banner:</label>
+            <input type="text" id="tituloEvento" class="input-edit" value="SORTEIO HOJE AS 20:00" style="width: 100%; margin-bottom: 20px; text-align: left;">
+
+            <label style="color: #fff; font-weight: bold;">Duração do Sorteio:</label>
+            <select id="prazoEvento" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
+                <option value="6">6 Horas</option>
+                <option value="12">12 Horas</option>
+                <option value="18">18 Horas</option>
+                <option value="24" selected>24 Horas (1 Dia)</option>
+                <option value="48">48 Horas (2 Dias)</option>
+                <option value="72">72 Horas (3 Dias)</option>
+                <option value="sem_limite">Sem Limite de Tempo</option>
+            </select>
+
+            <h3 style="color: var(--neon-cyan);">Adicionar Itens</h3>
+            <div id="listaItensCriacao" style="background: rgba(0,0,0,0.4); padding: 15px; border: 1px dashed var(--glass-border); margin-bottom: 20px;">
+                <!-- Campos dinâmicos entram aqui -->
+            </div>
+
+            <button class="btn" onclick="adicionarCampoItem()">+ Novo Item</button>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCriarEvento')">Cancelar</button>
+                <button class="btn btn-warning" onclick="salvarNovoEvento()">Publicar Banner</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA ESTENDER O TEMPO DO BANNER -->
+    <div id="modalEstenderTempo" class="modal-overlay" style="z-index: 125;">
+        <div class="modal-content" style="width: 400px;">
+            <h2 style="color: var(--neon-cyan); margin-top: 0; text-align: center;">⏱️ Aumentar Tempo Limite</h2>
+            <p style="color: var(--text-light); text-align: center; margin-bottom: 20px;">Adicione horas extras ao prazo atual de encerramento do sorteio em andamento.</p>
+
+            <label style="color: #fff; font-weight: bold;">Horas Adicionais:</label>
+            <select id="extensaoTempo" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;">
+                <option value="1">+ 1 Hora</option>
+                <option value="3">+ 3 Horas</option>
+                <option value="6">+ 6 Horas</option>
+                <option value="12">+ 12 Horas</option>
+                <option value="24">+ 24 Horas (1 Dia)</option>
+                <option value="sem_limite">Remover Limite (Infinito)</option>
+            </select>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEstenderTempo')">Cancelar</button>
+                <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="confirmarExtensaoTempo()">Confirmar Adição</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GERENCIAR STAFF E CONFERIR PARTICIPANTES ANTES DO SORTEIO -->
+    <div id="modalStaffRoleta" class="modal-overlay" style="z-index: 125;">
+        <div class="modal-content" style="width: 560px;">
+            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">Definir Staff do Sorteio</h2>
+
+            <input type="hidden" id="staffRoletaItemId">
+            <input type="hidden" id="staffRoletaNomeItem">
+
+            <h3 style="color: var(--neon-orange); font-size: 16px; margin-bottom: 10px;">👤 Staff (selecione quem representa a fatia de 15%)</h3>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;">Deixe a opção "Nenhum" selecionada se quiser que 100% da roleta seja disputada pelos jogadores.</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="novoStaffNome" class="input-edit" placeholder="Nome da nova pessoa" style="flex: 1; text-align: left;">
+                <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="adicionarStaff()">+ Adicionar</button>
+            </div>
+            <div id="listaStaffGerenciamento" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; text-align: left;">
+                <!-- Opção "Nenhum" injetada manualmente -->
+                <div class="linha-staff-gerenciamento" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                    <input type="radio" name="staffSelecionado" value="" checked class="staff-radio" style="width: 18px; height: 18px; accent-color: var(--neon-orange);">
+                    <span style="flex: 1; text-align: left; color: #fff; font-size: 18px; padding-left: 5px;">Nenhum (100% para os membros)</span>
+                </div>
+                
+                {% for staff in staff_membros %}
+                <div class="linha-staff-gerenciamento" data-staff-id="{{ staff.id }}" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                    <input type="radio" name="staffSelecionado" value="{{ staff.nome }}" class="staff-radio" style="width: 18px; height: 18px; accent-color: var(--neon-orange);">
+                    <input type="text" class="input-edit staff-nome-input" value="{{ staff.nome }}" style="flex: 1; text-align: left;">
+                    <button class="btn-danger" title="Remover da Staff" onclick="removerStaff({{ staff.id }})">✖</button>
+                </div>
+                {% endfor %}
+            </div>
+            <button class="btn btn-success" style="margin-bottom: 25px;" onclick="salvarNomesStaff()">💾 Salvar Nomes da Staff</button>
+
+            <h3 style="color: var(--neon-cyan); font-size: 16px; margin-bottom: 10px;">🎮 Jogadores presentes (já apostaram neste item)</h3>
+            <div id="listaJogadoresPresentes" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 25px; color: var(--text-muted); font-size: 14px;"></div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalStaffRoleta')">Cancelar</button>
+                <button class="btn btn-warning" onclick="confirmarStaffEGirarRoleta()">🎲 Girar Roleta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVA ROLETA CANVAS (MULTIPLAYER E RESPONSIVA) -->
+    <div id="modalRoletaItem" class="modal-overlay" style="z-index: 120;">
+        <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 600px; padding: 20px;">
+            <h2 id="tituloRoletaVisual" style="color: var(--neon-orange); font-size: 26px; margin-top:0; text-shadow: 0 0 15px rgba(255,170,0,0.5);">SORTEIO EM ANDAMENTO</h2>
+
+            <div class="roleta-container">
+                <div class="roleta-ponteiro"></div>
+                <div id="wrapperCanvas" class="roleta-canvas-wrapper">
+                    <canvas id="canvasRoleta" width="400" height="400"></canvas>
+                </div>
+            </div>
+
+            <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
+
+            <button id="btnFecharRoletaVisual" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;"></button>
+        </div>
+    </div>
+
+    <!-- MODAL: ATUALIZAR LEVEL/PODER DE UM PERSONAGEM -->
+    <div id="modalEditarPersonagem" class="modal-overlay" style="z-index: 116;">
+        <div class="modal-content" style="width: 380px; text-align: center;">
+            <h2 id="tituloEditarPersonagem" style="color: var(--neon-cyan); margin-top: 0;">Atualizar Personagem</h2>
+
+            <input type="hidden" id="editPersonagemId">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Level:</label>
+            <input type="number" id="editPersonagemLevel" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 15px;">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Poder de Combate:</label>
+            <input type="number" id="editPersonagemPoder" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 25px;">
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarPersonagem')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarEdicaoPersonagem()">💾 Atualizar e Gravar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ATUALIZAR CLASSE E SKILLS DE UM PERSONAGEM -->
+    <div id="modalEditarBuild" class="modal-overlay" style="z-index: 116;">
+        <div class="modal-content" style="width: 420px;">
+            <h2 id="tituloEditarBuild" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">Atualizar Build</h2>
+
+            <input type="hidden" id="editBuildId">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Classe:</label>
+            <select id="editBuildClasse" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
+                <option value="">Sem Classe</option>
+                <option value="Punisher">Punisher</option>
+                <option value="Phantom">Phantom</option>
+                <option value="Enforcer">Enforcer</option>
+                <option value="Psypher">Psypher</option>
+                <option value="Dreadnought">Dreadnought</option>
+                <option value="Technician">Technician</option>
+                <option value="Arbiter">Arbiter</option>
+                <option value="Demolidor">Demolidor</option>
+            </select>
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 10px;">Skills e Marcações:</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; text-align: left;">
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS4" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill IV</label>
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS5" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill V</label>
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS6" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VI</label>
+                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS7" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VII</label>
+                <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC3" style="width: 18px; height: 18px; accent-color: #00ff66;"> Constante 3</label>
+                <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC4" style="width: 18px; height: 18px; accent-color: #00ff66;"> Adaptação a Dor</label>
+                <label style="color: #bc13fe; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildTrin" style="width: 18px; height: 18px; accent-color: #bc13fe;"> Trindade</label>
+                <label style="color: #00f3ff; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildMT" style="width: 18px; height: 18px; accent-color: #00f3ff;"> Mestre da Técnica</label>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarBuild')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarEdicaoBuild()">💾 Atualizar e Gravar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ABONAR FALTA / JUSTIFICAR -->
+    <div id="modalAbono" class="modal-overlay" style="z-index: 116;">
+        <div class="modal-content" style="width: 400px; text-align: center;">
+            <h2 style="color: var(--neon-purple); margin-top: 0;">Abonar Falta / Justificar</h2>
+            <p id="labelAbonoNome" style="color: #fff; font-weight: bold; font-size: 18px; margin-bottom: 20px;"></p>
+
+            <input type="hidden" id="abonoJogadorId">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Pontos a abonar na semana atual:</label>
+            <input type="number" id="abonoPontos" class="input-edit" placeholder="Ex: 5" style="width: 100%; font-size: 20px; margin-bottom: 15px;">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Motivo / Justificativa:</label>
+            <input type="text" id="abonoMotivo" class="input-edit" value="Abono de Missão (Justificativa)" style="width: 100%; font-size: 16px; margin-bottom: 25px; text-align: left;">
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAbono')">Cancelar</button>
+                <button class="btn btn-success" style="background-color: var(--neon-purple); border-color: var(--neon-purple); color: #fff;" onclick="confirmarAbono()">Confirmar Abono</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAposta" class="modal-overlay" style="z-index: 110;">
+        <div class="modal-content" style="width: 400px; text-align: center;">
+            <h2 style="color: var(--neon-cyan); margin-top: 0;">Apostar no Item</h2>
+            <p id="labelItemAposta" style="color: #fff; font-size: 18px; font-weight: bold;"></p>
+            <p id="labelMaxPontos" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;"></p>
+
+            <input type="hidden" id="apostaItemId">
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Selecione seu Personagem:</label>
+            <select id="apostaJogadorId" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                <option value="" disabled selected>-- SELECIONE SEU PERSONAGEM --</option>
+                {% for item in ranking %}
+                    <option value="{{ item.jogador.id }}">{{ item.jogador.nome }} ({{ item.participacao }}%)</option>
+                {% endfor %}
+            </select>
+
+            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Quantos pontos deseja arriscar?</label>
+            <input type="number" id="apostaPontos" class="input-edit" placeholder="Ex: 10" style="width: 100%; font-size: 22px; margin-bottom: 25px;">
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAposta')">Cancelar</button>
+                <button class="btn btn-success" onclick="confirmarAposta()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Roleta Texto Original (Sorteio Meme) -->
+    <div id="modalRoletaMeme" class="modal-overlay" style="z-index: 110;">
+        <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 500px;">
+            <h2 style="color: var(--neon-orange); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(255,170,0,0.5);">GERADOR QUÂNTICO (MEME)</h2>
+            <p id="tituloRoletaMeme" style="color: var(--text-light); font-weight: bold; margin-bottom: 8px; font-size: 18px;"></p>
+            <p style="color: var(--text-muted); margin-bottom: 25px; font-family: monospace; font-size: 15px;">Processando algoritmos de aleatoriedade...</p>
+            <div class="roleta-box" style="font-size: 40px; padding: 40px;"><span id="roletaNomeMeme">---</span></div>
+            <button id="btnFecharRoletaMeme" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 25px auto 0; font-size: 18px;">Concluir e Registrar</button>
+        </div>
+    </div>
+
     {% endif %}
+
     </div>
 
     <!-- Script de Tradução do Google e Dashboard Engine -->
