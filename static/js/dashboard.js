@@ -234,8 +234,8 @@ function aplicarLinhasPoder() {
         let titasHTML = '';
 
         linhasClasses.forEach(linha => {
-            if (!linha.cells || linha.cells.length < 2) return;
-            
+            if (!linha.cells || linha.cells.length < 2) return; // Impede que o JS quebre em linhas vazias
+
             const cp = parseInt(linha.getAttribute('data-poder')) || 0;
             const nomeCell = linha.cells[1].innerText.trim();
             const selectElement = linha.querySelector('.edit-classe');
@@ -1011,7 +1011,6 @@ let listaBossesGlobais = [];
 let listaGruposGlobais = [];
 let isRerenderingBosses = false;
 
-// O motor foi refatorado para converter qualquer input/cálculo nativamente para o fuso horário oficial de Brasília (BRT / UTC-3).
 function parseBRT(horaStr, offsetDias = 0) {
     const offsetDate = new Date(Date.now() - 3 * 3600000); 
     const year = offsetDate.getUTCFullYear();
@@ -1070,7 +1069,6 @@ function getNextSpawnInfo(b, agoraMs) {
     return proximoNascimento;
 }
 
-// Formata a string de "HOJE ÀS 20:00" ou "DD/MM ÀS HH:MM" baseada no Timestamp BRT
 function formatSpawnDate(timestamp) {
     const dBRT = new Date(timestamp - 3 * 3600000);
     const hojeBRT = new Date(Date.now() - 3 * 3600000);
