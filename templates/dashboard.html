@@ -12,1109 +12,1043 @@
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
     <div id="app-root" data-is-admin="{{ 'true' if user_role == 'admin' else 'false' }}" data-logged-in="{{ 'true' if session.get('logged_in') else 'false' }}">
-    <div class="header">
-        <h1>Vortex Command Center <span class="semana-badge">{{ label_semana }}</span></h1>
-        <div style="display: flex; gap: 15px; align-items: center;">
-            <div id="google_translate_element" style="display:none;"></div>
-            <div class="seletor-idioma" id="seletorIdioma">
-                <button type="button" class="seletor-idioma-btn" onclick="toggleSeletorIdioma()">
-                    <span id="bandeiraAtual">🇧🇷</span> <span class="seletor-idioma-seta">▾</span>
-                </button>
-                <div class="seletor-idioma-painel" id="painelIdiomas">
-                    <div class="idioma-opcao" onclick="definirIdioma('pt')"><span>🇧🇷</span> Português</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('en')"><span>🇺🇸</span> English</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('es')"><span>🇪🇸</span> Español</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('fr')"><span>🇫🇷</span> Français</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('ru')"><span>🇷🇺</span> Русский</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('ja')"><span>🇯🇵</span> 日本語</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('ko')"><span>🇰🇷</span> 한국어</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('zh-CN')"><span>🇨🇳</span> 中文</div>
-                    <div class="idioma-opcao" onclick="definirIdioma('tl')"><span>🇵🇭</span> Filipino</div>
-                </div>
-            </div>
-            {% if session.get('logged_in') %}
-                {% if user_role == 'admin' %}
-                    <button class="btn btn-warning" onclick="abrirModal('modalCriarEvento')">🎟️ Criar Banner de Sorteio</button>
-                    <button class="btn btn-outline" onclick="abrirModal('modalImportacao')">⇪ Inicializar Uploads</button>
-                    <button class="btn btn-outline" onclick="abrirModal('modalSenhas')" style="border-color: var(--neon-purple); color: var(--neon-purple);">🔑 Senhas</button>
-                {% endif %}
-                <button class="btn btn-danger" style="font-size: 16px; border: 1px solid var(--neon-red); color: var(--neon-red); padding: 10px 20px;" onclick="fazerLogout()">⏻ Sair</button>
-            {% else %}
-                <button class="btn btn-outline" onclick="abrirModal('modalLogin')">🔒 Acesso Root / Membro</button>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- BANNER DE EVENTO ATIVO -->
-    {% if evento %}
-    <div class="banner-evento">
-        <button class="btn btn-outline" style="position: absolute; top: 20px; right: 20px;" onclick="abrirModal('modalTutorial')">📖 Como Funciona</button>
-
-        <h2>📢 {{ evento.titulo }}</h2>
-
-        <div class="timer-display" id="timerDisplay" data-prazo="{{ evento.prazo_encerramento }}">--:--:--</div>
-
-        <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER! <strong style="color: var(--neon-orange);">(Exige no mínimo 90% de participação na semana ativa)</strong>.</p>
-
-        {% for item in evento.itens %}
-        <div class="item-card" data-item-id="{{ item.id }}" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
-            <div>
-                <h3 style="color: #fff; margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;">
-                    {{ item.nome_item }}
-                    {% if item.restricao == 'Mega' %}
-                        <span style="font-size: 14px; background: rgba(255, 215, 0, 0.1); color: var(--gold-mega); padding: 3px 8px; border: 1px solid var(--gold-mega); border-radius: 4px;">Somente Megas ⭐</span>
-                    {% elif item.restricao == 'Titã' %}
-                        <span style="font-size: 14px; background: rgba(0, 168, 255, 0.1); color: var(--blue-tita); padding: 3px 8px; border: 1px solid var(--blue-tita); border-radius: 4px;">Titãs e Megas ⚔️</span>
-                    {% else %}
-                        <span style="font-size: 14px; background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); padding: 3px 8px; border: 1px solid var(--neon-cyan); border-radius: 4px;">Livre para Todos</span>
-                    {% endif %}
-                </h3>
-                <p style="margin: 5px 0 0 0; color: var(--neon-cyan); font-weight: bold;">Probabilidade Máxima: {{ item.max_pontos }} PTS = 100%</p>
-                <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">Total depositado pelos membros: {{ item.total_apostado }} PTS</p>
-
-                {% if item.sorteado %}
-                    <p style="color: var(--neon-green); font-weight: bold; font-size: 18px; margin-top: 10px;">🏆 Vencedor: {{ item.vencedor_nome }}</p>
-                {% else %}
-                    <div class="lista-apostas-item" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                        {% for aposta in item.apostas %}
-                            <span style="background: rgba(0,243,255,0.1); border: 1px solid var(--glass-border); padding: 4px 8px; font-size: 14px; border-radius: 4px; color: #fff;">
-                                {{ aposta.jogador_nome }} ({{ aposta.pontos }} pts)
-                                {% if user_role == 'admin' %}<span style="color:var(--neon-red); cursor:pointer; margin-left:5px;" onclick="removerAposta({{ aposta.id }})">✖</span>{% endif %}
-                            </span>
-                        {% endfor %}
+        <div class="header">
+            <h1>Vortex Command Center <span class="semana-badge">{{ label_semana }}</span></h1>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div id="google_translate_element" style="display:none;"></div>
+                <div class="seletor-idioma" id="seletorIdioma">
+                    <button type="button" class="seletor-idioma-btn" onclick="toggleSeletorIdioma()">
+                        <span id="bandeiraAtual">🇧🇷</span> <span class="seletor-idioma-seta">▾</span>
+                    </button>
+                    <div class="seletor-idioma-painel" id="painelIdiomas">
+                        <div class="idioma-opcao" onclick="definirIdioma('pt')"><span>🇧🇷</span> Português</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('en')"><span>🇺🇸</span> English</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('es')"><span>🇪🇸</span> Español</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('fr')"><span>🇫🇷</span> Français</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('ru')"><span>🇷🇺</span> Русский</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('ja')"><span>🇯🇵</span> 日本語</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('ko')"><span>🇰🇷</span> 한국어</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('zh-CN')"><span>🇨🇳</span> 中文</div>
+                        <div class="idioma-opcao" onclick="definirIdioma('tl')"><span>🇵🇭</span> Filipino</div>
                     </div>
-                {% endif %}
-            </div>
-
-            <div style="display: flex; gap: 10px; flex-direction: column;">
-                {% if not item.sorteado %}
-                    {% if session.get('logged_in') %}
-                        <button class="btn btn-apostar" onclick="abrirModalAposta({{ item.id }}, '{{ item.nome_item }}', {{ item.max_pontos }})">➕ Apostar</button>
-                    {% endif %}
+                </div>
+                {% if session.get('logged_in') %}
                     {% if user_role == 'admin' %}
-                        <button class="btn btn-warning" onclick="abrirModalStaffRoleta({{ item.id }}, '{{ item.nome_item }}')">🎲 Girar Roleta</button>
+                        <button class="btn btn-warning" onclick="abrirModal('modalCriarEvento')">🎟️ Criar Banner de Sorteio</button>
+                        <button class="btn btn-outline" onclick="abrirModal('modalImportacao')">⇪ Inicializar Uploads</button>
+                        <button class="btn btn-outline" onclick="abrirModal('modalSenhas')" style="border-color: var(--neon-purple); color: var(--neon-purple);">🔑 Senhas</button>
                     {% endif %}
+                    <button class="btn btn-danger" style="font-size: 16px; border: 1px solid var(--neon-red); color: var(--neon-red); padding: 10px 20px;" onclick="fazerLogout()">⏻ Sair</button>
                 {% else %}
-                    <span style="color: var(--neon-green); font-weight: bold; font-size: 18px;">[ FINALIZADO ]</span>
+                    <button class="btn btn-outline" onclick="abrirModal('modalLogin')">🔒 Acesso Root / Membro</button>
                 {% endif %}
             </div>
         </div>
-        {% endfor %}
 
-        {% if user_role == 'admin' %}
-            <div style="display: flex; gap: 15px; margin-top: 25px;">
-                <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="encerrarEvento()">✖ Encerrar Evento</button>
-                <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="abrirModal('modalEstenderTempo')">⏱️ Aumentar Tempo Limite</button>
-            </div>
-        {% endif %}
-    </div>
-    {% endif %}
+        <!-- BANNER DE EVENTO ATIVO -->
+        {% if evento %}
+        <div class="banner-evento">
+            <button class="btn btn-outline" style="position: absolute; top: 20px; right: 20px;" onclick="abrirModal('modalTutorial')">📖 Como Funciona</button>
 
-    <div class="tabs">
-        <button class="tab-btn active" onclick="trocarAba('abaRanking', this)">Módulo de Jogadores</button>
-        <button class="tab-btn" onclick="trocarAba('abaClasses', this)">Ordem de Classes & Builds</button>
-        <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
-        <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
-        <button class="tab-btn" onclick="trocarAba('abaBosses', this)">Escala de Bosses</button>
+            <h2>📢 {{ evento.titulo }}</h2>
 
-        {% if user_role == 'admin' %}
-            <button class="tab-btn" onclick="trocarAba('abaMembros', this)">Gerenciar Membros</button>
-            <button class="tab-btn" onclick="trocarAba('abaConfig', this)">Matriz de Pontos</button>
-            <button class="tab-btn" onclick="trocarAba('abaLogs', this)">Logs do Sistema</button>
-        {% endif %}
-    </div>
+            <div class="timer-display" id="timerDisplay" data-prazo="{{ evento.prazo_encerramento }}">--:--:--</div>
 
-    <!-- MÓDULO DE BOSSES (ESCALA) -->
-    <div id="abaBosses" class="tab-content">
-        <div class="table-container" style="border-left-color: var(--neon-cyan);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); margin: 0;">🎯 Cronograma de Chefes</h2>
-                {% if user_role == 'admin' %}
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-outline" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="abrirModalCadastroGrupo()">➕ Nova Linha</button>
-                    <button class="btn btn-outline" style="border-color: #f1c40f; color: #f1c40f;" onclick="abrirModalGerenciarGrupos()">⚙️ Gerenciar Linhas</button>
-                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="abrirModalCadastroBossLivre()">➕ Adicionar Chefe</button>
-                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="abrirModalGerenciarBosses()">⚙️ Gerenciar Chefes</button>
-                    <button class="btn btn-outline" style="border-color: #10b981; color: #10b981;" onclick="abrirModal('modalSelecionarBosses')">🔄 Escala da Semana</button>
-                </div>
-                {% endif %}
-            </div>
+            <p style="color: #fff; font-size: 18px; margin-bottom: 20px;">Utilize seus pontos para comprar porcentagens de chance nos itens abaixo. Só haverá desconto de pontos se você VENCER! <strong style="color: var(--neon-orange);">(Exige no mínimo 90% de participação na semana ativa)</strong>.</p>
 
-            {% if user_role == 'admin' %}
-            <div style="display: flex; gap: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px dashed var(--glass-border);">
-                <button class="btn btn-success" style="flex: 1;" onclick="exportarBossesImagem('todos')">📸 Exportar Semana Completa</button>
-                <button class="btn btn-warning" style="flex: 1;" onclick="exportarBossesImagem('proximos')">📸 Exportar Próximos (24h)</button>
-            </div>
-            {% endif %}
-
-            <!-- Container Export Imagem -->
-            <div id="exportarBossArea" style="background: rgba(10, 10, 15, 0.95); padding: 25px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 15px;">
-                    <h2 id="exportTitle" style="color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 0; font-size: 28px;">🎯 Alvos da Semana - Guilda Vortex</h2>
-                    <p style="color: var(--neon-cyan); font-size: 16px; margin-top: 5px; font-weight: bold;" id="dataExportacaoBosses"></p>
-                </div>
-                
-                <div id="gridBossesAtivos" style="display: flex; flex-direction: column; gap: 20px;">
-                    <!-- JS Injeta os Cards Aqui -->
-                    <div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 18px;">Calculando horários dos chefes...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- PAINEL DE CONTROLE MEGA E TITÃ GLOBAL -->
-    <div style="display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 20px; background: rgba(255, 215, 0, 0.1); padding: 15px 35px; border: 2px solid var(--gold-mega); border-radius: 8px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);">
-            <span style="color: var(--gold-mega); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);">🏆 Régua Mega:</span>
-            {% if user_role == 'admin' %}
-                <input type="number" id="inputMegaCP" value="{{ cp_mega }}" class="input-edit" style="border-color: var(--gold-mega); color: var(--gold-mega); font-size: 26px; width: 140px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhasPoder()" onchange="aplicarLinhasPoder()">
-            {% else %}
-                <span style="color: #fff; font-size: 30px; font-weight: bold; text-shadow: 0 0 15px rgba(255,255,255,0.5); letter-spacing: 2px;">{{ "{:,.0f}".format(cp_mega).replace(',', '.') }}</span>
-                <input type="hidden" id="inputMegaCP" value="{{ cp_mega }}">
-            {% endif %}
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 20px; background: rgba(0, 168, 255, 0.1); padding: 15px 35px; border: 2px solid var(--blue-tita); border-radius: 8px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15);">
-            <span style="color: var(--blue-tita); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 168, 255, 0.6);">⚔️ Régua Titã:</span>
-            {% if user_role == 'admin' %}
-                <input type="number" id="inputTitaCP" value="{{ cp_tita }}" class="input-edit" style="border-color: var(--blue-tita); color: var(--blue-tita); font-size: 26px; width: 140px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhasPoder()" onchange="aplicarLinhasPoder()">
-            {% else %}
-                <span style="color: #fff; font-size: 30px; font-weight: bold; text-shadow: 0 0 15px rgba(255,255,255,0.5); letter-spacing: 2px;">{{ "{:,.0f}".format(cp_tita).replace(',', '.') }}</span>
-                <input type="hidden" id="inputTitaCP" value="{{ cp_tita }}">
-            {% endif %}
-        </div>
-
-        {% if user_role == 'admin' %}
-            <div style="display: flex; align-items: center;">
-                <button class="btn" style="border-color: var(--neon-cyan); color: #000; background: var(--neon-cyan); font-size: 16px; padding: 15px 30px; box-shadow: 0 0 15px var(--neon-cyan);" onclick="salvarReguasGlobais()">💾 Gravar Limites</button>
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- MÓDULO DE JOGADORES -->
-    <div id="abaRanking" class="tab-content active">
-        <div class="table-container">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin:0; display:flex; align-items:center; gap: 15px;">
-                    🏆 Classificação {{ label_semana }}
-                    {% if user_role == 'admin' %}
-                        <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange); font-size: 14px; padding: 5px 15px;" onclick="avancarSemana()">⏳ Virar Semana do Jogo</button>
-                    {% endif %}
-                </h2>
-                {% if user_role == 'admin' %}
-                <div style="display: flex; gap: 15px;">
-                    <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
-                </div>
-                {% endif %}
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 50px;">Rank</th>
-                        <th style="text-align: left;">Jogador</th>
-                        <th style="text-align: left;">Alts</th>
-                        <th style="width: 80px;">LVL</th>
-                        <th style="width: 120px;">Poder de Combate</th>
-                        <th style="font-size: 16px; color: #fff;">PARTICIPAÇÃO SEMANAL</th>
-                        <th style="font-size: 16px; color: var(--neon-red); text-shadow: 0 0 5px var(--neon-red);">PENALIDADES</th>
-                        <th style="font-size: 18px; color: var(--neon-green);">SALDO TOTAL (APOSTAS)</th>
-                        {% if session.get('logged_in') %}<th style="width: 90px;">EDITAR</th>{% endif %}
-                    </tr>
-                </thead>
-                <tbody id="bodyRanking">
-                    {% for item in ranking %}
-                    <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate if session.get('logged_in') else 0 }}">
-                        <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
-                        <td style="text-align: left;">
-                            {% if session.get('logged_in') and user_role == 'admin' %}
-                                <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')">
-                            {% else %}
-                                <span style="font-weight: 700; font-size: 22px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 15px rgba(255,255,255,0.3){% else %}none{% endif %};">
-                                    {{ item.jogador.nome }}
-                                </span>
-                            {% endif %}
-                        </td>
-
-                        {% if session.get('logged_in') %}
-                            {% if user_role == 'admin' %}
-                                <td style="text-align: left;"><input type="text" class="input-edit edit-alts" value="{{ item.alts_str }}" placeholder="Alts..." style="width: 150px; text-align: left;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
-                            {% else %}
-                                <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}<input type="hidden" class="edit-alts" value="{{ item.alts_str }}"></td>
-                            {% endif %}
-
-                            <td>
-                                <span style="color: #fff; font-size: 20px;">{{ item.jogador.level }}</span>
-                                <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
-                            </td>
-                            <td>
-                                <span style="color: var(--neon-cyan); font-family: monospace; font-size: 18px; font-weight: bold;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</span>
-                                <input type="hidden" class="edit-poder" value="{{ item.jogador.poder_combate }}">
-                            </td>
-
-                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
-                            <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
-
-                            {% if user_role == 'admin' %}
-                                <td><input type="number" class="input-edit edit-pontos" value="{{ item.pontos }}" style="width: 100px; font-size: 22px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
-                            {% else %}
-                                <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS<input type="hidden" class="edit-pontos" value="{{ item.pontos }}"></td>
-                            {% endif %}
-                            <td><button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarPersonagem({{ item.jogador.id }}, '{{ item.jogador.nome|escape }}', {{ item.jogador.level }}, {{ item.jogador.poder_combate }})">✏️ Editar</button></td>
-
+            {% for item in evento.itens %}
+            <div class="item-card" data-item-id="{{ item.id }}" style="opacity: {{ '0.5' if item.sorteado else '1' }}; border-left-color: {{ 'var(--neon-green)' if item.sorteado else 'var(--neon-cyan)' }}">
+                <div>
+                    <h3 style="color: #fff; margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;">
+                        {{ item.nome_item }}
+                        {% if item.restricao == 'Mega' %}
+                            <span style="font-size: 14px; background: rgba(255, 215, 0, 0.1); color: var(--gold-mega); padding: 3px 8px; border: 1px solid var(--gold-mega); border-radius: 4px;">Somente Megas ⭐</span>
+                        {% elif item.restricao == 'Titã' %}
+                            <span style="font-size: 14px; background: rgba(0, 168, 255, 0.1); color: var(--blue-tita); padding: 3px 8px; border: 1px solid var(--blue-tita); border-radius: 4px;">Titãs e Megas ⚔️</span>
                         {% else %}
-                            <td style="color: var(--text-muted); font-size: 16px; text-align: center;" title="Faça login como Membro para visualizar">🔒</td>
-                            <td style="color: var(--text-muted); font-size: 20px; text-align: center;" title="Faça login como Membro para visualizar">🔒</td>
-                            <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; font-weight: bold; text-align: center;" title="Faça login como Membro para visualizar">🔒 Restrito</td>
-                            <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
-                            <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
-                            <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS</td>
+                            <span style="font-size: 14px; background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); padding: 3px 8px; border: 1px solid var(--neon-cyan); border-radius: 4px;">Livre para Todos</span>
                         {% endif %}
-                    </tr>
+                    </h3>
+                    <p style="margin: 5px 0 0 0; color: var(--neon-cyan); font-weight: bold;">Probabilidade Máxima: {{ item.max_pontos }} PTS = 100%</p>
+                    <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">Total depositado pelos membros: {{ item.total_apostado }} PTS</p>
+
+                    {% if item.sorteado %}
+                        <p style="color: var(--neon-green); font-weight: bold; font-size: 18px; margin-top: 10px;">🏆 Vencedor: {{ item.vencedor_nome }}</p>
                     {% else %}
-                    <tr><td colspan="100" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ BANCO DE DADOS VAZIO ]</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+                        <div class="lista-apostas-item" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            {% for aposta in item.apostas %}
+                                <span style="background: rgba(0,243,255,0.1); border: 1px solid var(--glass-border); padding: 4px 8px; font-size: 14px; border-radius: 4px; color: #fff;">
+                                    {{ aposta.jogador_nome }} ({{ aposta.pontos }} pts)
+                                    {% if user_role == 'admin' %}<span style="color:var(--neon-red); cursor:pointer; margin-left:5px;" onclick="removerAposta({{ aposta.id }})">✖</span>{% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
 
-    <!-- ABA: ORDEM DE CLASSES E BUILDS -->
-    <div id="abaClasses" class="tab-content">
-        <div class="table-container" style="border-left-color: var(--neon-cyan); padding-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); margin: 0;">⚔️ Progressão e Ordem de Poder</h2>
-
-                <div style="display: flex; gap: 20px; align-items: center;">
-                    <label style="color: #fff; font-weight: bold; font-size: 16px;">Filtrar Classe:</label>
-                    <select id="filtroClasse" class="input-edit" onchange="filtrarTabelaClasses()" style="width: 200px; text-align: left;">
-                        <option value="Todas">Todas as Classes</option>
-                        <option value="Punisher">Punisher</option>
-                        <option value="Phantom">Phantom</option>
-                        <option value="Enforcer">Enforcer</option>
-                        <option value="Psypher">Psypher</option>
-                        <option value="Dreadnought">Dreadnought</option>
-                        <option value="Technician">Technician</option>
-                        <option value="Arbiter">Arbiter</option>
-                        <option value="Demolidor">Demolidor</option>
-                    </select>
+                <div style="display: flex; gap: 10px; flex-direction: column;">
+                    {% if not item.sorteado %}
+                        {% if session.get('logged_in') %}
+                            <button class="btn btn-apostar" onclick="abrirModalAposta({{ item.id }}, '{{ item.nome_item }}', {{ item.max_pontos }})">➕ Apostar</button>
+                        {% endif %}
+                        {% if user_role == 'admin' %}
+                            <button class="btn btn-warning" onclick="abrirModalStaffRoleta({{ item.id }}, '{{ item.nome_item }}')">🎲 Girar Roleta</button>
+                        {% endif %}
+                    {% else %}
+                        <span style="color: var(--neon-green); font-weight: bold; font-size: 18px;">[ FINALIZADO ]</span>
+                    {% endif %}
                 </div>
             </div>
+            {% endfor %}
 
-            <div id="containerBannersClasses" style="display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 15px;"></div>
+            {% if user_role == 'admin' %}
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="encerrarEvento()">✖ Encerrar Evento</button>
+                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="abrirModal('modalEstenderTempo')">⏱️ Aumentar Tempo Limite</button>
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
 
-            <div class="table-scroll-fixed">
-                <table style="margin-bottom: 0;">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="trocarAba('abaRanking', this)">Módulo de Jogadores</button>
+            <button class="tab-btn" onclick="trocarAba('abaClasses', this)">Ordem de Classes & Builds</button>
+            <button class="tab-btn" onclick="trocarAba('abaSorteio', this)">Registro de Espólios (Loot)</button>
+            <button class="tab-btn" onclick="trocarAba('abaMeme', this)">Sorteio Items "Meme"</button>
+            <button class="tab-btn" onclick="trocarAba('abaBosses', this)">Escala de Bosses</button>
+
+            {% if user_role == 'admin' %}
+                <button class="tab-btn" onclick="trocarAba('abaMembros', this)">Gerenciar Membros</button>
+                <button class="tab-btn" onclick="trocarAba('abaConfig', this)">Matriz de Pontos</button>
+                <button class="tab-btn" onclick="trocarAba('abaLogs', this)">Logs do Sistema</button>
+            {% endif %}
+        </div>
+
+        <!-- MÓDULO DE BOSSES (ESCALA) -->
+        <div id="abaBosses" class="tab-content">
+            <div class="table-container" style="border-left-color: var(--neon-cyan);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); margin: 0;">🎯 Cronograma de Chefes</h2>
+                    {% if user_role == 'admin' %}
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-outline" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="abrirModalCadastroGrupo()">➕ Nova Linha</button>
+                        <button class="btn btn-outline" style="border-color: #f1c40f; color: #f1c40f;" onclick="abrirModalGerenciarGrupos()">⚙️ Gerenciar Linhas</button>
+                        <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="abrirModalCadastroBossLivre()">➕ Adicionar Chefe</button>
+                        <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="abrirModalGerenciarBosses()">⚙️ Gerenciar Chefes</button>
+                        <button class="btn btn-outline" style="border-color: #10b981; color: #10b981;" onclick="abrirModal('modalSelecionarBosses')">🔄 Escala da Semana</button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if user_role == 'admin' %}
+                <div style="display: flex; gap: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px dashed var(--glass-border);">
+                    <button class="btn btn-success" style="flex: 1;" onclick="exportarBossesImagem('todos')">📸 Exportar Semana Completa</button>
+                    <button class="btn btn-warning" style="flex: 1;" onclick="exportarBossesImagem('proximos')">📸 Exportar Próximos (24h)</button>
+                </div>
+                {% endif %}
+
+                <div id="exportarBossArea" style="background: rgba(10, 10, 15, 0.95); padding: 25px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 15px;">
+                        <h2 id="exportTitle" style="color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 0; font-size: 28px;">🎯 Alvos da Semana - Guilda Vortex</h2>
+                        <p style="color: var(--neon-cyan); font-size: 16px; margin-top: 5px; font-weight: bold;" id="dataExportacaoBosses"></p>
+                    </div>
+                    
+                    <div id="gridBossesAtivos" style="display: flex; flex-direction: column; gap: 20px;">
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 18px;">Calculando horários dos chefes...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAINEL DE CONTROLE MEGA E TITÃ GLOBAL -->
+        <div style="display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 20px; background: rgba(255, 215, 0, 0.1); padding: 15px 35px; border: 2px solid var(--gold-mega); border-radius: 8px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);">
+                <span style="color: var(--gold-mega); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);">🏆 Régua Mega:</span>
+                {% if user_role == 'admin' %}
+                    <input type="number" id="inputMegaCP" value="{{ cp_mega }}" class="input-edit" style="border-color: var(--gold-mega); color: var(--gold-mega); font-size: 26px; width: 140px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhasPoder()" onchange="aplicarLinhasPoder()">
+                {% else %}
+                    <span style="color: #fff; font-size: 30px; font-weight: bold; text-shadow: 0 0 15px rgba(255,255,255,0.5); letter-spacing: 2px;">{{ "{:,.0f}".format(cp_mega).replace(',', '.') }}</span>
+                    <input type="hidden" id="inputMegaCP" value="{{ cp_mega }}">
+                {% endif %}
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 20px; background: rgba(0, 168, 255, 0.1); padding: 15px 35px; border: 2px solid var(--blue-tita); border-radius: 8px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15);">
+                <span style="color: var(--blue-tita); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 168, 255, 0.6);">⚔️ Régua Titã:</span>
+                {% if user_role == 'admin' %}
+                    <input type="number" id="inputTitaCP" value="{{ cp_tita }}" class="input-edit" style="border-color: var(--blue-tita); color: var(--blue-tita); font-size: 26px; width: 140px; font-weight: bold; background: rgba(0,0,0,0.8);" onkeyup="aplicarLinhasPoder()" onchange="aplicarLinhasPoder()">
+                {% else %}
+                    <span style="color: #fff; font-size: 30px; font-weight: bold; text-shadow: 0 0 15px rgba(255,255,255,0.5); letter-spacing: 2px;">{{ "{:,.0f}".format(cp_tita).replace(',', '.') }}</span>
+                    <input type="hidden" id="inputTitaCP" value="{{ cp_tita }}">
+                {% endif %}
+            </div>
+
+            {% if user_role == 'admin' %}
+                <div style="display: flex; align-items: center;">
+                    <button class="btn" style="border-color: var(--neon-cyan); color: #000; background: var(--neon-cyan); font-size: 16px; padding: 15px 30px; box-shadow: 0 0 15px var(--neon-cyan);" onclick="salvarReguasGlobais()">💾 Gravar Limites</button>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- MÓDULO DE JOGADORES -->
+        <div id="abaRanking" class="tab-content active">
+            <div class="table-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin:0; display:flex; align-items:center; gap: 15px;">
+                        🏆 Classificação {{ label_semana }}
+                        {% if user_role == 'admin' %}
+                            <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange); font-size: 14px; padding: 5px 15px;" onclick="avancarSemana()">⏳ Virar Semana do Jogo</button>
+                        {% endif %}
+                    </h2>
+                    {% if user_role == 'admin' %}
+                    <div style="display: flex; gap: 15px;">
+                        <button class="btn btn-success" onclick="salvarEdicoes()">💾 Gravar Alterações</button>
+                    </div>
+                    {% endif %}
+                </div>
+                <table>
                     <thead>
                         <tr>
                             <th style="width: 50px;">Rank</th>
-                            <th style="text-align: left;">Membro</th>
-                            <th>Classe</th>
-                            <th title="Skill IV" style="width: 50px; color: #ffaa00;">S-IV</th>
-                            <th title="Skill V" style="width: 50px; color: #ffaa00;">S-V</th>
-                            <th title="Skill VI" style="width: 50px; color: #ffaa00;">S-VI</th>
-                            <th title="Skill VII" style="width: 50px; color: #ffaa00;">S-VII</th>
-                            <th title="Constante 3" style="width: 50px; color: #00ff66;">C-3</th>
-                            <th title="Adaptação a Dor" style="width: 50px; color: #00ff66;">Ada</th>
-                            <th title="Trindade" style="width: 60px; color: #bc13fe;">TRIN</th>
-                            <th title="Mestre da Técnica" style="width: 60px; color: #00f3ff;">M.TÉC</th>
-                            <th>Poder (CP)</th>
+                            <th style="text-align: left;">Jogador</th>
+                            <th style="text-align: left;">Alts</th>
+                            <th style="width: 80px;">LVL</th>
+                            <th style="width: 120px;">Poder de Combate</th>
+                            <th style="font-size: 16px; color: #fff;">PARTICIPAÇÃO SEMANAL</th>
+                            <th style="font-size: 16px; color: var(--neon-red); text-shadow: 0 0 5px var(--neon-red);">PENALIDADES</th>
+                            <th style="font-size: 18px; color: var(--neon-green);">SALDO TOTAL (APOSTAS)</th>
                             {% if session.get('logged_in') %}<th style="width: 90px;">EDITAR</th>{% endif %}
                         </tr>
                     </thead>
-                    <tbody id="bodyClasses">
-                        {% for item in ranking|sort(attribute='jogador.poder_combate', reverse=True) %}
-                        <tr class="linha-classe" data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate if session.get('logged_in') else 0 }}">
+                    <tbody id="bodyRanking">
+                        {% for item in ranking %}
+                        <tr data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate if session.get('logged_in') else 0 }}">
                             <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
-                            <td style="font-weight: 700; font-size: 20px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
+                            <td style="text-align: left;">
+                                {% if session.get('logged_in') and user_role == 'admin' %}
+                                    <input type="text" class="input-edit edit-nome" value="{{ item.jogador.nome }}" style="width: 180px; font-weight: 700; font-size: 20px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 10px rgba(255,255,255,0.3){% else %}none{% endif %}; text-align: left; background: transparent; border: 1px dashed rgba(255,255,255,0.3);" onchange="this.closest('tr').classList.add('linha-modificada')">
+                                {% else %}
+                                    <span style="font-weight: 700; font-size: 22px; color: {% if loop.index == 1 %}var(--neon-orange){% elif loop.index == 2 %}#e2e8f0{% elif loop.index == 3 %}#b87333{% else %}var(--neon-cyan){% endif %}; text-shadow: {% if loop.index <= 3 %}0 0 15px rgba(255,255,255,0.3){% else %}none{% endif %};">
+                                        {{ item.jogador.nome }}
+                                    </span>
+                                {% endif %}
+                            </td>
 
                             {% if session.get('logged_in') %}
+                                {% if user_role == 'admin' %}
+                                    <td style="text-align: left;"><input type="text" class="input-edit edit-alts" value="{{ item.alts_str }}" placeholder="Alts..." style="width: 150px; text-align: left;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
+                                {% else %}
+                                    <td style="color: var(--text-muted); font-size: 16px; text-align: left;">{{ item.alts_str or '-' }}<input type="hidden" class="edit-alts" value="{{ item.alts_str }}"></td>
+                                {% endif %}
+
                                 <td>
-                                    <span style="color: var(--neon-cyan); font-weight: bold; font-size: 18px;">{{ item.jogador.classe or 'Indefinida' }}</span>
-                                    <input type="hidden" class="edit-classe" value="{{ item.jogador.classe or '' }}">
+                                    <span style="color: #fff; font-size: 20px;">{{ item.jogador.level }}</span>
+                                    <input type="hidden" class="edit-level" value="{{ item.jogador.level }}">
+                                </td>
+                                <td>
+                                    <span style="color: var(--neon-cyan); font-family: monospace; font-size: 18px; font-weight: bold;">{{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}</span>
+                                    <input type="hidden" class="edit-poder" value="{{ item.jogador.poder_combate }}">
                                 </td>
 
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_4 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_5 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_6 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_7 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_3 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_4 %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #bc13fe; font-weight: bold; font-size: 22px;">{% if item.jogador.trindade %}✓{% else %}-{% endif %}</td>
-                                <td style="color: #00f3ff; font-weight: bold; font-size: 22px;">{% if item.jogador.mestre_tecnica %}✓{% else %}-{% endif %}</td>
-
-                                <td style="color: var(--neon-green); font-family: monospace; font-size: 20px; font-weight: bold; {% if not session.get('logged_in') %}border-right: none;{% endif %}">
-                                    {{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}
-                                </td>
+                                <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
+                                <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
 
                                 {% if user_role == 'admin' %}
-                                <td style="border-right: none;">
-                                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarBuild({{ item.jogador.id }}, '{{ item.jogador.nome|escape }}', '{{ item.jogador.classe or '' }}', {{ item.jogador.skill_4|tojson }}, {{ item.jogador.skill_5|tojson }}, {{ item.jogador.skill_6|tojson }}, {{ item.jogador.skill_7|tojson }}, {{ item.jogador.constante_3|tojson }}, {{ item.jogador.constante_4|tojson }}, {{ item.jogador.trindade|tojson }}, {{ item.jogador.mestre_tecnica|tojson }})">✏️ Editar</button>
-                                </td>
+                                    <td><input type="number" class="input-edit edit-pontos" value="{{ item.pontos }}" style="width: 100px; font-size: 22px;" onchange="this.closest('tr').classList.add('linha-modificada')"></td>
+                                {% else %}
+                                    <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS<input type="hidden" class="edit-pontos" value="{{ item.pontos }}"></td>
                                 {% endif %}
+                                <td><button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarPersonagem({{ item.jogador.id }}, '{{ item.jogador.nome|escape }}', {{ item.jogador.level }}, {{ item.jogador.poder_combate }})">✏️ Editar</button></td>
+
                             {% else %}
-                                <td><span style="color: var(--text-muted); font-size: 14px;">🔒 Restrito</span></td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted);">🔒</td>
-                                <td style="color: var(--text-muted); font-family: monospace; font-size: 14px; font-weight: bold; border-right: none;">🔒 Restrito</td>
+                                <td style="color: var(--text-muted); font-size: 16px; text-align: center;" title="Faça login como Membro para visualizar">🔒</td>
+                                <td style="color: var(--text-muted); font-size: 20px; text-align: center;" title="Faça login como Membro para visualizar">🔒</td>
+                                <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; font-weight: bold; text-align: center;" title="Faça login como Membro para visualizar">🔒 Restrito</td>
+                                <td style="font-weight: bold; font-size: 22px; color: {% if item.participacao >= 90 %}var(--neon-green){% elif item.participacao >= 50 %}var(--neon-orange){% else %}var(--neon-red){% endif %}; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{{ item.participacao }}%</td>
+                                <td style="color: var(--neon-red); font-weight: bold; font-size: 22px; text-shadow: 0 0 10px rgba(255,0,60,0.4);">{% if item.get('penalidades', 0) > 0 %}-{{ item.penalidades }}{% else %}0{% endif %}</td>
+                                <td style="color: var(--neon-green); font-weight: 700; font-size: 26px; text-shadow: 0 0 15px rgba(0,255,102,0.4);">{{ item.pontos }} PTS</td>
                             {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="100" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ BANCO DE DADOS VAZIO ]</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA: ORDEM DE CLASSES E BUILDS -->
+        <div id="abaClasses" class="tab-content">
+            <div class="table-container" style="border-left-color: var(--neon-cyan); padding-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4); margin: 0;">⚔️ Progressão e Ordem de Poder</h2>
+
+                    <div style="display: flex; gap: 20px; align-items: center;">
+                        <label style="color: #fff; font-weight: bold; font-size: 16px;">Filtrar Classe:</label>
+                        <select id="filtroClasse" class="input-edit" onchange="filtrarTabelaClasses()" style="width: 200px; text-align: left;">
+                            <option value="Todas">Todas as Classes</option>
+                            <option value="Punisher">Punisher</option>
+                            <option value="Phantom">Phantom</option>
+                            <option value="Enforcer">Enforcer</option>
+                            <option value="Psypher">Psypher</option>
+                            <option value="Dreadnought">Dreadnought</option>
+                            <option value="Technician">Technician</option>
+                            <option value="Arbiter">Arbiter</option>
+                            <option value="Demolidor">Demolidor</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="containerBannersClasses" style="display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 15px;"></div>
+
+                <div class="table-scroll-fixed">
+                    <table style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">Rank</th>
+                                <th style="text-align: left;">Membro</th>
+                                <th>Classe</th>
+                                <th title="Skill IV" style="width: 50px; color: #ffaa00;">S-IV</th>
+                                <th title="Skill V" style="width: 50px; color: #ffaa00;">S-V</th>
+                                <th title="Skill VI" style="width: 50px; color: #ffaa00;">S-VI</th>
+                                <th title="Skill VII" style="width: 50px; color: #ffaa00;">S-VII</th>
+                                <th title="Constante 3" style="width: 50px; color: #00ff66;">C-3</th>
+                                <th title="Adaptação a Dor" style="width: 50px; color: #00ff66;">Ada</th>
+                                <th title="Trindade" style="width: 60px; color: #bc13fe;">TRIN</th>
+                                <th title="Mestre da Técnica" style="width: 60px; color: #00f3ff;">M.TÉC</th>
+                                <th>Poder (CP)</th>
+                                {% if session.get('logged_in') %}<th style="width: 90px;">EDITAR</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="bodyClasses">
+                            {% for item in ranking|sort(attribute='jogador.poder_combate', reverse=True) %}
+                            <tr class="linha-classe" data-jogador-id="{{ item.jogador.id }}" data-poder="{{ item.jogador.poder_combate if session.get('logged_in') else 0 }}">
+                                <td class="rank-display" style="color: var(--text-muted); font-weight: bold; font-size: 20px;">{{ loop.index }}</td>
+                                <td style="font-weight: 700; font-size: 20px; color: #fff; text-align: left;">{{ item.jogador.nome }}</td>
+
+                                {% if session.get('logged_in') %}
+                                    <td>
+                                        <span style="color: var(--neon-cyan); font-weight: bold; font-size: 18px;">{{ item.jogador.classe or 'Indefinida' }}</span>
+                                        <input type="hidden" class="edit-classe" value="{{ item.jogador.classe or '' }}">
+                                    </td>
+
+                                    <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_4 %}✓{% else %}-{% endif %}</td>
+                                    <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_5 %}✓{% else %}-{% endif %}</td>
+                                    <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_6 %}✓{% else %}-{% endif %}</td>
+                                    <td style="color: #ffaa00; font-weight: bold; font-size: 22px;">{% if item.jogador.skill_7 %}✓{% else %}-{% endif %}</td>
+                                    <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_3 %}✓{% else %}-{% endif %}</td>
+                                    <td style="color: #00ff66; font-weight: bold; font-size: 22px;">{% if item.jogador.constante_4 %}✓{% else %}-{% endif %}</td>
+                                    <td style="color: #bc13fe; font-weight: bold; font-size: 22px;">{% if item.jogador.trindade %}✓{% else %}-{% endif %}</td>
+                                    <td style="color: #00f3ff; font-weight: bold; font-size: 22px;">{% if item.jogador.mestre_tecnica %}✓{% else %}-{% endif %}</td>
+
+                                    <td style="color: var(--neon-green); font-family: monospace; font-size: 20px; font-weight: bold; {% if not session.get('logged_in') %}border-right: none;{% endif %}">
+                                        {{ "{:,.0f}".format(item.jogador.poder_combate).replace(',', '.') }}
+                                    </td>
+
+                                    <td style="border-right: none;">
+                                        <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 13px; padding: 6px 12px;" onclick="abrirModalEditarBuild({{ item.jogador.id }}, '{{ item.jogador.nome|escape }}', '{{ item.jogador.classe or '' }}', {{ item.jogador.skill_4|tojson }}, {{ item.jogador.skill_5|tojson }}, {{ item.jogador.skill_6|tojson }}, {{ item.jogador.skill_7|tojson }}, {{ item.jogador.constante_3|tojson }}, {{ item.jogador.constante_4|tojson }}, {{ item.jogador.trindade|tojson }}, {{ item.jogador.mestre_tecnica|tojson }})">✏️ Editar</button>
+                                    </td>
+                                {% else %}
+                                    <td><span style="color: var(--text-muted); font-size: 14px;">🔒 Restrito</span></td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted);">🔒</td>
+                                    <td style="color: var(--text-muted); font-family: monospace; font-size: 14px; font-weight: bold; border-right: none;">🔒 Restrito</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="abaSorteio" class="tab-content">
+            <div class="table-container" style="border-left-color: var(--neon-orange);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: var(--neon-orange); text-shadow: 0 0 12px rgba(255, 170, 0, 0.4);">📜 Registro de Espólios Concedidos</h2>
+                    {% if user_role == 'admin' %}
+                        <button class="btn btn-success" onclick="salvarHistorico()">💾 Gravar Registros</button>
+                    {% endif %}
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Ciclo Temporal</th>
+                            <th style="text-align: left;">Receptor</th>
+                            <th>Espólio (Item)</th>
+                            <th>Dedução de Pontos</th>
+                            {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="bodyHistoricoSorteios">
+                        {% for sorteio in historico_sorteios %}
+                        <tr class="linha-dado" data-historico-id="{{ sorteio.id }}">
+                            <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
+                            <td style="font-weight: bold; color: var(--neon-orange); font-size: 20px; text-align: left;">{{ sorteio.jogador.nome }}</td>
+
+                            {% if user_role == 'admin' %}
+                                <td><input type="text" class="input-edit hist-obs" value="{{ sorteio.observacao }}" placeholder="Item concedido" style="width: 90%; text-align: left;"></td>
+                                <td><input type="number" class="input-edit hist-penalidade" value="{{ sorteio.penalidade }}" style="width: 100px; color: var(--neon-red); font-weight: bold;"></td>
+                                <td style="border-right: none;"><button class="btn-danger" title="Purgar registro" onclick="deletarHistorico({{ sorteio.id }})">✖</button></td>
+                            {% else %}
+                                <td style="color: #fff; font-size: 18px;">{{ sorteio.observacao or '[ NENHUM DADO ]' }}</td>
+                                <td style="color: var(--neon-red); font-weight: bold; font-size: 20px; border-right: none;">-{{ sorteio.penalidade }} PTS</td>
+                            {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUM REGISTRO ENCONTRADO ]</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="paginacao-controles" id="paginacaoHistoricoSorteios"></div>
+            </div>
+        </div>
+
+        <div id="abaMeme" class="tab-content">
+            {% if user_role == 'admin' %}
+            <div style="background: rgba(0,0,0,0.4); padding: 25px; border: 1px solid var(--neon-cyan); margin-bottom: 25px; border-radius: 6px; box-shadow: inset 0 0 25px rgba(0, 243, 255, 0.05);">
+                <div style="display: flex; gap: 20px; align-items: flex-end; margin-bottom: 25px;">
+                    <div style="flex: 1;">
+                        <label style="color: var(--neon-cyan); font-size: 18px; font-weight: bold; display: block; margin-bottom: 8px;">Item a ser Sorteado ("Meme"):</label>
+                        <input type="text" id="inputItemMeme" class="input-edit" placeholder="Ex: Capa do Batman, Espada de Borracha..." style="width: 100%; font-size: 18px; padding: 12px; text-align: left;">
+                    </div>
+                    <button class="btn btn-outline" style="font-size: 18px; padding: 14px 30px; height: 50px;" onclick="abrirRoletaMeme()">🎲 Iniciar Sorteio Meme</button>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 6px; border: 1px dashed var(--glass-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <label style="color: var(--text-light); font-size: 16px; font-weight: bold;">Selecione os Participantes:</label>
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--neon-cyan); font-weight: bold; font-size: 16px;">
+                            <input type="checkbox" id="selectAllMeme" onclick="toggleTodosMeme(this)" style="accent-color: var(--neon-cyan); width: 20px; height: 20px;">
+                            Selecionar Todos
+                        </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 250px; overflow-y: auto; padding-right: 10px;">
+                        {% for item in ranking %}
+                        <label style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.5); padding: 10px 15px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); transition: 0.2s;">
+                            <input type="checkbox" class="check-meme" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="accent-color: var(--neon-cyan); width: 18px; height: 18px;">
+                            <span style="color: #fff; font-size: 16px;">{{ item.jogador.nome }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="table-container" style="border-left-color: var(--neon-cyan);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4);">📜 Histórico de Sorteios Meme</h2>
+                    {% if user_role == 'admin' %}
+                        <button class="btn btn-success" onclick="salvarHistoricoMeme()">💾 Gravar Registros</button>
+                    {% endif %}
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Data</th>
+                            <th style="text-align: left;">Vencedor</th>
+                            <th>Item Sorteado</th>
+                            <th>Observações</th>
+                            {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="bodyHistoricoMeme">
+                        {% for sorteio in historico_meme %}
+                        <tr class="linha-dado" data-historico-meme-id="{{ sorteio.id }}">
+                            <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
+                            <td style="font-weight: bold; color: var(--neon-cyan); font-size: 20px; text-align: left;">{{ sorteio.jogador.nome }}</td>
+                            <td style="color: #fff; font-weight: bold; font-size: 18px;">{{ sorteio.item_sorteado }}</td>
+                            {% if user_role == 'admin' %}
+                                <td><input type="text" class="input-edit hist-meme-obs" value="{{ sorteio.observacao }}" placeholder="Anotações..." style="width: 90%; text-align: left;"></td>
+                                <td style="border-right: none;"><button class="btn-danger" title="Purgar registro" onclick="deletarHistoricoMeme({{ sorteio.id }})">✖</button></td>
+                            {% else %}
+                                <td style="color: #fff; font-size: 18px;">{{ sorteio.observacao or '-' }}</td>
+                            {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUM SORTEIO MEME REALIZADO ]</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="paginacao-controles" id="paginacaoHistoricoMeme"></div>
+            </div>
+        </div>
+
+        {% if user_role == 'admin' %}
+        <div id="abaMembros" class="tab-content">
+            <div style="background: rgba(0,0,0,0.6); padding: 25px; border: 1px solid var(--neon-green); border-radius: 6px; margin-bottom: 25px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 25px rgba(0, 255, 102, 0.08);">
+                <div style="flex: 1; min-width: 220px;">
+                    <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Nome do Membro</label>
+                    <input type="text" id="novoJogadorNome" class="input-edit" placeholder="Nome exato do personagem" style="width: 100%; border-color: rgba(0, 255, 102, 0.5); text-align: left;">
+                </div>
+                <div>
+                    <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Level</label>
+                    <input type="number" id="novoJogadorLevel" class="input-edit" value="1" style="width: 90px; border-color: rgba(0, 255, 102, 0.5);">
+                </div>
+                <div>
+                    <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Poder de Combate</label>
+                    <input type="number" id="novoJogadorPoder" class="input-edit" value="0" style="width: 140px; border-color: rgba(0, 255, 102, 0.5);">
+                </div>
+                <button class="btn btn-success" onclick="criarJogador()">➕ Cadastrar Membro</button>
+            </div>
+
+            <div class="table-container" style="border-left-color: var(--neon-green);">
+                <h2 style="color: var(--neon-green); text-shadow: 0 0 12px rgba(0, 255, 102, 0.4);">👥 Membros Cadastrados ({{ todos_jogadores|length }})</h2>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">Atenção: remover um membro apaga permanentemente todo o histórico dele (pontuações, espólios, sorteios meme e apostas ativas).</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Nome</th>
+                            <th style="width: 80px;">LVL</th>
+                            <th style="width: 140px;">Poder de Combate</th>
+                            <th style="width: 120px;">Status</th>
+                            <th style="width: 240px; border-right: none;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyMembros">
+                        {% for jogador in todos_jogadores %}
+                        <tr class="linha-dado" style="opacity: {{ '0.5' if jogador.status == 'Inativo' else '1' }};">
+                            <td style="text-align: left; font-weight: 700; font-size: 20px; color: #fff;">{{ jogador.nome }}</td>
+                            <td style="color: #fff; font-size: 18px;">{{ jogador.level }}</td>
+                            <td style="color: var(--neon-cyan); font-family: monospace; font-size: 18px; font-weight: bold;">{{ "{:,.0f}".format(jogador.poder_combate).replace(',', '.') }}</td>
+                            <td style="font-weight: bold; font-size: 16px; color: {% if jogador.status == 'Inativo' %}var(--neon-red){% else %}var(--neon-green){% endif %};" class="status-cell">{{ jogador.status or 'Ativo' }}</td>
+                            <td style="border-right: none; display: flex; gap: 8px; justify-content: center; padding: 10px; flex-wrap: wrap;">
+                                <button class="btn btn-outline" style="border-color: var(--neon-purple); color: var(--neon-purple); font-size: 12px; padding: 5px 10px;" onclick="abrirModalAbono({{ jogador.id }}, '{{ jogador.nome }}')" title="Abonar falta na semana atual">🎁 Abonar</button>
+                                <button class="btn btn-outline" style="border-color: {% if jogador.status == 'Inativo' %}var(--neon-green){% else %}var(--neon-orange){% endif %}; color: {% if jogador.status == 'Inativo' %}var(--neon-green){% else %}var(--neon-orange){% endif %}; font-size: 12px; padding: 5px 10px;" onclick="toggleStatusJogador({{ jogador.id }}, this)" title="Alternar status do jogador">
+                                    {% if jogador.status == 'Inativo' %}Ativar{% else %}Inativar{% endif %}
+                                </button>
+                                <button class="btn-danger" style="padding: 5px 10px;" title="Remover membro e todo o seu histórico" onclick="deletarJogador({{ jogador.id }}, '{{ jogador.nome }}')">✖</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUM MEMBRO CADASTRADO ]</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="paginacao-controles" id="paginacaoMembros"></div>
+            </div>
+        </div>
+
+        <div id="abaConfig" class="tab-content">
+            <div style="background: rgba(0,0,0,0.6); padding: 25px; border: 1px solid var(--neon-purple); border-radius: 6px; margin-bottom: 25px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 25px rgba(188, 19, 254, 0.1);">
+                <div>
+                    <label style="font-size: 14px; color: var(--neon-purple); font-weight: 700; display: block; margin-bottom: 8px;">ID do Novo Evento (XML)</label>
+                    <input type="text" id="novoEventoNome" class="input-edit" placeholder="Nome Exato" style="width: 250px; border-color: rgba(188, 19, 254, 0.5); text-align: left;">
+                </div>
+                <div>
+                    <label style="font-size: 14px; color: var(--neon-purple); font-weight: 700; display: block; margin-bottom: 8px;">Frequência</label>
+                    <select id="novoEventoTipo" class="input-edit" style="border-color: rgba(188, 19, 254, 0.5);">
+                        <option value="diario">Diário (Infinito)</option>
+                        <option value="semanal">Semanal (Único)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 14px; color: var(--neon-purple); font-weight: 700; display: block; margin-bottom: 8px;">Recompensa</label>
+                    <input type="number" id="novoEventoPontos" class="input-edit" value="1" style="width: 80px; border-color: rgba(188, 19, 254, 0.5);">
+                </div>
+                <button class="btn btn-outline" onclick="criarEvento()">⚡ Injetar Evento</button>
+            </div>
+
+            <div class="table-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>⚙️ Matriz de Recompensas</h2>
+                    <button class="btn btn-success" onclick="salvarConfiguracoes()">💾 Salvar Matriz</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Evento / Atividade</th>
+                            <th>Ciclo de Acúmulo</th>
+                            <th style="border-right: none;">Valor (PTS)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for config in configuracoes %}
+                        <tr data-config-id="{{ config.id }}">
+                            <td style="font-weight: bold; color: #fff; text-align: left; font-size: 18px;">{{ config.nome_xml }}</td>
+                            <td style="color: var(--text-muted); font-size: 18px;">{% if config.tipo_evento == 'diario' %}Diário{% else %}<span style="color: var(--neon-purple);">Semanal</span>{% endif %}</td>
+                            <td style="border-right: none;"><input type="number" class="input-edit conf-pontos" value="{{ config.pontos_padrao }}" style="width: 90px; font-weight: bold; color: var(--neon-cyan);"></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>
 
-    <!-- ABAS RESTANTES -->
-    <div id="abaSorteio" class="tab-content">
-        <div class="table-container" style="border-left-color: var(--neon-orange);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: var(--neon-orange); text-shadow: 0 0 12px rgba(255, 170, 0, 0.4);">📜 Registro de Espólios Concedidos</h2>
-                {% if user_role == 'admin' %}
-                    <button class="btn btn-success" onclick="salvarHistorico()">💾 Gravar Registros</button>
-                {% endif %}
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align: left;">Ciclo Temporal</th>
-                        <th style="text-align: left;">Receptor</th>
-                        <th>Espólio (Item)</th>
-                        <th>Dedução de Pontos</th>
-                        {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
-                    </tr>
-                </thead>
-                <tbody id="bodyHistoricoSorteios">
-                    {% for sorteio in historico_sorteios %}
-                    <tr class="linha-dado" data-historico-id="{{ sorteio.id }}">
-                        <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
-                        <td style="font-weight: bold; color: var(--neon-orange); font-size: 20px; text-align: left;">{{ sorteio.jogador.nome }}</td>
+        <div id="abaLogs" class="tab-content">
+            <div class="table-container" style="border-color: var(--neon-orange);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: var(--neon-orange); text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);">📁 Logs de Importação (Semana Atual)</h2>
 
-                        {% if user_role == 'admin' %}
-                            <td><input type="text" class="input-edit hist-obs" value="{{ sorteio.observacao }}" placeholder="Item concedido" style="width: 90%; text-align: left;"></td>
-                            <td><input type="number" class="input-edit hist-penalidade" value="{{ sorteio.penalidade }}" style="width: 100px; color: var(--neon-red); font-weight: bold;"></td>
-                            <td style="border-right: none;"><button class="btn-danger" title="Purgar registro" onclick="deletarHistorico({{ sorteio.id }})">✖</button></td>
+                    <div style="display: flex; gap: 15px;">
+                        <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="avancarSemana()">⏳ Iniciar Nova Semana</button>
+                        <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
+                    </div>
+                </div>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">Nota: Ao iniciar uma nova semana, os pontos acumulados dos jogadores serão preservados em seus saldos totais, mas a contagem de Participação (90%) e de Diamantes recomeçará do zero para todos.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Timestamp (Servidor)</th>
+                            <th>Módulo</th>
+                            <th>Rótulo de Identificação</th>
+                            <th>Hash de Segurança</th>
+                            <th style="border-right: none;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for imp in importacoes %}
+                        <tr data-import-id="{{ imp.id }}">
+                            <td style="color: var(--text-muted); font-family: monospace; text-align: left; font-size: 14px;">{{ imp.data_importacao.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                            <td style="font-weight: bold; font-size: 16px; color: {% if imp.tipo_arquivo == 'xml' %}var(--neon-cyan){% else %}var(--neon-green){% endif %};">
+                                {% if imp.tipo_arquivo == 'xml' %}[ XML ]{% else %}[ EXCEL ]{% endif %}
+                            </td>
+                            <td><input type="text" class="input-edit imp-nome" value="{{ imp.nome_personalizado }}" placeholder="Identificação manual" style="width: 250px; text-align: left;"></td>
+                            <td style="font-size: 14px; color: #4b5563; font-family: monospace;">{{ imp.hash_arquivo[:15] }}...</td>
+                            <td style="border-right: none;">
+                                <button class="btn-danger" title="Desfazer e remover pontos deste upload" onclick="deletarImportacao({{ imp.id }})">✖</button>
+                            </td>
+                        </tr>
                         {% else %}
-                            <td style="color: #fff; font-size: 18px;">{{ sorteio.observacao or '[ NENHUM DADO ]' }}</td>
-                            <td style="color: var(--neon-red); font-weight: bold; font-size: 20px; border-right: none;">-{{ sorteio.penalidade }} PTS</td>
-                        {% endif %}
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUM REGISTRO ENCONTRADO ]</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div class="paginacao-controles" id="paginacaoHistoricoSorteios"></div>
-        </div>
-    </div>
-
-    <div id="abaMeme" class="tab-content">
-        {% if user_role == 'admin' %}
-        <div style="background: rgba(0,0,0,0.4); padding: 25px; border: 1px solid var(--neon-cyan); margin-bottom: 25px; border-radius: 6px; box-shadow: inset 0 0 25px rgba(0, 243, 255, 0.05);">
-            <div style="display: flex; gap: 20px; align-items: flex-end; margin-bottom: 25px;">
-                <div style="flex: 1;">
-                    <label style="color: var(--neon-cyan); font-size: 18px; font-weight: bold; display: block; margin-bottom: 8px;">Item a ser Sorteado ("Meme"):</label>
-                    <input type="text" id="inputItemMeme" class="input-edit" placeholder="Ex: Capa do Batman, Espada de Borracha..." style="width: 100%; font-size: 18px; padding: 12px; text-align: left;">
-                </div>
-                <button class="btn btn-outline" style="font-size: 18px; padding: 14px 30px; height: 50px;" onclick="abrirRoletaMeme()">🎲 Iniciar Sorteio Meme</button>
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUMA IMPORTAÇÃO NESTA SEMANA ]</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
+        </div>
+        {% endif %} <!-- FIM DAS ABAS EXCLUSIVAS DE ADMIN -->
 
-            <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 6px; border: 1px dashed var(--glass-border);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <label style="color: var(--text-light); font-size: 16px; font-weight: bold;">Selecione os Participantes:</label>
-                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--neon-cyan); font-weight: bold; font-size: 16px;">
-                        <input type="checkbox" id="selectAllMeme" onclick="toggleTodosMeme(this)" style="accent-color: var(--neon-cyan); width: 20px; height: 20px;">
-                        Selecionar Todos
-                    </label>
+        <!-- MODAIS DE USO GERAL (VISÍVEIS PARA VISITANTES) -->
+        <div id="modalLogin" class="modal-overlay" style="z-index: 2000;">
+            <div class="modal-content" style="width: 450px; text-align: center; border-color: var(--neon-red); padding: 35px;">
+                <h2 style="margin-top: 0; color: var(--neon-red); text-shadow: 0 0 10px rgba(255,0,60,0.5);">Acesso Restrito</h2>
+                <p style="color: var(--text-muted); font-size: 16px;">Insira a credencial root ou de membro para modificar parâmetros.</p>
+                <input type="password" id="senhaAdmin" class="input-edit" placeholder="********" style="width: 85%; margin: 25px 0; text-align: center; font-size: 24px; letter-spacing: 5px; border-color: rgba(255,0,60,0.5);">
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button class="btn" style="background: transparent; border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalLogin')">Abortar</button>
+                    <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="fazerLogin()">Autenticar</button>
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 250px; overflow-y: auto; padding-right: 10px;">
+            </div>
+        </div>
+
+        <div id="modalTutorial" class="modal-overlay" style="z-index: 130;">
+            <div class="modal-content" style="border-color: var(--neon-cyan); width: 600px;">
+                <h2 style="color: var(--neon-cyan); margin-top:0;">📖 Como Funciona o Sorteio?</h2>
+                <div style="color: #fff; font-size: 16px; line-height: 1.5; text-align: left;">
+                    <p>O sistema de sorteio foi desenvolvido para ser 100% justo e transparente. Veja as regras processadas diretamente pelo servidor:</p>
+                    <ul style="padding-left: 20px; color: var(--text-muted);">
+                        <li style="margin-bottom: 10px;"><strong style="color:var(--neon-orange);">Aposta Segura:</strong> Você só perde os pontos que apostar <b>SE VOCÊ VENCER</b> o item. Se perder o sorteio, seus pontos continuam intactos.</li>
+                        <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Requisito de 90% de Participação:</strong> Para poder apostar em qualquer item, o membro precisa ter no mínimo <b>90% de participação na Semana Atual</b> ativa na guilda.</li>
+                        <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Limite de Saldo:</strong> O sistema bloqueia apostas que ultrapassem o seu saldo total real (descontando penalidades e pontos já retidos em outras apostas ativas).</li>
+                        <li style="margin-bottom: 10px;"><strong style="color:var(--neon-purple);">Taxa Fixa da Staff:</strong> Exatos 15% de probabilidade em todos os itens são reservados fixamente para a Staff (Administração).</li>
+                        <li style="margin-bottom: 10px;"><strong style="color:var(--neon-cyan);">Valorização Flexível (Os 85% restantes):</strong> Não importa se os jogadores apostaram 10 ou 10.000 pontos no total. Os 85% de chance são divididos na roleta sempre de forma proporcional ao "peso" da sua aposta. <br><br><i>Exemplo: Se a mesa toda tiver apenas 10 pontos apostados no total por todos, e você botou 1 ponto, seu 1 ponto valerá incríveis 8,5% de chance de vitória!</i></li>
+                    </ul>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button class="btn btn-outline" onclick="fecharModal('modalTutorial')">Entendi</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modalRoletaItem" class="modal-overlay" style="z-index: 120;">
+            <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 600px; padding: 20px;">
+                <h2 id="tituloRoletaVisual" style="color: var(--neon-orange); font-size: 26px; margin-top:0; text-shadow: 0 0 15px rgba(255,170,0,0.5);">SORTEIO EM ANDAMENTO</h2>
+                <div class="roleta-container">
+                    <div class="roleta-ponteiro"></div>
+                    <div id="wrapperCanvas" class="roleta-canvas-wrapper">
+                        <canvas id="canvasRoleta" width="400" height="400"></canvas>
+                    </div>
+                </div>
+                <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
+                <button id="btnFecharRoletaVisual" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;"></button>
+            </div>
+        </div>
+
+        <!-- MODAIS DE MEMBROS (REQUEREM LOGIN COMO MEMBRO OU ADMIN) -->
+        {% if session.get('logged_in') %}
+        <div id="modalAposta" class="modal-overlay" style="z-index: 110;">
+            <div class="modal-content" style="width: 400px; text-align: center;">
+                <h2 style="color: var(--neon-cyan); margin-top: 0;">Apostar no Item</h2>
+                <p id="labelItemAposta" style="color: #fff; font-size: 18px; font-weight: bold;"></p>
+                <p id="labelMaxPontos" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;"></p>
+
+                <input type="hidden" id="apostaItemId">
+
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Selecione seu Personagem:</label>
+                <select id="apostaJogadorId" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                    <option value="" disabled selected>-- SELECIONE SEU PERSONAGEM --</option>
                     {% for item in ranking %}
-                    <label style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.5); padding: 10px 15px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); transition: 0.2s;">
-                        <input type="checkbox" class="check-meme" value="{{ item.jogador.id }}" data-nome="{{ item.jogador.nome }}" style="accent-color: var(--neon-cyan); width: 18px; height: 18px;">
-                        <span style="color: #fff; font-size: 16px;">{{ item.jogador.nome }}</span>
-                    </label>
+                        <option value="{{ item.jogador.id }}">{{ item.jogador.nome }} ({{ item.participacao }}%)</option>
                     {% endfor %}
+                </select>
+
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Quantos pontos deseja arriscar?</label>
+                <input type="number" id="apostaPontos" class="input-edit" placeholder="Ex: 10" style="width: 100%; font-size: 22px; margin-bottom: 25px;">
+
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAposta')">Cancelar</button>
+                    <button class="btn btn-success" onclick="confirmarAposta()">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modalEditarPersonagem" class="modal-overlay" style="z-index: 116;">
+            <div class="modal-content" style="width: 380px; text-align: center;">
+                <h2 id="tituloEditarPersonagem" style="color: var(--neon-cyan); margin-top: 0;">Atualizar Personagem</h2>
+
+                <input type="hidden" id="editPersonagemId">
+
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Level:</label>
+                <input type="number" id="editPersonagemLevel" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 15px;">
+
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Poder de Combate:</label>
+                <input type="number" id="editPersonagemPoder" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 25px;">
+
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarPersonagem')">Cancelar</button>
+                    <button class="btn btn-success" onclick="salvarEdicaoPersonagem()">💾 Atualizar e Gravar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modalEditarBuild" class="modal-overlay" style="z-index: 116;">
+            <div class="modal-content" style="width: 420px;">
+                <h2 id="tituloEditarBuild" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">Atualizar Build</h2>
+
+                <input type="hidden" id="editBuildId">
+
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Classe:</label>
+                <select id="editBuildClasse" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
+                    <option value="">Sem Classe</option>
+                    <option value="Punisher">Punisher</option>
+                    <option value="Phantom">Phantom</option>
+                    <option value="Enforcer">Enforcer</option>
+                    <option value="Psypher">Psypher</option>
+                    <option value="Dreadnought">Dreadnought</option>
+                    <option value="Technician">Technician</option>
+                    <option value="Arbiter">Arbiter</option>
+                    <option value="Demolidor">Demolidor</option>
+                </select>
+
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 10px;">Skills e Marcações:</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; text-align: left;">
+                    <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS4" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill IV</label>
+                    <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS5" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill V</label>
+                    <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS6" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VI</label>
+                    <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS7" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VII</label>
+                    <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC3" style="width: 18px; height: 18px; accent-color: #00ff66;"> Constante 3</label>
+                    <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC4" style="width: 18px; height: 18px; accent-color: #00ff66;"> Adaptação a Dor</label>
+                    <label style="color: #bc13fe; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildTrin" style="width: 18px; height: 18px; accent-color: #bc13fe;"> Trindade</label>
+                    <label style="color: #00f3ff; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildMT" style="width: 18px; height: 18px; accent-color: #00f3ff;"> Mestre da Técnica</label>
+                </div>
+
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarBuild')">Cancelar</button>
+                    <button class="btn btn-success" onclick="salvarEdicaoBuild()">💾 Atualizar e Gravar</button>
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <div class="table-container" style="border-left-color: var(--neon-cyan);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 243, 255, 0.4);">📜 Histórico de Sorteios Meme</h2>
-                {% if user_role == 'admin' %}
-                    <button class="btn btn-success" onclick="salvarHistoricoMeme()">💾 Gravar Registros</button>
-                {% endif %}
+        <!-- MODAIS DE ADMINISTRAÇÃO RESTRITOS -->
+        {% if user_role == 'admin' %}
+        <div id="modalSenhas" class="modal-overlay" style="z-index: 130;">
+            <div class="modal-content" style="border-color: var(--neon-purple); width: 450px;">
+                <h2 style="color: var(--neon-purple); margin-top:0; text-align: center;">🔑 Alterar Senhas</h2>
+                <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Ao alterar, todos os usuários serão desconectados imediatamente.</p>
+                <label style="color: var(--neon-red); font-weight: bold; display: block; margin-bottom: 5px;">Nova Senha Administrador:</label>
+                <input type="password" id="inputNovaSenhaAdmin" class="input-edit" placeholder="Nova senha Admin..." style="width: 100%; margin-bottom: 20px; border-color: var(--neon-red);">
+                <label style="color: var(--neon-cyan); font-weight: bold; display: block; margin-bottom: 5px;">Nova Senha Membros:</label>
+                <input type="password" id="inputNovaSenhaMembro" class="input-edit" placeholder="Nova senha Membro..." style="width: 100%; margin-bottom: 25px; border-color: var(--neon-cyan);">
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalSenhas')">Cancelar</button>
+                    <button class="btn" style="background: var(--neon-purple); color: #fff;" onclick="salvarNovasSenhas()">Confirmar Mudança</button>
+                </div>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align: left;">Data</th>
-                        <th style="text-align: left;">Vencedor</th>
-                        <th>Item Sorteado</th>
-                        <th>Observações</th>
-                        {% if user_role == 'admin' %}<th style="border-right: none;">Comandos</th>{% endif %}
-                    </tr>
-                </thead>
-                <tbody id="bodyHistoricoMeme">
-                    {% for sorteio in historico_meme %}
-                    <tr class="linha-dado" data-historico-meme-id="{{ sorteio.id }}">
-                        <td style="color: var(--text-muted); font-family: monospace; font-size: 16px; text-align: left;">{{ sorteio.data_sorteio.strftime('%d/%m/%Y - %H:%M') }}</td>
-                        <td style="font-weight: bold; color: var(--neon-cyan); font-size: 20px; text-align: left;">{{ sorteio.jogador.nome }}</td>
-                        <td style="color: #fff; font-weight: bold; font-size: 18px;">{{ sorteio.item_sorteado }}</td>
-                        {% if user_role == 'admin' %}
-                            <td><input type="text" class="input-edit hist-meme-obs" value="{{ sorteio.observacao }}" placeholder="Anotações..." style="width: 90%; text-align: left;"></td>
-                            <td style="border-right: none;"><button class="btn-danger" title="Purgar registro" onclick="deletarHistoricoMeme({{ sorteio.id }})">✖</button></td>
-                        {% else %}
-                            <td style="color: #fff; font-size: 18px;">{{ sorteio.observacao or '-' }}</td>
-                        {% endif %}
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUM SORTEIO MEME REALIZADO ]</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div class="paginacao-controles" id="paginacaoHistoricoMeme"></div>
-        </div>
-    </div>
-
-    {% if user_role == 'admin' %}
-    <div id="abaMembros" class="tab-content">
-        <div style="background: rgba(0,0,0,0.6); padding: 25px; border: 1px solid var(--neon-green); border-radius: 6px; margin-bottom: 25px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 25px rgba(0, 255, 102, 0.08);">
-            <div style="flex: 1; min-width: 220px;">
-                <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Nome do Membro</label>
-                <input type="text" id="novoJogadorNome" class="input-edit" placeholder="Nome exato do personagem" style="width: 100%; border-color: rgba(0, 255, 102, 0.5); text-align: left;">
-            </div>
-            <div>
-                <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Level</label>
-                <input type="number" id="novoJogadorLevel" class="input-edit" value="1" style="width: 90px; border-color: rgba(0, 255, 102, 0.5);">
-            </div>
-            <div>
-                <label style="font-size: 14px; color: var(--neon-green); font-weight: 700; display: block; margin-bottom: 8px;">Poder de Combate</label>
-                <input type="number" id="novoJogadorPoder" class="input-edit" value="0" style="width: 140px; border-color: rgba(0, 255, 102, 0.5);">
-            </div>
-            <button class="btn btn-success" onclick="criarJogador()">➕ Cadastrar Membro</button>
         </div>
 
-        <div class="table-container" style="border-left-color: var(--neon-green);">
-            <h2 style="color: var(--neon-green); text-shadow: 0 0 12px rgba(0, 255, 102, 0.4);">👥 Membros Cadastrados ({{ todos_jogadores|length }})</h2>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Atenção: remover um membro apaga permanentemente todo o histórico dele (pontuações, espólios, sorteios meme e apostas ativas).</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align: left;">Nome</th>
-                        <th style="width: 80px;">LVL</th>
-                        <th style="width: 140px;">Poder de Combate</th>
-                        <th style="width: 120px;">Status</th>
-                        <th style="width: 240px; border-right: none;">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="bodyMembros">
-                    {% for jogador in todos_jogadores %}
-                    <tr class="linha-dado" style="opacity: {{ '0.5' if jogador.status == 'Inativo' else '1' }};">
-                        <td style="text-align: left; font-weight: 700; font-size: 20px; color: #fff;">{{ jogador.nome }}</td>
-                        <td style="color: #fff; font-size: 18px;">{{ jogador.level }}</td>
-                        <td style="color: var(--neon-cyan); font-family: monospace; font-size: 18px; font-weight: bold;">{{ "{:,.0f}".format(jogador.poder_combate).replace(',', '.') }}</td>
-                        <td style="font-weight: bold; font-size: 16px; color: {% if jogador.status == 'Inativo' %}var(--neon-red){% else %}var(--neon-green){% endif %};" class="status-cell">{{ jogador.status or 'Ativo' }}</td>
-                        <td style="border-right: none; display: flex; gap: 8px; justify-content: center; padding: 10px; flex-wrap: wrap;">
-                            <button class="btn btn-outline" style="border-color: var(--neon-purple); color: var(--neon-purple); font-size: 12px; padding: 5px 10px;" onclick="abrirModalAbono({{ jogador.id }}, '{{ jogador.nome }}')" title="Abonar falta na semana atual">🎁 Abonar</button>
-                            <button class="btn btn-outline" style="border-color: {% if jogador.status == 'Inativo' %}var(--neon-green){% else %}var(--neon-orange){% endif %}; color: {% if jogador.status == 'Inativo' %}var(--neon-green){% else %}var(--neon-orange){% endif %}; font-size: 12px; padding: 5px 10px;" onclick="toggleStatusJogador({{ jogador.id }}, this)" title="Alternar status do jogador">
-                                {% if jogador.status == 'Inativo' %}Ativar{% else %}Inativar{% endif %}
-                            </button>
-                            <button class="btn-danger" style="padding: 5px 10px;" title="Remover membro e todo o seu histórico" onclick="deletarJogador({{ jogador.id }}, '{{ jogador.nome }}')">✖</button>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUM MEMBRO CADASTRADO ]</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div class="paginacao-controles" id="paginacaoMembros"></div>
-        </div>
-    </div>
-
-    <div id="abaConfig" class="tab-content">
-        <div style="background: rgba(0,0,0,0.6); padding: 25px; border: 1px solid var(--neon-purple); border-radius: 6px; margin-bottom: 25px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; box-shadow: inset 0 0 25px rgba(188, 19, 254, 0.1);">
-            <div>
-                <label style="font-size: 14px; color: var(--neon-purple); font-weight: 700; display: block; margin-bottom: 8px;">ID do Novo Evento (XML)</label>
-                <input type="text" id="novoEventoNome" class="input-edit" placeholder="Nome Exato" style="width: 250px; border-color: rgba(188, 19, 254, 0.5); text-align: left;">
+        <div id="modalAbono" class="modal-overlay" style="z-index: 116;">
+            <div class="modal-content" style="width: 400px; text-align: center;">
+                <h2 style="color: var(--neon-purple); margin-top: 0;">Abonar Falta / Justificar</h2>
+                <p id="labelAbonoNome" style="color: #fff; font-weight: bold; font-size: 18px; margin-bottom: 20px;"></p>
+                <input type="hidden" id="abonoJogadorId">
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Pontos a abonar na semana atual:</label>
+                <input type="number" id="abonoPontos" class="input-edit" placeholder="Ex: 5" style="width: 100%; font-size: 20px; margin-bottom: 15px;">
+                <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Motivo / Justificativa:</label>
+                <input type="text" id="abonoMotivo" class="input-edit" value="Abono de Missão (Justificativa)" style="width: 100%; font-size: 16px; margin-bottom: 25px; text-align: left;">
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAbono')">Cancelar</button>
+                    <button class="btn btn-success" style="background-color: var(--neon-purple); border-color: var(--neon-purple); color: #fff;" onclick="confirmarAbono()">Confirmar Abono</button>
+                </div>
             </div>
-            <div>
-                <label style="font-size: 14px; color: var(--neon-purple); font-weight: 700; display: block; margin-bottom: 8px;">Frequência</label>
-                <select id="novoEventoTipo" class="input-edit" style="border-color: rgba(188, 19, 254, 0.5);">
-                    <option value="diario">Diário (Infinito)</option>
-                    <option value="semanal">Semanal (Único)</option>
+        </div>
+
+        <div id="modalRoletaMeme" class="modal-overlay" style="z-index: 110;">
+            <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 500px;">
+                <h2 style="color: var(--neon-orange); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(255,170,0,0.5);">GERADOR QUÂNTICO (MEME)</h2>
+                <p id="tituloRoletaMeme" style="color: var(--text-light); font-weight: bold; margin-bottom: 8px; font-size: 18px;"></p>
+                <p style="color: var(--text-muted); margin-bottom: 25px; font-family: monospace; font-size: 15px;">Processando algoritmos de aleatoriedade...</p>
+                <div class="roleta-box" style="font-size: 40px; padding: 40px;"><span id="roletaNomeMeme">---</span></div>
+                <button id="btnFecharRoletaMeme" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 25px auto 0; font-size: 18px;">Concluir e Registrar</button>
+            </div>
+        </div>
+
+        <div id="modalCriarEvento" class="modal-overlay">
+            <div class="modal-content">
+                <h2 style="color: var(--neon-orange); margin-top: 0;">Configurar Novo Sorteio</h2>
+                <label style="color: #fff; font-weight: bold;">Título do Banner:</label>
+                <input type="text" id="tituloEvento" class="input-edit" value="SORTEIO HOJE AS 20:00" style="width: 100%; margin-bottom: 20px; text-align: left;">
+                <label style="color: #fff; font-weight: bold;">Duração do Sorteio:</label>
+                <select id="prazoEvento" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
+                    <option value="6">6 Horas</option>
+                    <option value="12">12 Horas</option>
+                    <option value="18">18 Horas</option>
+                    <option value="24" selected>24 Horas (1 Dia)</option>
+                    <option value="48">48 Horas (2 Dias)</option>
+                    <option value="72">72 Horas (3 Dias)</option>
+                    <option value="sem_limite">Sem Limite de Tempo</option>
                 </select>
+                <h3 style="color: var(--neon-cyan);">Adicionar Itens</h3>
+                <div id="listaItensCriacao" style="background: rgba(0,0,0,0.4); padding: 15px; border: 1px dashed var(--glass-border); margin-bottom: 20px;">
+                    <!-- Campos dinâmicos entram aqui -->
+                </div>
+                <button class="btn" onclick="adicionarCampoItem()">+ Novo Item</button>
+                <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+                    <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCriarEvento')">Cancelar</button>
+                    <button class="btn btn-warning" onclick="salvarNovoEvento()">Publicar Banner</button>
+                </div>
             </div>
-            <div>
-                <label style="font-size: 14px; color: var(--neon-purple); font-weight: 700; display: block; margin-bottom: 8px;">Recompensa</label>
-                <input type="number" id="novoEventoPontos" class="input-edit" value="1" style="width: 80px; border-color: rgba(188, 19, 254, 0.5);">
-            </div>
-            <button class="btn btn-outline" onclick="criarEvento()">⚡ Injetar Evento</button>
         </div>
 
-        <div class="table-container">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>⚙️ Matriz de Recompensas</h2>
-                <button class="btn btn-success" onclick="salvarConfiguracoes()">💾 Salvar Matriz</button>
+        <div id="modalEstenderTempo" class="modal-overlay" style="z-index: 125;">
+            <div class="modal-content" style="width: 400px;">
+                <h2 style="color: var(--neon-cyan); margin-top: 0; text-align: center;">⏱️ Aumentar Tempo Limite</h2>
+                <p style="color: var(--text-light); text-align: center; margin-bottom: 20px;">Adicione horas extras ao prazo atual de encerramento do sorteio em andamento.</p>
+                <label style="color: #fff; font-weight: bold;">Horas Adicionais:</label>
+                <select id="extensaoTempo" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;">
+                    <option value="1">+ 1 Hora</option>
+                    <option value="3">+ 3 Horas</option>
+                    <option value="6">+ 6 Horas</option>
+                    <option value="12">+ 12 Horas</option>
+                    <option value="24">+ 24 Horas (1 Dia)</option>
+                    <option value="sem_limite">Remover Limite (Infinito)</option>
+                </select>
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEstenderTempo')">Cancelar</button>
+                    <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="confirmarExtensaoTempo()">Confirmar Adição</button>
+                </div>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align: left;">Evento / Atividade</th>
-                        <th>Ciclo de Acúmulo</th>
-                        <th style="border-right: none;">Valor (PTS)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for config in configuracoes %}
-                    <tr data-config-id="{{ config.id }}">
-                        <td style="font-weight: bold; color: #fff; text-align: left; font-size: 18px;">{{ config.nome_xml }}</td>
-                        <td style="color: var(--text-muted); font-size: 18px;">{% if config.tipo_evento == 'diario' %}Diário{% else %}<span style="color: var(--neon-purple);">Semanal</span>{% endif %}</td>
-                        <td style="border-right: none;"><input type="number" class="input-edit conf-pontos" value="{{ config.pontos_padrao }}" style="width: 90px; font-weight: bold; color: var(--neon-cyan);"></td>
-                    </tr>
+        </div>
+
+        <div id="modalStaffRoleta" class="modal-overlay" style="z-index: 125;">
+            <div class="modal-content" style="width: 560px;">
+                <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">Definir Staff do Sorteio</h2>
+                <input type="hidden" id="staffRoletaItemId">
+                <input type="hidden" id="staffRoletaNomeItem">
+                <h3 style="color: var(--neon-orange); font-size: 16px; margin-bottom: 10px;">👤 Staff (selecione quem representa a fatia de 15%)</h3>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;">Deixe a opção "Nenhum" selecionada se quiser que 100% da roleta seja disputada pelos jogadores.</p>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="novoStaffNome" class="input-edit" placeholder="Nome da nova pessoa" style="flex: 1; text-align: left;">
+                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="adicionarStaff()">+ Adicionar</button>
+                </div>
+                <div id="listaStaffGerenciamento" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; text-align: left;">
+                    <div class="linha-staff-gerenciamento" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                        <input type="radio" name="staffSelecionado" value="" checked class="staff-radio" style="width: 18px; height: 18px; accent-color: var(--neon-orange);">
+                        <span style="flex: 1; text-align: left; color: #fff; font-size: 18px; padding-left: 5px;">Nenhum (100% para os membros)</span>
+                    </div>
+                    {% for staff in staff_membros %}
+                    <div class="linha-staff-gerenciamento" data-staff-id="{{ staff.id }}" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                        <input type="radio" name="staffSelecionado" value="{{ staff.nome }}" class="staff-radio" style="width: 18px; height: 18px; accent-color: var(--neon-orange);">
+                        <input type="text" class="input-edit staff-nome-input" value="{{ staff.nome }}" style="flex: 1; text-align: left;">
+                        <button class="btn-danger" title="Remover da Staff" onclick="removerStaff({{ staff.id }})">✖</button>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+                </div>
+                <button class="btn btn-success" style="margin-bottom: 25px;" onclick="salvarNomesStaff()">💾 Salvar Nomes da Staff</button>
 
-    <div id="abaLogs" class="tab-content">
-        <div class="table-container" style="border-color: var(--neon-orange);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: var(--neon-orange); text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);">📁 Logs de Importação (Semana Atual)</h2>
+                <h3 style="color: var(--neon-cyan); font-size: 16px; margin-bottom: 10px;">🎮 Jogadores presentes (já apostaram neste item)</h3>
+                <div id="listaJogadoresPresentes" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 25px; color: var(--text-muted); font-size: 14px;"></div>
 
-                <div style="display: flex; gap: 15px;">
-                    <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="avancarSemana()">⏳ Iniciar Nova Semana</button>
-                    <button class="btn btn-success" onclick="salvarEdicaoImports()">💾 Salvar Nomenclaturas</button>
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalStaffRoleta')">Cancelar</button>
+                    <button class="btn btn-warning" onclick="confirmarStaffEGirarRoleta()">🎲 Girar Roleta</button>
                 </div>
             </div>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Nota: Ao iniciar uma nova semana, os pontos acumulados dos jogadores serão preservados em seus saldos totais, mas a contagem de Participação (90%) e de Diamantes recomeçará do zero para todos.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align: left;">Timestamp (Servidor)</th>
-                        <th>Módulo</th>
-                        <th>Rótulo de Identificação</th>
-                        <th>Hash de Segurança</th>
-                        <th style="border-right: none;">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for imp in importacoes %}
-                    <tr data-import-id="{{ imp.id }}">
-                        <td style="color: var(--text-muted); font-family: monospace; text-align: left; font-size: 14px;">{{ imp.data_importacao.strftime('%d/%m/%Y %H:%M:%S') }}</td>
-                        <td style="font-weight: bold; font-size: 16px; color: {% if imp.tipo_arquivo == 'xml' %}var(--neon-cyan){% else %}var(--neon-green){% endif %};">
-                            {% if imp.tipo_arquivo == 'xml' %}[ XML ]{% else %}[ EXCEL ]{% endif %}
-                        </td>
-                        <td><input type="text" class="input-edit imp-nome" value="{{ imp.nome_personalizado }}" placeholder="Identificação manual" style="width: 250px; text-align: left;"></td>
-                        <td style="font-size: 14px; color: #4b5563; font-family: monospace;">{{ imp.hash_arquivo[:15] }}...</td>
-                        <td style="border-right: none;">
-                            <button class="btn-danger" title="Desfazer e remover pontos deste upload" onclick="deletarImportacao({{ imp.id }})">✖</button>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px; border-right: none; font-size: 20px;">[ NENHUMA IMPORTAÇÃO NESTA SEMANA ]</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
-    </div>
 
-    <!-- MODALS GERAIS -->
-    <div id="modalLogin" class="modal-overlay">
-        <div class="modal-content" style="width: 450px; text-align: center; border-color: var(--neon-red); padding: 35px;">
-            <h2 style="margin-top: 0; color: var(--neon-red); text-shadow: 0 0 10px rgba(255,0,60,0.5);">Acesso Restrito</h2>
-            <p style="color: var(--text-muted); font-size: 16px;">Insira a credencial root ou de membro para modificar parâmetros.</p>
-            <input type="password" id="senhaAdmin" class="input-edit" placeholder="********" style="width: 85%; margin: 25px 0; text-align: center; font-size: 24px; letter-spacing: 5px; border-color: rgba(255,0,60,0.5);">
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button class="btn" style="background: transparent; border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalLogin')">Abortar</button>
-                <button class="btn" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="fazerLogin()">Autenticar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE MUDANÇA DE SENHA -->
-    <div id="modalSenhas" class="modal-overlay" style="z-index: 130;">
-        <div class="modal-content" style="border-color: var(--neon-purple); width: 450px;">
-            <h2 style="color: var(--neon-purple); margin-top:0; text-align: center;">🔑 Alterar Senhas</h2>
-            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Ao alterar, todos os usuários serão desconectados imediatamente.</p>
-            
-            <label style="color: var(--neon-red); font-weight: bold; display: block; margin-bottom: 5px;">Nova Senha Administrador:</label>
-            <input type="password" id="inputNovaSenhaAdmin" class="input-edit" placeholder="Nova senha Admin..." style="width: 100%; margin-bottom: 20px; border-color: var(--neon-red);">
-
-            <label style="color: var(--neon-cyan); font-weight: bold; display: block; margin-bottom: 5px;">Nova Senha Membros:</label>
-            <input type="password" id="inputNovaSenhaMembro" class="input-edit" placeholder="Nova senha Membro..." style="width: 100%; margin-bottom: 25px; border-color: var(--neon-cyan);">
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalSenhas')">Cancelar</button>
-                <button class="btn" style="background: var(--neon-purple); color: #fff;" onclick="salvarNovasSenhas()">Confirmar Mudança</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DO TUTORIAL DE SORTEIO -->
-    <div id="modalTutorial" class="modal-overlay" style="z-index: 130;">
-        <div class="modal-content" style="border-color: var(--neon-cyan); width: 600px;">
-            <h2 style="color: var(--neon-cyan); margin-top:0;">📖 Como Funciona o Sorteio?</h2>
-            <div style="color: #fff; font-size: 16px; line-height: 1.5; text-align: left;">
-                <p>O sistema de sorteio foi desenvolvido para ser 100% justo e transparente. Veja as regras processadas diretamente pelo servidor:</p>
-                <ul style="padding-left: 20px; color: var(--text-muted);">
-                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-orange);">Aposta Segura:</strong> Você só perde os pontos que apostar <b>SE VOCÊ VENCER</b> o item. Se perder o sorteio, seus pontos continuam intactos.</li>
-                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Requisito de 90% de Participação:</strong> Para poder apostar em qualquer item, o membro precisa ter no mínimo <b>90% de participação na Semana Atual</b> ativa na guilda.</li>
-                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-green);">Limite de Saldo:</strong> O sistema bloqueia apostas que ultrapassem o seu saldo total real (descontando penalidades e pontos já retidos em outras apostas ativas).</li>
-                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-purple);">Taxa Fixa da Staff:</strong> Exatos 15% de probabilidade em todos os itens são reservados fixamente para a Staff (Administração).</li>
-                    <li style="margin-bottom: 10px;"><strong style="color:var(--neon-cyan);">Valorização Flexível (Os 85% restantes):</strong> Não importa se os jogadores apostaram 10 ou 10.000 pontos no total. Os 85% de chance são divididos na roleta sempre de forma proporcional ao "peso" da sua aposta. <br><br><i>Exemplo: Se a mesa toda tiver apenas 10 pontos apostados no total por todos, e você botou 1 ponto, seu 1 ponto valerá incríveis 8,5% de chance de vitória!</i></li>
-                </ul>
-            </div>
-            <div style="text-align: right; margin-top: 20px;">
-                <button class="btn btn-outline" onclick="fecharModal('modalTutorial')">Entendi</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE CRIAR E EDITAR LINHA (GRUPO DE CHEFES) -->
-    <div id="modalCadastrarGrupo" class="modal-overlay" style="z-index: 120;">
-        <div class="modal-content" style="width: 450px;">
-            <h2 id="tituloModalGrupo" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">➕ Criar Nova Linha</h2>
-
-            <input type="hidden" id="editGrupoId">
-
-            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Nome da Linha (Grupo):</label>
-            <input type="text" id="inputGrupoNome" class="input-edit" placeholder="Ex: Grupo de Chefes Novus D" style="width: 100%; margin-bottom: 15px; text-align: left;">
-
-            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Mecânica de Surgimento:</label>
-            <select id="inputGrupoTipoRespawn" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;" onchange="toggleCamposGrupo()">
-                <option value="intervalo">⏱️ Intervalo Fixo (Ex: a cada 48h)</option>
-                <option value="diario">☀️ Diário (Todos os dias no mesmo horário)</option>
-                <option value="semanal">📅 Semanal (Apenas em dias específicos)</option>
-            </select>
-
-            <!-- CAMPOS DINÂMICOS - INTERVALO -->
-            <div id="divGrupoIntervalo" style="display: block;">
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horas do Intervalo (Nascimento a Nascimento):</label>
-                <input type="number" id="inputGrupoHoras" class="input-edit" placeholder="42" value="42" style="width: 100%; margin-bottom: 15px; text-align: left;">
-                
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário Base (Ancoragem):</label>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Insira a última vez que essa linha nasceu/morreu para que o sistema preveja os próximos ciclos.</p>
-                <input type="datetime-local" id="inputGrupoAncoragem" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
-            </div>
-
-            <!-- CAMPOS DINÂMICOS - HORÁRIOS FIXOS -->
-            <div id="divGrupoHorarios" style="display: none;">
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário(s) de Nascimento:</label>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Se eles nascerem mais de uma vez ao dia, separe por vírgula (Ex: 16:00, 22:30).</p>
-                <input type="text" id="inputGrupoHorarios" class="input-edit" placeholder="16:00, 22:30" style="width: 100%; margin-bottom: 15px; text-align: left;">
-            </div>
-
-            <!-- CAMPOS DINÂMICOS - DIAS DA SEMANA -->
-            <div id="divGrupoDias" style="display: none; margin-bottom: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 6px;">
-                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 10px;">Em quais dias da semana essa linha nasce?</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="0" style="accent-color: var(--neon-cyan);"> Domingo</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="1" style="accent-color: var(--neon-cyan);"> Segunda-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="2" style="accent-color: var(--neon-cyan);"> Terça-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="3" style="accent-color: var(--neon-cyan);"> Quarta-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="4" style="accent-color: var(--neon-cyan);"> Quinta-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="5" style="accent-color: var(--neon-cyan);"> Sexta-feira</label>
-                    <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="6" style="accent-color: var(--neon-cyan);"> Sábado</label>
-                </div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
-                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCadastrarGrupo')">Cancelar</button>
-                <button class="btn btn-success" onclick="salvarGrupo()">💾 Salvar Linha</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE GERENCIAR TODAS AS LINHAS (GRUPOS) -->
-    <div id="modalGerenciarGrupos" class="modal-overlay" style="z-index: 110;">
-        <div class="modal-content" style="width: 600px;">
-            <h2 style="color: #f1c40f; margin-top: 0; text-align: center;">⚙️ Gerenciar Linhas de Tempo</h2>
-            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Edite as configurações de tempo das linhas. Todos os chefes vinculados a ela serão atualizados automaticamente.</p>
-
-            <div id="listaGerenciarGrupos" style="max-height: 400px; overflow-y: auto; text-align: left; padding-right: 10px;">
-                <!-- JS injeta a lista aqui -->
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalGerenciarGrupos')">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE CADASTRAR/EDITAR CHEFE (VINCULADO) -->
-    <div id="modalCadastrarBoss" class="modal-overlay" style="z-index: 120;">
-        <div class="modal-content" style="width: 450px;">
-            <h2 id="tituloModalBoss" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">➕ Cadastrar Novo Chefe</h2>
-
-            <input type="hidden" id="editBossId">
-
-            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Nome do Chefe (e Level):</label>
-            <input type="text" id="inputBossNome" class="input-edit" placeholder="Ex: Nv. 66 Tamac Mecha" style="width: 100%; margin-bottom: 15px; text-align: left;">
-
-            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Localização:</label>
-            <input type="text" id="inputBossLocal" class="input-edit" placeholder="Ex: Fábrica de Munições" style="width: 100%; margin-bottom: 15px; text-align: left;">
-
-            <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Vincular à Linha (Grupo de Tempo):</label>
-            <select id="inputBossGrupoId" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;">
-                <!-- Preenchido via JS dinamicamente -->
-            </select>
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCadastrarBoss')">Cancelar</button>
-                <button class="btn btn-success" onclick="salvarNovoBoss()">💾 Salvar Chefe</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE GERENCIAR TODOS OS BOSSES -->
-    <div id="modalGerenciarBosses" class="modal-overlay" style="z-index: 110;">
-        <div class="modal-content" style="width: 600px;">
-            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">⚙️ Gerenciar Banco de Chefes</h2>
-            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Edite as configurações de nome e localização, ou altere a qual Linha de Tempo ele pertence.</p>
-
-            <div id="listaGerenciarBosses" style="max-height: 400px; overflow-y: auto; text-align: left; padding-right: 10px;">
-                <!-- JS injeta a lista aqui -->
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalGerenciarBosses')">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE SELECIONAR BOSSES DA SEMANA -->
-    <div id="modalSelecionarBosses" class="modal-overlay">
-        <div class="modal-content" style="width: 500px;">
-            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">🔄 Definir Escala da Semana</h2>
-            <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Marque apenas os chefes que pertencem à Guilda Vortex nesta rotação semanal.</p>
-
-            <div id="listaBossesSelecao" style="display: grid; grid-template-columns: 1fr; gap: 10px; max-height: 350px; overflow-y: auto; padding-right: 10px; margin-bottom: 25px; text-align: left;">
-                <div style="text-align: center; color: var(--text-muted); padding: 20px;">Carregando lista de chefes cadastrados...</div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalSelecionarBosses')">Cancelar</button>
-                <button class="btn" style="background: var(--neon-orange); color: #111; font-weight: bold;" onclick="salvarBossesDaSemana()">Salvar Escala</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- DEMAIS MODALS -->
-    <div id="modalImportacao" class="modal-overlay">
-        <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
-                <h2 style="margin: 0; font-size: 24px; color: var(--neon-cyan);"><span style="margin-right:10px;">⇪</span> Central de Uploads</h2>
-                <button onclick="fecharModal('modalImportacao')" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; font-size: 28px; transition: 0.2s;">&times;</button>
-            </div>
-
-            <div style="border: 1px solid rgba(0, 243, 255, 0.3); padding: 20px; border-radius: 6px; margin-bottom: 25px; background: rgba(0, 243, 255, 0.02);">
-                <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px;">1. Injetar Matriz de Pontos (XML)</h3>
-
-                <form id="formImportacao" onsubmit="enviarXML(event)">
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 14px; color: var(--neon-cyan); font-weight: bold; margin-bottom: 8px; display: block;">Guilda Alvo do XML:</label>
-                        <select name="guilda_alvo" id="guildaAlvoSelect" class="input-edit" style="width: 100%; text-align: left;">
-                            <option value="vortex">Guilda Principal (Vortex)</option>
-                            <option value="blackskull">Guilda Secundária (BlackSkull - Pontua apenas Alts)</option>
-                        </select>
-                    </div>
-
-                    <div style="margin-bottom: 15px; border: 1px dashed var(--neon-cyan); padding: 20px; text-align: center; background: rgba(0,0,0,0.5);">
-                        <input type="file" id="arquivoXML" name="xml_file" accept=".xml" required style="color: var(--neon-cyan); width: 100%; font-family: monospace; font-size: 14px;">
-                    </div>
-                    <div style="text-align: right;">
-                        <button type="submit" id="btnEnviar" class="btn">Processar XML</button>
-                    </div>
-                </form>
-            </div>
-
-            <div style="border: 1px solid rgba(0, 255, 102, 0.3); padding: 20px; border-radius: 6px; margin-bottom: 20px; background: rgba(0, 255, 102, 0.02);">
-                <h3 style="margin-top: 0; color: var(--neon-green); font-size: 18px;">2. Sincronizar Atributos (.XLSX)</h3>
-                <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Módulo de leitura: Nomes, Level e CP (Apenas Guilda Principal).</p>
-                <form id="formExcel" onsubmit="enviarExcel(event)">
-                    <div style="margin-bottom: 15px; border: 1px dashed var(--neon-green); padding: 20px; text-align: center; background: rgba(0,0,0,0.5);">
-                        <input type="file" id="arquivoExcel" name="excel_file" accept=".xlsx, .xls" required style="color: var(--neon-green); width: 100%; font-family: monospace; font-size: 14px;">
-                    </div>
-                    <div style="text-align: right;">
-                        <button type="submit" id="btnEnviarExcel" class="btn btn-success">Sincronizar Atributos</button>
-                    </div>
-                </form>
-            </div>
-
-            <div id="areaPreview" style="display: none; border-top: 1px solid var(--neon-cyan); padding-top: 25px;">
-                <div id="areaFiltroEventos" style="margin-bottom: 20px; background: rgba(0, 243, 255, 0.05); padding: 20px; border: 1px solid var(--glass-border); border-radius: 6px;">
-                    <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px; display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 22px;">☑</span> Autorização de Pontuação
-                    </h3>
-                    <p style="font-size: 14px; color: var(--text-light); margin-bottom: 20px;">Selecione abaixo quais eventos identificados no banco de dados devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
-                    <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
+        <div id="modalImportacao" class="modal-overlay">
+            <div class="modal-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+                    <h2 style="margin: 0; font-size: 24px; color: var(--neon-cyan);"><span style="margin-right:10px;">⇪</span> Central de Uploads</h2>
+                    <button onclick="fecharModal('modalImportacao')" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; font-size: 28px; transition: 0.2s;">&times;</button>
                 </div>
 
-                <h3 style="margin-top: 0; font-size: 18px; color: var(--neon-cyan);">Resultado do Escaneamento (Jogadores)</h3>
-                <div id="resultadoPreview" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.8); border: 1px solid var(--glass-border); padding: 15px; margin-bottom: 20px; font-size: 15px; font-family: monospace;"></div>
+                <div style="border: 1px solid rgba(0, 243, 255, 0.3); padding: 20px; border-radius: 6px; margin-bottom: 25px; background: rgba(0, 243, 255, 0.02);">
+                    <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px;">1. Injetar Matriz de Pontos (XML)</h3>
+                    <form id="formImportacao" onsubmit="enviarXML(event)">
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-size: 14px; color: var(--neon-cyan); font-weight: bold; margin-bottom: 8px; display: block;">Guilda Alvo do XML:</label>
+                            <select name="guilda_alvo" id="guildaAlvoSelect" class="input-edit" style="width: 100%; text-align: left;">
+                                <option value="vortex">Guilda Principal (Vortex)</option>
+                                <option value="blackskull">Guilda Secundária (BlackSkull - Pontua apenas Alts)</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 15px; border: 1px dashed var(--neon-cyan); padding: 20px; text-align: center; background: rgba(0,0,0,0.5);">
+                            <input type="file" id="arquivoXML" name="xml_file" accept=".xml" required style="color: var(--neon-cyan); width: 100%; font-family: monospace; font-size: 14px;">
+                        </div>
+                        <div style="text-align: right;">
+                            <button type="submit" id="btnEnviar" class="btn">Processar XML</button>
+                        </div>
+                    </form>
+                </div>
 
-                <form id="formConfirmar" onsubmit="confirmarImportacao(event)">
-                    <input type="hidden" id="hashArquivo" name="hash">
-                    <div style="margin-bottom: 20px; display: none; background: rgba(255, 170, 0, 0.1); padding: 12px; border-left: 4px solid var(--neon-orange);" id="areaAlertaNovos">
-                        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--neon-orange); font-weight: bold; cursor: pointer;">
-                            <input type="checkbox" id="checkCadastrarNovos" checked style="accent-color: var(--neon-orange); width: 20px; height: 20px;">
-                            Sinalizador de novos recrutas ativo (Auto-cadastro p/ Principal)
-                        </label>
+                <div style="border: 1px solid rgba(0, 255, 102, 0.3); padding: 20px; border-radius: 6px; margin-bottom: 20px; background: rgba(0, 255, 102, 0.02);">
+                    <h3 style="margin-top: 0; color: var(--neon-green); font-size: 18px;">2. Sincronizar Atributos (.XLSX)</h3>
+                    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Módulo de leitura: Nomes, Level e CP (Apenas Guilda Principal).</p>
+                    <form id="formExcel" onsubmit="enviarExcel(event)">
+                        <div style="margin-bottom: 15px; border: 1px dashed var(--neon-green); padding: 20px; text-align: center; background: rgba(0,0,0,0.5);">
+                            <input type="file" id="arquivoExcel" name="excel_file" accept=".xlsx, .xls" required style="color: var(--neon-green); width: 100%; font-family: monospace; font-size: 14px;">
+                        </div>
+                        <div style="text-align: right;">
+                            <button type="submit" id="btnEnviarExcel" class="btn btn-success">Sincronizar Atributos</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="areaPreview" style="display: none; border-top: 1px solid var(--neon-cyan); padding-top: 25px;">
+                    <div id="areaFiltroEventos" style="margin-bottom: 20px; background: rgba(0, 243, 255, 0.05); padding: 20px; border: 1px solid var(--glass-border); border-radius: 6px;">
+                        <h3 style="margin-top: 0; color: var(--neon-cyan); font-size: 18px; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 22px;">☑</span> Autorização de Pontuação
+                        </h3>
+                        <p style="font-size: 14px; color: var(--text-light); margin-bottom: 20px;">Selecione abaixo quais eventos identificados no banco de dados devem ter seus pontos contabilizados. Eventos diários (Verificado, Doar, Atividade da Guilda) já vêm marcados por padrão.</p>
+                        <div id="listaEventosEncontrados" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
                     </div>
-                    <div style="display: flex; justify-content: flex-end; gap: 15px;">
-                        <button type="button" class="btn btn-outline" onclick="abrirModal('modalImportacao')">Descartar</button>
-                        <button type="submit" class="btn btn-success">Confirmar Injeção de Dados</button>
+
+                    <h3 style="margin-top: 0; font-size: 18px; color: var(--neon-cyan);">Resultado do Escaneamento (Jogadores)</h3>
+                    <div id="resultadoPreview" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.8); border: 1px solid var(--glass-border); padding: 15px; margin-bottom: 20px; font-size: 15px; font-family: monospace;"></div>
+
+                    <form id="formConfirmar" onsubmit="confirmarImportacao(event)">
+                        <input type="hidden" id="hashArquivo" name="hash">
+                        <div style="margin-bottom: 20px; display: none; background: rgba(255, 170, 0, 0.1); padding: 12px; border-left: 4px solid var(--neon-orange);" id="areaAlertaNovos">
+                            <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--neon-orange); font-weight: bold; cursor: pointer;">
+                                <input type="checkbox" id="checkCadastrarNovos" checked style="accent-color: var(--neon-orange); width: 20px; height: 20px;">
+                                Sinalizador de novos recrutas ativo (Auto-cadastro p/ Principal)
+                            </label>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 15px;">
+                            <button type="button" class="btn btn-outline" onclick="abrirModal('modalImportacao')">Descartar</button>
+                            <button type="submit" class="btn btn-success">Confirmar Injeção de Dados</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="modalCadastrarGrupo" class="modal-overlay" style="z-index: 120;">
+            <div class="modal-content" style="width: 450px;">
+                <h2 id="tituloModalGrupo" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">➕ Criar Nova Linha</h2>
+                <input type="hidden" id="editGrupoId">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Nome da Linha (Grupo):</label>
+                <input type="text" id="inputGrupoNome" class="input-edit" placeholder="Ex: Grupo de Chefes Novus D" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Mecânica de Surgimento:</label>
+                <select id="inputGrupoTipoRespawn" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;" onchange="toggleCamposGrupo()">
+                    <option value="intervalo">⏱️ Intervalo Fixo (Ex: a cada 48h)</option>
+                    <option value="diario">☀️ Diário (Todos os dias no mesmo horário)</option>
+                    <option value="semanal">📅 Semanal (Apenas em dias específicos)</option>
+                </select>
+                <div id="divGrupoIntervalo" style="display: block;">
+                    <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horas do Intervalo (Nascimento a Nascimento):</label>
+                    <input type="number" id="inputGrupoHoras" class="input-edit" placeholder="42" value="42" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                    <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário Base (Ancoragem):</label>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Insira a última vez que essa linha nasceu/morreu para que o sistema preveja os próximos ciclos.</p>
+                    <input type="datetime-local" id="inputGrupoAncoragem" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                </div>
+                <div id="divGrupoHorarios" style="display: none;">
+                    <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Horário(s) de Nascimento:</label>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Se eles nascerem mais de uma vez ao dia, separe por vírgula (Ex: 16:00, 22:30).</p>
+                    <input type="text" id="inputGrupoHorarios" class="input-edit" placeholder="16:00, 22:30" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                </div>
+                <div id="divGrupoDias" style="display: none; margin-bottom: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 6px;">
+                    <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 10px;">Em quais dias da semana essa linha nasce?</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="0" style="accent-color: var(--neon-cyan);"> Domingo</label>
+                        <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="1" style="accent-color: var(--neon-cyan);"> Segunda-feira</label>
+                        <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="2" style="accent-color: var(--neon-cyan);"> Terça-feira</label>
+                        <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="3" style="accent-color: var(--neon-cyan);"> Quarta-feira</label>
+                        <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="4" style="accent-color: var(--neon-cyan);"> Quinta-feira</label>
+                        <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="5" style="accent-color: var(--neon-cyan);"> Sexta-feira</label>
+                        <label style="color: #fff; font-size: 14px; cursor: pointer;"><input type="checkbox" class="check-dia-grupo" value="6" style="accent-color: var(--neon-cyan);"> Sábado</label>
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE CRIAR EVENTO DE SORTEIO (BANNER) -->
-    <div id="modalCriarEvento" class="modal-overlay">
-        <div class="modal-content">
-            <h2 style="color: var(--neon-orange); margin-top: 0;">Configurar Novo Sorteio</h2>
-            <label style="color: #fff; font-weight: bold;">Título do Banner:</label>
-            <input type="text" id="tituloEvento" class="input-edit" value="SORTEIO HOJE AS 20:00" style="width: 100%; margin-bottom: 20px; text-align: left;">
-
-            <label style="color: #fff; font-weight: bold;">Duração do Sorteio:</label>
-            <select id="prazoEvento" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
-                <option value="6">6 Horas</option>
-                <option value="12">12 Horas</option>
-                <option value="18">18 Horas</option>
-                <option value="24" selected>24 Horas (1 Dia)</option>
-                <option value="48">48 Horas (2 Dias)</option>
-                <option value="72">72 Horas (3 Dias)</option>
-                <option value="sem_limite">Sem Limite de Tempo</option>
-            </select>
-
-            <h3 style="color: var(--neon-cyan);">Adicionar Itens</h3>
-            <div id="listaItensCriacao" style="background: rgba(0,0,0,0.4); padding: 15px; border: 1px dashed var(--glass-border); margin-bottom: 20px;">
-                <!-- Campos dinâmicos entram aqui -->
-            </div>
-
-            <button class="btn" onclick="adicionarCampoItem()">+ Novo Item</button>
-
-            <div style="display: flex; justify-content: space-between; margin-top: 30px;">
-                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCriarEvento')">Cancelar</button>
-                <button class="btn btn-warning" onclick="salvarNovoEvento()">Publicar Banner</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL PARA ESTENDER O TEMPO DO BANNER -->
-    <div id="modalEstenderTempo" class="modal-overlay" style="z-index: 125;">
-        <div class="modal-content" style="width: 400px;">
-            <h2 style="color: var(--neon-cyan); margin-top: 0; text-align: center;">⏱️ Aumentar Tempo Limite</h2>
-            <p style="color: var(--text-light); text-align: center; margin-bottom: 20px;">Adicione horas extras ao prazo atual de encerramento do sorteio em andamento.</p>
-
-            <label style="color: #fff; font-weight: bold;">Horas Adicionais:</label>
-            <select id="extensaoTempo" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;">
-                <option value="1">+ 1 Hora</option>
-                <option value="3">+ 3 Horas</option>
-                <option value="6">+ 6 Horas</option>
-                <option value="12">+ 12 Horas</option>
-                <option value="24">+ 24 Horas (1 Dia)</option>
-                <option value="sem_limite">Remover Limite (Infinito)</option>
-            </select>
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEstenderTempo')">Cancelar</button>
-                <button class="btn btn-outline" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="confirmarExtensaoTempo()">Confirmar Adição</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: GERENCIAR STAFF E CONFERIR PARTICIPANTES ANTES DO SORTEIO -->
-    <div id="modalStaffRoleta" class="modal-overlay" style="z-index: 125;">
-        <div class="modal-content" style="width: 560px;">
-            <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">Definir Staff do Sorteio</h2>
-
-            <input type="hidden" id="staffRoletaItemId">
-            <input type="hidden" id="staffRoletaNomeItem">
-
-            <h3 style="color: var(--neon-orange); font-size: 16px; margin-bottom: 10px;">👤 Staff (selecione quem representa a fatia de 15%)</h3>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;">Deixe a opção "Nenhum" selecionada se quiser que 100% da roleta seja disputada pelos jogadores.</p>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <input type="text" id="novoStaffNome" class="input-edit" placeholder="Nome da nova pessoa" style="flex: 1; text-align: left;">
-                <button class="btn btn-outline" style="border-color: var(--neon-orange); color: var(--neon-orange);" onclick="adicionarStaff()">+ Adicionar</button>
-            </div>
-            <div id="listaStaffGerenciamento" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; text-align: left;">
-                <!-- Opção "Nenhum" injetada manualmente -->
-                <div class="linha-staff-gerenciamento" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
-                    <input type="radio" name="staffSelecionado" value="" checked class="staff-radio" style="width: 18px; height: 18px; accent-color: var(--neon-orange);">
-                    <span style="flex: 1; text-align: left; color: #fff; font-size: 18px; padding-left: 5px;">Nenhum (100% para os membros)</span>
                 </div>
-                
-                {% for staff in staff_membros %}
-                <div class="linha-staff-gerenciamento" data-staff-id="{{ staff.id }}" style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
-                    <input type="radio" name="staffSelecionado" value="{{ staff.nome }}" class="staff-radio" style="width: 18px; height: 18px; accent-color: var(--neon-orange);">
-                    <input type="text" class="input-edit staff-nome-input" value="{{ staff.nome }}" style="flex: 1; text-align: left;">
-                    <button class="btn-danger" title="Remover da Staff" onclick="removerStaff({{ staff.id }})">✖</button>
-                </div>
-                {% endfor %}
-            </div>
-            <button class="btn btn-success" style="margin-bottom: 25px;" onclick="salvarNomesStaff()">💾 Salvar Nomes da Staff</button>
-
-            <h3 style="color: var(--neon-cyan); font-size: 16px; margin-bottom: 10px;">🎮 Jogadores presentes (já apostaram neste item)</h3>
-            <div id="listaJogadoresPresentes" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 25px; color: var(--text-muted); font-size: 14px;"></div>
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalStaffRoleta')">Cancelar</button>
-                <button class="btn btn-warning" onclick="confirmarStaffEGirarRoleta()">🎲 Girar Roleta</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- NOVA ROLETA CANVAS (MULTIPLAYER E RESPONSIVA) -->
-    <div id="modalRoletaItem" class="modal-overlay" style="z-index: 120;">
-        <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 600px; padding: 20px;">
-            <h2 id="tituloRoletaVisual" style="color: var(--neon-orange); font-size: 26px; margin-top:0; text-shadow: 0 0 15px rgba(255,170,0,0.5);">SORTEIO EM ANDAMENTO</h2>
-
-            <div class="roleta-container">
-                <div class="roleta-ponteiro"></div>
-                <div id="wrapperCanvas" class="roleta-canvas-wrapper">
-                    <canvas id="canvasRoleta" width="400" height="400"></canvas>
+                <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                    <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCadastrarGrupo')">Cancelar</button>
+                    <button class="btn btn-success" onclick="salvarGrupo()">💾 Salvar Linha</button>
                 </div>
             </div>
-
-            <h3 id="roletaVencedorLabel" style="display:none; color: var(--neon-green); font-size:32px; text-shadow: 0 0 20px rgba(0,255,102,0.8); margin: 20px 0;"></h3>
-
-            <button id="btnFecharRoletaVisual" class="btn btn-success" style="display: none; margin: 20px auto 0; font-size: 18px;"></button>
         </div>
-    </div>
 
-    <!-- MODAL: ATUALIZAR LEVEL/PODER DE UM PERSONAGEM -->
-    <div id="modalEditarPersonagem" class="modal-overlay" style="z-index: 116;">
-        <div class="modal-content" style="width: 380px; text-align: center;">
-            <h2 id="tituloEditarPersonagem" style="color: var(--neon-cyan); margin-top: 0;">Atualizar Personagem</h2>
-
-            <input type="hidden" id="editPersonagemId">
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Level:</label>
-            <input type="number" id="editPersonagemLevel" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 15px;">
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Poder de Combate:</label>
-            <input type="number" id="editPersonagemPoder" class="input-edit" style="width: 100%; font-size: 20px; margin-bottom: 25px;">
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarPersonagem')">Cancelar</button>
-                <button class="btn btn-success" onclick="salvarEdicaoPersonagem()">💾 Atualizar e Gravar</button>
+        <div id="modalGerenciarGrupos" class="modal-overlay" style="z-index: 110;">
+            <div class="modal-content" style="width: 600px;">
+                <h2 style="color: #f1c40f; margin-top: 0; text-align: center;">⚙️ Gerenciar Linhas de Tempo</h2>
+                <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Edite as configurações de tempo das linhas. Todos os chefes vinculados a ela serão atualizados automaticamente.</p>
+                <div id="listaGerenciarGrupos" style="max-height: 400px; overflow-y: auto; text-align: left; padding-right: 10px;"></div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                    <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalGerenciarGrupos')">Fechar</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- MODAL: ATUALIZAR CLASSE E SKILLS DE UM PERSONAGEM -->
-    <div id="modalEditarBuild" class="modal-overlay" style="z-index: 116;">
-        <div class="modal-content" style="width: 420px;">
-            <h2 id="tituloEditarBuild" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">Atualizar Build</h2>
-
-            <input type="hidden" id="editBuildId">
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Classe:</label>
-            <select id="editBuildClasse" class="input-edit" style="width: 100%; margin-bottom: 20px; text-align: left;">
-                <option value="">Sem Classe</option>
-                <option value="Punisher">Punisher</option>
-                <option value="Phantom">Phantom</option>
-                <option value="Enforcer">Enforcer</option>
-                <option value="Psypher">Psypher</option>
-                <option value="Dreadnought">Dreadnought</option>
-                <option value="Technician">Technician</option>
-                <option value="Arbiter">Arbiter</option>
-                <option value="Demolidor">Demolidor</option>
-            </select>
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 10px;">Skills e Marcações:</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; text-align: left;">
-                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS4" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill IV</label>
-                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS5" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill V</label>
-                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS6" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VI</label>
-                <label style="color: #ffaa00; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildS7" style="width: 18px; height: 18px; accent-color: #ffaa00;"> Skill VII</label>
-                <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC3" style="width: 18px; height: 18px; accent-color: #00ff66;"> Constante 3</label>
-                <label style="color: #00ff66; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildC4" style="width: 18px; height: 18px; accent-color: #00ff66;"> Adaptação a Dor</label>
-                <label style="color: #bc13fe; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildTrin" style="width: 18px; height: 18px; accent-color: #bc13fe;"> Trindade</label>
-                <label style="color: #00f3ff; display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="editBuildMT" style="width: 18px; height: 18px; accent-color: #00f3ff;"> Mestre da Técnica</label>
-            </div>
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalEditarBuild')">Cancelar</button>
-                <button class="btn btn-success" onclick="salvarEdicaoBuild()">💾 Atualizar e Gravar</button>
+        <div id="modalCadastrarBoss" class="modal-overlay" style="z-index: 120;">
+            <div class="modal-content" style="width: 450px;">
+                <h2 id="tituloModalBoss" style="color: var(--neon-cyan); margin-top: 0; text-align: center;">➕ Cadastrar Novo Chefe</h2>
+                <input type="hidden" id="editBossId">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Nome do Chefe (e Level):</label>
+                <input type="text" id="inputBossNome" class="input-edit" placeholder="Ex: Nv. 66 Tamac Mecha" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Localização:</label>
+                <input type="text" id="inputBossLocal" class="input-edit" placeholder="Ex: Fábrica de Munições" style="width: 100%; margin-bottom: 15px; text-align: left;">
+                <label style="color: #fff; font-weight: bold; display: block; margin-bottom: 5px;">Vincular à Linha (Grupo de Tempo):</label>
+                <select id="inputBossGrupoId" class="input-edit" style="width: 100%; margin-bottom: 25px; text-align: left;"></select>
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalCadastrarBoss')">Cancelar</button>
+                    <button class="btn btn-success" onclick="salvarNovoBoss()">💾 Salvar Chefe</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- MODAL DE ABONAR FALTA / JUSTIFICAR -->
-    <div id="modalAbono" class="modal-overlay" style="z-index: 116;">
-        <div class="modal-content" style="width: 400px; text-align: center;">
-            <h2 style="color: var(--neon-purple); margin-top: 0;">Abonar Falta / Justificar</h2>
-            <p id="labelAbonoNome" style="color: #fff; font-weight: bold; font-size: 18px; margin-bottom: 20px;"></p>
-
-            <input type="hidden" id="abonoJogadorId">
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Pontos a abonar na semana atual:</label>
-            <input type="number" id="abonoPontos" class="input-edit" placeholder="Ex: 5" style="width: 100%; font-size: 20px; margin-bottom: 15px;">
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Motivo / Justificativa:</label>
-            <input type="text" id="abonoMotivo" class="input-edit" value="Abono de Missão (Justificativa)" style="width: 100%; font-size: 16px; margin-bottom: 25px; text-align: left;">
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAbono')">Cancelar</button>
-                <button class="btn btn-success" style="background-color: var(--neon-purple); border-color: var(--neon-purple); color: #fff;" onclick="confirmarAbono()">Confirmar Abono</button>
+        <div id="modalGerenciarBosses" class="modal-overlay" style="z-index: 110;">
+            <div class="modal-content" style="width: 600px;">
+                <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">⚙️ Gerenciar Banco de Chefes</h2>
+                <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Edite as configurações de nome e localização, ou altere a qual Linha de Tempo ele pertence.</p>
+                <div id="listaGerenciarBosses" style="max-height: 400px; overflow-y: auto; text-align: left; padding-right: 10px;"></div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                    <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalGerenciarBosses')">Fechar</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div id="modalAposta" class="modal-overlay" style="z-index: 110;">
-        <div class="modal-content" style="width: 400px; text-align: center;">
-            <h2 style="color: var(--neon-cyan); margin-top: 0;">Apostar no Item</h2>
-            <p id="labelItemAposta" style="color: #fff; font-size: 18px; font-weight: bold;"></p>
-            <p id="labelMaxPontos" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;"></p>
-
-            <input type="hidden" id="apostaItemId">
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Selecione seu Personagem:</label>
-            <select id="apostaJogadorId" class="input-edit" style="width: 100%; margin-bottom: 15px; text-align: left;">
-                <option value="" disabled selected>-- SELECIONE SEU PERSONAGEM --</option>
-                {% for item in ranking %}
-                    <option value="{{ item.jogador.id }}">{{ item.jogador.nome }} ({{ item.participacao }}%)</option>
-                {% endfor %}
-            </select>
-
-            <label style="color: #fff; display: block; text-align: left; margin-bottom: 5px;">Quantos pontos deseja arriscar?</label>
-            <input type="number" id="apostaPontos" class="input-edit" placeholder="Ex: 10" style="width: 100%; font-size: 22px; margin-bottom: 25px;">
-
-            <div style="display: flex; justify-content: space-between;">
-                <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalAposta')">Cancelar</button>
-                <button class="btn btn-success" onclick="confirmarAposta()">Confirmar</button>
+        <div id="modalSelecionarBosses" class="modal-overlay">
+            <div class="modal-content" style="width: 500px;">
+                <h2 style="color: var(--neon-orange); margin-top: 0; text-align: center;">🔄 Definir Escala da Semana</h2>
+                <p style="color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 20px;">Marque apenas os chefes que pertencem à Guilda Vortex nesta rotação semanal.</p>
+                <div id="listaBossesSelecao" style="display: grid; grid-template-columns: 1fr; gap: 10px; max-height: 350px; overflow-y: auto; padding-right: 10px; margin-bottom: 25px; text-align: left;">
+                    <div style="text-align: center; color: var(--text-muted); padding: 20px;">Carregando lista de chefes cadastrados...</div>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn btn-outline" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="fecharModal('modalSelecionarBosses')">Cancelar</button>
+                    <button class="btn" style="background: var(--neon-orange); color: #111; font-weight: bold;" onclick="salvarBossesDaSemana()">Salvar Escala</button>
+                </div>
             </div>
         </div>
-    </div>
+        {% endif %} <!-- FIM MODAIS DE ADMIN -->
 
-    <!-- Modal Roleta Texto Original (Sorteio Meme) -->
-    <div id="modalRoletaMeme" class="modal-overlay" style="z-index: 110;">
-        <div class="modal-content" style="border-color: var(--neon-orange); text-align: center; width: 500px;">
-            <h2 style="color: var(--neon-orange); font-size: 28px; margin-bottom: 15px; text-shadow: 0 0 20px rgba(255,170,0,0.5);">GERADOR QUÂNTICO (MEME)</h2>
-            <p id="tituloRoletaMeme" style="color: var(--text-light); font-weight: bold; margin-bottom: 8px; font-size: 18px;"></p>
-            <p style="color: var(--text-muted); margin-bottom: 25px; font-family: monospace; font-size: 15px;">Processando algoritmos de aleatoriedade...</p>
-            <div class="roleta-box" style="font-size: 40px; padding: 40px;"><span id="roletaNomeMeme">---</span></div>
-            <button id="btnFecharRoletaMeme" onclick="fecharModalEAtualizar()" class="btn btn-success" style="display: none; margin: 25px auto 0; font-size: 18px;">Concluir e Registrar</button>
-        </div>
-    </div>
-
-    {% endif %}
-
-    </div>
+    </div> <!-- FIM APP ROOT -->
 
     <!-- Script de Tradução do Google e Dashboard Engine -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ asset_version('js/dashboard.js') }}"></script>
