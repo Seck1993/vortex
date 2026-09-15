@@ -233,7 +233,9 @@ function aplicarLinhasPoder() {
         let megasHTML = '';
         let titasHTML = '';
 
-        linhasClasses.forEach(linha => {
+     linhasClasses.forEach(linha => {
+            if (!linha.cells || linha.cells.length < 2) return; // Impede que o JS quebre em linhas vazias
+            
             const cp = parseInt(linha.getAttribute('data-poder')) || 0;
             const nomeCell = linha.cells[1].innerText.trim();
             const selectElement = linha.querySelector('.edit-classe');
