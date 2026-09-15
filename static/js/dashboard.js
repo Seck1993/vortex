@@ -233,8 +233,8 @@ function aplicarLinhasPoder() {
         let megasHTML = '';
         let titasHTML = '';
 
-     linhasClasses.forEach(linha => {
-            if (!linha.cells || linha.cells.length < 2) return; // Impede que o JS quebre em linhas vazias
+        linhasClasses.forEach(linha => {
+            if (!linha.cells || linha.cells.length < 2) return;
             
             const cp = parseInt(linha.getAttribute('data-poder')) || 0;
             const nomeCell = linha.cells[1].innerText.trim();
@@ -733,13 +733,37 @@ async function salvarEdicoes() {
     if (linhasModificadas.length === 0) { mostrarToast("Nenhuma alteração detectada para ser salva.", 'aviso'); return; }
     let jogadoresData = [];
     linhasModificadas.forEach(linha => {
+        const inNome = linha.querySelector('.edit-nome');
+        const inAlts = linha.querySelector('.edit-alts');
+        const inLevel = linha.querySelector('.edit-level');
+        const inPoder = linha.querySelector('.edit-poder');
+        const inPontos = linha.querySelector('.edit-pontos');
+        const inClasse = linha.querySelector('.edit-classe');
+        const ckS4 = linha.querySelector('.check-s4');
+        const ckS5 = linha.querySelector('.check-s5');
+        const ckS6 = linha.querySelector('.check-s6');
+        const ckS7 = linha.querySelector('.check-s7');
+        const ckC3 = linha.querySelector('.check-c3');
+        const ckC4 = linha.querySelector('.check-c4');
+        const ckTrin = linha.querySelector('.check-trin');
+        const ckMT = linha.querySelector('.check-mt');
+
         jogadoresData.push({
             id: linha.getAttribute('data-jogador-id'),
-            nome: linha.querySelector('.edit-nome') ? linha.querySelector('.edit-nome').value : null,
-            alts: linha.querySelector('.edit-alts') ? linha.querySelector('.edit-alts').value : null,
-            level: linha.querySelector('.edit-level') ? linha.querySelector('.edit-level').value : null,
-            poder_combate: linha.querySelector('.edit-poder') ? linha.querySelector('.edit-poder').value : null,
-            pontos: linha.querySelector('.edit-pontos') ? linha.querySelector('.edit-pontos').value : null,
+            nome: inNome ? inNome.value : null,
+            alts: inAlts ? inAlts.value : null,
+            level: inLevel ? inLevel.value : null,
+            poder_combate: inPoder ? inPoder.value : null,
+            pontos: inPontos ? inPontos.value : null,
+            classe: inClasse ? inClasse.value : null,
+            skill_4: ckS4 ? ckS4.checked : null,
+            skill_5: ckS5 ? ckS5.checked : null,
+            skill_6: ckS6 ? ckS6.checked : null,
+            skill_7: ckS7 ? ckS7.checked : null,
+            constante_3: ckC3 ? ckC3.checked : null,
+            constante_4: ckC4 ? ckC4.checked : null,
+            trindade: ckTrin ? ckTrin.checked : null,
+            mestre_tecnica: ckMT ? ckMT.checked : null,
             eventos: {}
         });
     });
@@ -1142,7 +1166,6 @@ async function renderizarCardsBossesGlobais() {
         
         groupData.bosses.forEach(b => {
             let card = document.createElement('div');
-            // Removemos a classe .banner-destaque e substituímos por .boss-card-wrapper
             card.className = 'boss-card-wrapper';
             card.style.cssText = "display: flex; align-items: center; gap: 15px; padding: 15px 20px; background: rgba(0, 243, 255, 0.05); border: 2px solid rgba(0, 243, 255, 0.4); border-radius: 8px; box-shadow: 0 0 15px rgba(0, 243, 255, 0.05); position: relative; width: 100%; box-sizing: border-box;";
             card.setAttribute('data-next-spawn', b.nextSpawn);
@@ -1524,7 +1547,11 @@ function exportarBossesImagem(modo) {
         document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
     }
 
-    const btnMsgOrig = "📸 Exportar...";
+    const btn = document.querySelector(`button[onclick="exportarBossesImagem('${modo}')"]`);
+    const textOrig = btn.innerText;
+    btn.innerText = "Processando...";
+    btn.disabled = true;
+
     mostrarToast("Gerando imagem...", "info");
 
     setTimeout(() => {
@@ -1538,13 +1565,19 @@ function exportarBossesImagem(modo) {
             document.querySelectorAll('.boss-day-group').forEach(el => el.style.display = 'block');
             document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
             
+            btn.innerText = textOrig;
+            btn.disabled = false;
             mostrarToast("Imagem exportada com sucesso!", "sucesso");
         }).catch(err => {
             console.error(err);
             mostrarToast("Erro ao exportar a imagem.", "erro");
+            
             document.querySelectorAll('.boss-card-wrapper').forEach(el => el.style.display = 'flex');
             document.querySelectorAll('.boss-day-group').forEach(el => el.style.display = 'block');
             document.getElementById('exportTitle').innerText = '🎯 Alvos da Semana - Guilda Vortex';
+            
+            btn.innerText = textOrig;
+            btn.disabled = false;
         });
     }, 300);
 }
