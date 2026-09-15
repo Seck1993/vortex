@@ -142,25 +142,31 @@ def index():
     mapa_pontos = {}
     for pid, atv, sem, pts in pontos_brutos:
         if pid not in mapa_pontos:
-            mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0}
+            mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0, 'abonos': 0}
         
-        mapa_pontos[pid]['total_bruto'] += pts
-        mapa_pontos[pid]['total_final'] += pts
-
-        if sem == semana_ativa_str:
-            mapa_pontos[pid]['total_semanal'] += pts
-
-        if atv == 'BlackSkull':
-            mapa_pontos[pid]['blackskull'] += pts
-        elif atv in ['Edição via Painel', 'Ajuste Manual', 'Ajuste Geral']:
-            mapa_pontos[pid]['ajustes'] += pts
+        if atv == 'Abono de Falta':
+            # Abono SOMA NA PARTICIPAÇÃO SEMANAL, mas NÃO SOMA em total_bruto e total_final (dinheiro real)
+            mapa_pontos[pid]['abonos'] += pts
+            if sem == semana_ativa_str:
+                mapa_pontos[pid]['total_semanal'] += pts
         else:
-            mapa_pontos[pid]['atividades'][atv] = mapa_pontos[pid]['atividades'].get(atv, 0) + pts
+            mapa_pontos[pid]['total_bruto'] += pts
+            mapa_pontos[pid]['total_final'] += pts
+
+            if sem == semana_ativa_str:
+                mapa_pontos[pid]['total_semanal'] += pts
+
+            if atv == 'BlackSkull':
+                mapa_pontos[pid]['blackskull'] += pts
+            elif atv in ['Edição via Painel', 'Ajuste Manual', 'Ajuste Geral']:
+                mapa_pontos[pid]['ajustes'] += pts
+            else:
+                mapa_pontos[pid]['atividades'][atv] = mapa_pontos[pid]['atividades'].get(atv, 0) + pts
 
     penalidades = db.session.query(SorteioHistorico.jogador_id, func.sum(SorteioHistorico.penalidade)).group_by(SorteioHistorico.jogador_id).all()
     for pid, pen in penalidades:
         if pid not in mapa_pontos:
-            mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0}
+            mapa_pontos[pid] = {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0, 'abonos': 0}
         mapa_pontos[pid]['penalidades'] += pen
         mapa_pontos[pid]['total_final'] -= pen
 
@@ -176,7 +182,7 @@ def index():
     soma_total_pontos = 0
     
     for j in jogadores:
-        p_data = mapa_pontos.get(j.id, {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0})
+        p_data = mapa_pontos.get(j.id, {'total_bruto': 0, 'total_final': 0, 'total_semanal': 0, 'atividades': {}, 'blackskull': 0, 'ajustes': 0, 'penalidades': 0, 'abonos': 0})
         
         total_semanal_jogador = p_data['total_semanal']
         total_final = p_data['total_final']
@@ -202,7 +208,8 @@ def index():
             'atividades': p_data['atividades'],
             'blackskull': p_data['blackskull'],
             'ajustes': p_data['ajustes'],
-            'penalidades': p_data['penalidades']
+            'penalidades': p_data['penalidades'],
+            'abonos': p_data['abonos']
         })
         soma_total_pontos += total_final
 
@@ -212,6 +219,9 @@ def index():
     historico_sorteios = SorteioHistorico.query.order_by(SorteioHistorico.data_sorteio.desc()).all()
     historico_meme = SorteioMemeHistorico.query.order_by(SorteioMemeHistorico.data_sorteio.desc()).all()
     importacoes = ImportacaoXML.query.filter_by(semana=semana_ativa_str).order_by(ImportacaoXML.data_importacao.desc()).all()
+    
+    # Busca os abonos de falta para exibirmos na interface no painel de administração
+    historico_abonos = Pontuacao.query.filter_by(atividade="Abono de Falta").order_by(Pontuacao.data_registro.desc()).all()
     
     total_jogadores = len(jogadores)
     user_role = session.get('role', 'guest')
@@ -249,6 +259,7 @@ def index():
         historico_meme=historico_meme, 
         configuracoes=configuracoes,
         importacoes=importacoes,
+        historico_abonos=historico_abonos,
         total_jogadores=total_jogadores,
         soma_total_pontos=soma_total_pontos,
         user_role=user_role,
@@ -1230,8 +1241,8 @@ def abonar_falta():
     pontos = int(dados.get('pontos', 0))
     motivo = dados.get('motivo', 'Abono de Missão (Justificativa)')
 
-    if pontos <= 0:
-        return jsonify({"erro": "A quantidade de pontos para abono deve ser maior que zero."}), 400
+    if pontos == 0:
+        return jsonify({"erro": "A quantidade de pontos para abono não pode ser zero."}), 400
 
     jogador = db.session.get(Jogador, jogador_id)
     if not jogador:
@@ -1251,10 +1262,26 @@ def abonar_falta():
         db.session.add(novo_ponto)
         db.session.commit()
 
-        return jsonify({"mensagem": f"Abono de {pontos} pontos concedido a {jogador.nome}!"}), 200
+        return jsonify({"mensagem": f"Abono de {pontos} pontos (percentual) concedido a {jogador.nome}!"}), 200
     except Exception as e:
         db.session.rollback()
         return erro_interno(e)
+
+# --- NOVA ROTA ADICIONADA AQUI ---
+@app.route('/api/deletar-abono/<int:id>', methods=['DELETE'])
+def deletar_abono(id):
+    if not admin_required(): return jsonify({"erro": "Acesso negado"}), 401
+    try:
+        ponto = db.session.get(Pontuacao, id)
+        if ponto and ponto.atividade == "Abono de Falta":
+            db.session.delete(ponto)
+            db.session.commit()
+            return jsonify({"mensagem": "Abono removido! A porcentagem do jogador foi recalculada."}), 200
+        return jsonify({"erro": "Registro de abono não encontrado."}), 404
+    except Exception as e:
+        db.session.rollback()
+        return erro_interno(e)
+
 
 @app.route('/api/criar-evento', methods=['POST'])
 def criar_evento():
