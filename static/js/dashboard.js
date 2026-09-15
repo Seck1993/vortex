@@ -13,7 +13,8 @@ const BANDEIRAS_IDIOMA = {
 };
 
 function toggleSeletorIdioma() {
-    document.getElementById('painelIdiomas').classList.toggle('aberto');
+    const painel = document.getElementById('painelIdiomas');
+    if(painel) painel.classList.toggle('aberto');
 }
 
 function definirIdioma(codigo) {
@@ -43,17 +44,29 @@ document.addEventListener('click', (e) => {
     if (seletor && painel && !seletor.contains(e.target)) painel.classList.remove('aberto');
 });
 
-function isAdmin() { return document.getElementById('app-root').dataset.isAdmin === 'true'; }
-function isLoggedIn() { return document.getElementById('app-root').dataset.loggedIn === 'true'; }
+function isAdmin() { 
+    const root = document.getElementById('app-root');
+    return root ? root.dataset.isAdmin === 'true' : false; 
+}
+function isLoggedIn() { 
+    const root = document.getElementById('app-root');
+    return root ? root.dataset.loggedIn === 'true' : false; 
+}
 
-function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
-function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+function abrirModal(id) { 
+    const modal = document.getElementById(id);
+    if(modal) modal.style.display = 'flex'; 
+}
+function fecharModal(id) { 
+    const modal = document.getElementById(id);
+    if(modal) modal.style.display = 'none'; 
+}
 function fecharModalEAtualizar() { fecharModal('modalRoletaMeme'); atualizarDados(); }
 
 /* --- SISTEMA DE TOASTS --- */
 function mostrarToast(mensagem, tipo = 'info', duracao = 4500) {
     const container = document.getElementById('toastContainer');
-    if (!container) { console.warn(mensagem); return; }
+    if (!container) return;
     const icones = { sucesso: '✓', erro: '✖', aviso: '⚠', info: 'ℹ' };
     const toast = document.createElement('div');
     toast.className = `toast toast-${tipo}`;
@@ -146,16 +159,30 @@ function atualizarCronometros() {
 }
 
 async function fazerLogin() {
-    const senha = document.getElementById('senhaAdmin').value;
+    const senhaElement = document.getElementById('senhaAdmin');
+    if (!senhaElement) return;
+    const senha = senhaElement.value;
     const btn = document.querySelector('#modalLogin .btn:nth-child(2)');
-    btn.innerText = 'Processando...';
+    if (btn) btn.innerText = 'Processando...';
     try {
         const response = await fetch('/api/login', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: senha })
         });
-        if (response.ok) { fecharModal('modalLogin'); document.getElementById('senhaAdmin').value = ''; btn.innerText = 'Autenticar'; await atualizarDados(); mostrarToast('Acesso autorizado!', 'sucesso'); }
-        else { mostrarToast('Acesso Negado: Credencial Inválida', 'erro'); btn.innerText = 'Autenticar'; }
-    } catch (e) { mostrarToast('Falha de conexão.', 'erro'); btn.innerText = 'Autenticar'; }
+        if (response.ok) { 
+            fecharModal('modalLogin'); 
+            senhaElement.value = ''; 
+            if (btn) btn.innerText = 'Autenticar'; 
+            await atualizarDados(); 
+            mostrarToast('Acesso autorizado!', 'sucesso'); 
+        }
+        else { 
+            mostrarToast('Acesso Negado: Credencial Inválida', 'erro'); 
+            if (btn) btn.innerText = 'Autenticar'; 
+        }
+    } catch (e) { 
+        mostrarToast('Falha de conexão.', 'erro'); 
+        if (btn) btn.innerText = 'Autenticar'; 
+    }
 }
 
 async function fazerLogout() {
@@ -166,8 +193,11 @@ async function fazerLogout() {
 }
 
 function aplicarLinhasPoder() {
-    const cpMega = parseInt(document.getElementById('inputMegaCP').value) || 0;
-    const cpTita = parseInt(document.getElementById('inputTitaCP').value) || 0;
+    const inputMega = document.getElementById('inputMegaCP');
+    const inputTita = document.getElementById('inputTitaCP');
+    
+    const cpMega = inputMega ? (parseInt(inputMega.value) || 0) : 0;
+    const cpTita = inputTita ? (parseInt(inputTita.value) || 0) : 0;
 
     document.querySelectorAll('.linha-mega, .mega-clone, .linha-tita, .tita-clone, .banner-destaque').forEach(el => el.remove());
     document.querySelectorAll('tr').forEach(el => el.classList.remove('mega-glow', 'tita-glow'));
@@ -235,7 +265,7 @@ function aplicarLinhasPoder() {
 
         linhasClasses.forEach(linha => {
             if (!linha.cells || linha.cells.length < 2) return; // Impede que o JS quebre em linhas vazias
-
+            
             const cp = parseInt(linha.getAttribute('data-poder')) || 0;
             const nomeCell = linha.cells[1].innerText.trim();
             const selectElement = linha.querySelector('.edit-classe');
@@ -426,7 +456,9 @@ async function salvarNovasSenhas() {
 }
 
 function abrirModalEditarPersonagem(jogadorId, nome, level, poder) {
-    document.getElementById('editPersonagemId').value = jogadorId;
+    const elId = document.getElementById('editPersonagemId');
+    if(!elId) return;
+    elId.value = jogadorId;
     document.getElementById('tituloEditarPersonagem').innerText = 'Atualizar: ' + nome;
     document.getElementById('editPersonagemLevel').value = level;
     document.getElementById('editPersonagemPoder').value = poder;
@@ -444,7 +476,9 @@ async function salvarEdicaoPersonagem() {
 }
 
 function abrirModalEditarBuild(jogadorId, nome, classe, s4, s5, s6, s7, c3, c4, trin, mt) {
-    document.getElementById('editBuildId').value = jogadorId;
+    const elId = document.getElementById('editBuildId');
+    if(!elId) return;
+    elId.value = jogadorId;
     document.getElementById('tituloEditarBuild').innerText = 'Atualizar Build: ' + nome;
     document.getElementById('editBuildClasse').value = classe;
     document.getElementById('editBuildS4').checked = s4;
@@ -1011,6 +1045,7 @@ let listaBossesGlobais = [];
 let listaGruposGlobais = [];
 let isRerenderingBosses = false;
 
+// O motor foi refatorado para converter qualquer input/cálculo nativamente para o fuso horário oficial de Brasília (BRT / UTC-3).
 function parseBRT(horaStr, offsetDias = 0) {
     const offsetDate = new Date(Date.now() - 3 * 3600000); 
     const year = offsetDate.getUTCFullYear();
@@ -1069,6 +1104,7 @@ function getNextSpawnInfo(b, agoraMs) {
     return proximoNascimento;
 }
 
+// Formata a string de "HOJE ÀS 20:00" ou "DD/MM ÀS HH:MM" baseada no Timestamp BRT
 function formatSpawnDate(timestamp) {
     const dBRT = new Date(timestamp - 3 * 3600000);
     const hojeBRT = new Date(Date.now() - 3 * 3600000);
