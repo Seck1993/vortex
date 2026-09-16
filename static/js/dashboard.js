@@ -523,12 +523,36 @@ async function confirmarAbono() {
     const jogadorId = document.getElementById('abonoJogadorId').value;
     const pontos = document.getElementById('abonoPontos').value;
     const motivo = document.getElementById('abonoMotivo').value.trim() || 'Abono de Missão (Justificativa)';
-    if (!pontos || pontos <= 0) { mostrarToast('Insira uma quantidade válida de pontos para abonar.', 'aviso'); return; }
+    
+    // Atualizado para permitir números negativos caso queira estornar diretamente, bloqueando apenas o zero.
+    if (!pontos || pontos == 0) { 
+        mostrarToast('Insira uma quantidade válida de pontos (diferente de zero).', 'aviso'); 
+        return; 
+    }
+    
     try {
         const response = await fetch('/api/abonar-falta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jogador_id: jogadorId, pontos: pontos, motivo: motivo }) });
         const data = await response.json();
         if (response.ok) { fecharModal('modalAbono'); await atualizarDados(); mostrarToast(data.mensagem, 'sucesso'); } else { mostrarToast(data.erro, 'erro'); }
     } catch (e) { mostrarToast('Erro de rede.', 'erro'); }
+}
+
+// NOVA FUNÇÃO: Deletar Abono do histórico
+async function deletarAbono(id) {
+    if (!confirm("Deseja realmente apagar este abono? A porcentagem do jogador será recalculada.")) return;
+    try {
+        const response = await fetch(`/api/deletar-abono/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (response.ok) {
+            await atualizarDados();
+            fecharModal('modalHistoricoAbonos');
+            mostrarToast(data.mensagem, 'sucesso');
+        } else {
+            mostrarToast(data.erro, 'erro');
+        }
+    } catch (e) {
+        mostrarToast('Erro de rede.', 'erro');
+    }
 }
 
 function abrirModalAposta(itemId, nomeItem, maxPontos) {
